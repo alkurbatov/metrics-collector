@@ -9,4 +9,9 @@ all: $(COMPONENTS)
 clean:
 	rm -f cmd/agent/agent cmd/server/server
 
-.PHONY: all clean
+tests:
+	@go test -v ./... -coverprofile=coverage.out -covermode count
+	@go tool cover -html=coverage.out -o coverage.html
+	@go tool cover -func=coverage.out
+
+.PHONY: all clean tests
