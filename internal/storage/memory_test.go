@@ -4,29 +4,60 @@ import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestPushCounter(t *testing.T) {
+func TestPush(t *testing.T) {
+	name := "PollCount_counter"
+
 	m := NewMemStorage()
-	name := "PollCount"
-	assert := assert.New(t)
 
-	m.PushCounter(name, 10)
-	assert.Equal(metrics.Counter(10), m.counters[name])
+	value := metrics.Counter(10)
+	m.Push(name, Record{Name: name, Value: value})
+	require.Equal(t, value, m.data[name].Value)
 
-	m.PushCounter(name, 23)
-	assert.Equal(metrics.Counter(33), m.counters[name])
+	value = metrics.Counter(23)
+	m.Push(name, Record{Name: name, Value: value})
+	require.Equal(t, value, m.data[name].Value)
 }
 
-func TestPushGauge(t *testing.T) {
+func TestGet(t *testing.T) {
+	key := "PollCount_counter"
+	name := "PollCounter"
+	value := metrics.Counter(10)
+
 	m := NewMemStorage()
-	name := "Alloc"
-	assert := assert.New(t)
+	m.Push(key, Record{Name: name, Value: value})
 
-	m.PushGauge(name, 10.1234)
-	assert.Equal(metrics.Gauge(10.1234), m.gauges[name])
+	record, ok := m.Get(key)
+	require.True(t, ok)
+	require.Equal(t, value, record.Value)
+}
 
-	m.PushGauge(name, 0.567)
-	assert.Equal(metrics.Gauge(0.567), m.gauges[name])
+func TestGetUnknownRecord(t *testing.T) {
+	m := NewMemStorage()
+
+	_, ok := m.Get("XXX")
+	require.False(t, ok)
+}
+
+func TestGetAll(t *testing.T) {
+	require := require.New(t)
+	keys := []string{"Alloc_gauge", "PollCount_counter", "Random_gauge"}
+	input := []Record{
+		{Name: "Alloc", Value: metrics.Gauge(11.123)},
+		{Name: "PollCount", Value: metrics.Counter(10)},
+		{Name: "Random", Value: metrics.Gauge(33.3333)},
+	}
+
+	m := NewMemStorage()
+	for i, key := range keys {
+		m.Push(key, input[i])
+	}
+
+	records := m.GetAll()
+	require.ElementsMatch(input, records)
+
+	m.Push("New_counter", Record{Name: "New", Value: metrics.Counter(1)})
+	require.Equal(len(input), len(records))
 }

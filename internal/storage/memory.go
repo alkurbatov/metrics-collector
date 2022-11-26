@@ -1,23 +1,32 @@
 package storage
 
-import "github.com/alkurbatov/metrics-collector/internal/metrics"
-
 type MemStorage struct {
-	counters map[string]metrics.Counter
-	gauges   map[string]metrics.Gauge
+	data map[string]Record
 }
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		counters: make(map[string]metrics.Counter),
-		gauges:   make(map[string]metrics.Gauge),
+		data: make(map[string]Record),
 	}
 }
 
-func (m *MemStorage) PushCounter(name string, value metrics.Counter) {
-	m.counters[name] += value
+func (m *MemStorage) Push(key string, record Record) {
+	m.data[key] = record
 }
 
-func (m *MemStorage) PushGauge(name string, value metrics.Gauge) {
-	m.gauges[name] = value
+func (m *MemStorage) Get(key string) (Record, bool) {
+	record, ok := m.data[key]
+	return record, ok
+}
+
+func (m *MemStorage) GetAll() []Record {
+	rv := make([]Record, len(m.data))
+
+	i := 0
+	for _, v := range m.data {
+		rv[i] = v
+		i++
+	}
+
+	return rv
 }

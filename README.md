@@ -4,7 +4,8 @@
 
 ## Задания
 1. [Инкремент 1 (агент)](./docs/tasks/increment1.md)
-1. [Инкремент 2 (сервер)](./docs/tasks/increment2.md)
+2. [Инкремент 2 (сервер)](./docs/tasks/increment2.md)
+3. [Инкремент 3 (сервер)](./docs/tasks/increment3.md)
 
 ## Обновление шаблона
 
