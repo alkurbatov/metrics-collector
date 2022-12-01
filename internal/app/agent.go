@@ -2,12 +2,22 @@ package app
 
 import (
 	"context"
+	"runtime/debug"
 	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/exporter"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 )
+
+// Log if panic occurres but try to avoid program termination.
+func tryRecover() {
+	if p := recover(); p != nil {
+		l := logging.Log.WithField("event", "panic")
+		l.Error(p)
+		l.Error(string(debug.Stack()))
+	}
+}
 
 type AgentConfig struct {
 	PollInterval     time.Duration
@@ -38,8 +48,12 @@ func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
 	for {
 		select {
 		case <-ticker.C:
-			logging.Log.Info("Gathering application metrics")
-			stats.Poll()
+			func() {
+				defer tryRecover()
+
+				logging.Log.Info("Gathering application metrics")
+				stats.Poll()
+			}()
 
 		case <-ctx.Done():
 			logging.Log.Info("Shutdown metrics gatzering")
@@ -55,11 +69,15 @@ func (app *Agent) Report(ctx context.Context, stats *metrics.Metrics) {
 	for {
 		select {
 		case <-ticker.C:
-			logging.Log.Info("Sending application metrics")
+			func() {
+				defer tryRecover()
 
-			if err := exporter.SendMetrics(app.Config.CollectorAddress, *stats); err != nil {
-				logging.Log.Error(err)
-			}
+				logging.Log.Info("Sending application metrics")
+
+				if err := exporter.SendMetrics(app.Config.CollectorAddress, *stats); err != nil {
+					logging.Log.Error(err)
+				}
+			}()
 
 		case <-ctx.Done():
 			logging.Log.Info("Shutdown metrics sending")
