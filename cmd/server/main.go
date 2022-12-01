@@ -12,10 +12,11 @@ import (
 func main() {
 	app := app.NewServer()
 	recorder := services.NewMetricsRecorder(app)
+	router := handlers.Router("./web/views", recorder)
 
 	logging.Log.Info("Listening on " + app.Config.ListenAddress)
 
-	if err := http.ListenAndServe(app.Config.ListenAddress, handlers.Router(recorder)); err != nil {
+	if err := http.ListenAndServe(app.Config.ListenAddress, router); err != nil {
 		logging.Log.Fatal(err)
 	}
 }

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 
@@ -103,59 +103,19 @@ func (h GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type RootHandler struct {
-	Recorder services.Recorder
+	view     *template.Template
+	recorder services.Recorder
+}
+
+func NewRootHandler(viewsPath string, recorder services.Recorder) RootHandler {
+	view := loadViewTemplate(viewsPath + "/metrics.html")
+
+	return RootHandler{view: view, recorder: recorder}
 }
 
 func (h RootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	resp := `<html>
-    <head>
-        <title>Collected metrics</title>
-    </head>
-    <style rel="stylesheet" type="text/css">
-        table, td, th {
-            border: 1px solid black;
-            border-collapse: collapse;
-        }
-
-        table {
-            width: 100%;
-        }
-
-        th {
-            text-align: center;
-            background-color: lightgray;
-        }
-
-        td {
-            text-align: left;
-        }
-    </style>
-    <body>
-        <table>
-            <tr>
-                <th>Name</th>
-                <th>Kind</th>
-                <th>Value</th>
-            </tr>
-        <tbody>
-`
-
-	for _, record := range h.Recorder.ListRecords() {
-		resp += "<tr>\n"
-		resp += fmt.Sprintf("<td>%s</td>\n", record.Name)
-		resp += fmt.Sprintf("<td>%s</td>\n", record.Value.Kind())
-		resp += fmt.Sprintf("<td>%s</td>\n", record.Value.String())
-		resp += "<tr>\n"
-	}
-
-	resp += `
-            </tbody>
-        </table>
-    </body>
-</html>
-`
-
-	if _, err := io.WriteString(w, resp); err != nil {
+	records := h.recorder.ListRecords()
+	if err := h.view.Execute(w, records); err != nil {
 		code := http.StatusInternalServerError
 		resp := buildResponse(code, err.Error())
 		logging.Log.Error(resp)

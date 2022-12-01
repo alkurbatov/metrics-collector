@@ -8,12 +8,12 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func Router(recorder services.Recorder) http.Handler {
+func Router(viewsPath string, recorder services.Recorder) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestsLogger)
 
-	r.Method("GET", "/", RootHandler{Recorder: recorder})
+	r.Method("GET", "/", NewRootHandler(viewsPath, recorder))
 	r.Method("GET", "/value/{kind}/{name}", GetMetricHandler{Recorder: recorder})
 	r.Method("POST", "/update/{kind}/{name}/{value}", UpdateMetricHandler{Recorder: recorder})
 

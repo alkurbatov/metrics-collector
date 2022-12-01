@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildResponse(t *testing.T) {
@@ -68,4 +69,12 @@ func TestCodeToResponse(t *testing.T) {
 			assert.Equal(t, tc.expected, resp)
 		})
 	}
+}
+
+func TestLoadViewTemplate(t *testing.T) {
+	require.NotPanics(t, func() { loadViewTemplate("../../web/views/metrics.html") })
+}
+
+func TestLoadViewTemplatePanicsOnMissingTemplate(t *testing.T) {
+	require.Panics(t, func() { loadViewTemplate("xxxx") })
 }

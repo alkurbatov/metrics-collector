@@ -12,7 +12,7 @@ import (
 )
 
 func sendTestRequest(t *testing.T, method, path string) *http.Response {
-	srv := httptest.NewServer(Router(services.RecorderMock{}))
+	srv := httptest.NewServer(Router("../../web/views", services.RecorderMock{}))
 	defer srv.Close()
 
 	req, err := http.NewRequest(method, srv.URL+path, nil)
@@ -184,16 +184,16 @@ func TestGetMetricHandler(t *testing.T) {
 }
 
 func TestRootHandler(t *testing.T) {
-	assert := assert.New(t)
+	require := require.New(t)
 
 	resp := sendTestRequest(t, http.MethodGet, "/")
 
-	assert.Equal(http.StatusOK, resp.StatusCode)
-	assert.Equal("text/html; charset=utf-8", resp.Header.Get("Content-Type"))
+	require.Equal(http.StatusOK, resp.StatusCode)
+	require.Equal("text/html; charset=utf-8", resp.Header.Get("Content-Type"))
 
 	respBody, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.NotZero(len(respBody))
+	require.NoError(err)
+	require.NotZero(len(respBody))
 }
