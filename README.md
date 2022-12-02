@@ -1,32 +1,20 @@
 # go-musthave-devops-tpl
 
-Шаблон репозитория для практического трека «Go в DevOps».
+Репозитория для практического трека «Go в DevOps».
 
-# Начало работы
+## Задания
+1. [Инкремент 1 (агент)](./docs/tasks/increment1.md)
+2. [Инкремент 2 (сервер)](./docs/tasks/increment2.md)
+3. [Инкремент 3 (сервер)](./docs/tasks/increment3.md)
 
-1. Склонируйте репозиторий в любую подходящую директорию на вашем компьютере.
-2. В корне репозитория выполните команду `go mod init <name>` (где `<name>` - адрес вашего репозитория на GitHub без префикса `https://`) для создания модуля.
-
-# Обновление шаблона
+## Обновление шаблона
 
 Чтобы получать обновления автотестов и других частей шаблона, выполните следующую команду:
-
 ```
 git remote add -m main template https://github.com/yandex-praktikum/go-musthave-devops-tpl.git
 ```
 
 Для обновления кода автотестов выполните команду:
-
-(Для Unix систем)
-
 ```
 git fetch template && git checkout template/main .github
 ```
-
-(Для Windows PowerShell)
-
-```
-(git fetch template) -and (git checkout template/main .github)
-```
-
-Затем добавьте полученные изменения в свой репозиторий.

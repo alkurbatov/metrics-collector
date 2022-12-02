@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Collected metrics</title>
+    <style type="text/css">
+      table, td, th {
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+
+      table {
+        width: 100%;
+      }
+
+      th {
+        text-align: center;
+        background-color: lightgray;
+      }
+
+      td {
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <table summary="List of all available metrics with types and current values.">
+      <tr>
+        <th>Name</th>
+        <th>Kind</th>
+        <th>Value</th>
+      </tr>
+      <tbody>
+        {{range .}}
+        <tr>
+          <td>{{ .Name }}</td>
+          <td>{{ .Value.Kind }}</td>
+          <td>{{ .Value.String }}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </body>
+</html>
