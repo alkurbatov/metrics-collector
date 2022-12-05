@@ -1,25 +1,48 @@
 COMPONENTS = agent server
+E2E_TEST = tests/devopstest
 CCFLAGS =
 
 DEFAULT_GOAL := help
 
 help: ## Display this help screen
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 .PHONY: help
+
+install-tools: tests/devopstest ## Install additional tools required for tests
+.PHONY: install-tools
+
+$(E2E_TEST):
+	curl -L https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.4/devopstest-darwin-amd64 -o $@
+	@chmod +x ./tests/devopstest
 
 build: $(COMPONENTS) ## Build whole project
 .PHONY: build
 
-%:
+$(COMPONENTS):
 	go build $(CCFLAGS) -o cmd/$@/$@ cmd/$@/*.go
 
 clean: ## Cleanup build artifacts
 	rm -f cmd/agent/agent cmd/server/server
 .PHONY: clean
 
-tests: ## Run unit tests
+unit-tests: ## Run unit tests
 	@go test -v ./... -coverprofile=coverage.out.tmp -covermode count
 	@cat coverage.out.tmp | grep -v "_mock.go" > coverage.out
 	@go tool cover -html=coverage.out -o coverage.html
 	@go tool cover -func=coverage.out
-.PHONY: tests
+.PHONY: unit-tests
+
+e2e-tests: tests/devopstest ### Run e2e tests
+	@$(E2E_TEST) -test.v -test.run=^TestIteration1$$ \
+		-agent-binary-path=cmd/agent/agent
+	@$(E2E_TEST) -test.v -test.run=^TestIteration2[b]*$$ \
+		-source-path=. \
+		-binary-path=cmd/server/server
+	@$(E2E_TEST) -test.v -test.run=^TestIteration3[b]*$$ \
+		-source-path=. \
+		-binary-path=cmd/server/server
+	@$(E2E_TEST) -test.v -test.run=^TestIteration4$$ \
+		-source-path=. \
+		-binary-path=cmd/server/server \
+		-agent-binary-path=cmd/agent/agent
+.PHONY: e2e-tests
