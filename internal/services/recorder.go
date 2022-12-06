@@ -53,8 +53,7 @@ func (r MetricsRecorder) GetRecord(kind, name string) (storage.Record, bool) {
 }
 
 func (r MetricsRecorder) ListRecords() []storage.Record {
-	rv := make([]storage.Record, 0)
-	rv = append(rv, r.storage.GetAll()...)
+	rv := append([]storage.Record(nil), r.storage.GetAll()...)
 
 	sort.Slice(rv, func(i, j int) bool {
 		return rv[i].Name < rv[j].Name
