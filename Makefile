@@ -25,6 +25,10 @@ clean: ## Cleanup build artifacts
 	rm -f cmd/agent/agent cmd/server/server
 .PHONY: clean
 
+lint: ## Run linters on the source code
+	go vet ./...
+.PHONY: lint
+
 unit-tests: ## Run unit tests
 	@go test -v ./... -coverprofile=coverage.out.tmp -covermode count
 	@cat coverage.out.tmp | grep -v "_mock.go" > coverage.out
