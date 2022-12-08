@@ -11,11 +11,18 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/services"
 )
 
-type UpdateMetricHandler struct {
-	Recorder services.Recorder
+type metricsResource struct {
+	view     *template.Template
+	recorder services.Recorder
 }
 
-func (h UpdateMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func newMetricsResource(viewsPath string, recorder services.Recorder) metricsResource {
+	view := loadViewTemplate(viewsPath + "/metrics.html")
+
+	return metricsResource{view: view, recorder: recorder}
+}
+
+func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 	kind := chi.URLParam(r, "kind")
 	name := chi.URLParam(r, "name")
 	value := chi.URLParam(r, "value")
@@ -32,12 +39,12 @@ func (h UpdateMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch kind {
 	case "counter":
-		if err = h.Recorder.PushCounter(name, value); err != nil {
+		if err = h.recorder.PushCounter(name, value); err != nil {
 			code = http.StatusBadRequest
 		}
 
 	case "gauge":
-		if err = h.Recorder.PushGauge(name, value); err != nil {
+		if err = h.recorder.PushGauge(name, value); err != nil {
 			code = http.StatusBadRequest
 		}
 
@@ -56,11 +63,7 @@ func (h UpdateMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logging.Log.Info(codeToResponse(http.StatusOK))
 }
 
-type GetMetricHandler struct {
-	Recorder services.Recorder
-}
-
-func (h GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 	kind := chi.URLParam(r, "kind")
 	name := chi.URLParam(r, "name")
 
@@ -76,7 +79,7 @@ func (h GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch kind {
 	case "counter", "gauge":
-		record, ok := h.Recorder.GetRecord(kind, name)
+		record, ok := h.recorder.GetRecord(kind, name)
 		if !ok {
 			err = errMetricNotFound
 			code = http.StatusNotFound
@@ -102,18 +105,7 @@ func (h GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logging.Log.Info(codeToResponse(http.StatusOK))
 }
 
-type RootHandler struct {
-	view     *template.Template
-	recorder services.Recorder
-}
-
-func NewRootHandler(viewsPath string, recorder services.Recorder) RootHandler {
-	view := loadViewTemplate(viewsPath + "/metrics.html")
-
-	return RootHandler{view: view, recorder: recorder}
-}
-
-func (h RootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h metricsResource) List(w http.ResponseWriter, r *http.Request) {
 	records := h.recorder.ListRecords()
 	if err := h.view.Execute(w, records); err != nil {
 		code := http.StatusInternalServerError

@@ -9,13 +9,15 @@ import (
 )
 
 func Router(viewsPath string, recorder services.Recorder) http.Handler {
+	metrics := newMetricsResource(viewsPath, recorder)
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestsLogger)
 
-	r.Method("GET", "/", NewRootHandler(viewsPath, recorder))
-	r.Method("GET", "/value/{kind}/{name}", GetMetricHandler{Recorder: recorder})
-	r.Method("POST", "/update/{kind}/{name}/{value}", UpdateMetricHandler{Recorder: recorder})
+	r.Get("/", metrics.List)
+	r.Get("/value/{kind}/{name}", metrics.Get)
+	r.Post("/update/{kind}/{name}/{value}", metrics.Update)
 
 	return r
 }
