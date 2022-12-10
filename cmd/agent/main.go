@@ -12,7 +12,7 @@ func main() {
 	app := app.NewAgent()
 	ctx := context.Background()
 
-	stats := metrics.NewMetrics()
+	stats := &metrics.Metrics{}
 	go app.Poll(ctx, stats)
 	go app.Report(ctx, stats)
 

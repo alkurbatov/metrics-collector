@@ -56,7 +56,7 @@ func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
 			}()
 
 		case <-ctx.Done():
-			logging.Log.Info("Shutdown metrics gatzering")
+			logging.Log.Info("Shutdown metrics gathering")
 			return
 		}
 	}

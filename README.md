@@ -5,6 +5,7 @@
 1. [Инкремент 1 (агент)](./docs/tasks/increment1.md)
 2. [Инкремент 2 (сервер)](./docs/tasks/increment2.md)
 3. [Инкремент 3 (web framework)](./docs/tasks/increment3.md)
+4. [Инкремент 4 (JSON API)](./docs/tasks/increment4.md)
 
 ## Разработка и тестирование
 Для получения списка доступных команд выполните следующую команду:

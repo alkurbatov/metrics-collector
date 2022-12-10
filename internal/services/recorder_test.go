@@ -12,19 +12,19 @@ import (
 
 func TestUpdateCounter(t *testing.T) {
 	tt := []struct {
-		value    string
+		value    metrics.Counter
 		expected metrics.Counter
 	}{
 		{
-			value:    "3",
+			value:    3,
 			expected: 3,
 		},
 		{
-			value:    "5",
+			value:    5,
 			expected: 8,
 		},
 		{
-			value:    "13",
+			value:    13,
 			expected: 21,
 		},
 	}
@@ -35,8 +35,7 @@ func TestUpdateCounter(t *testing.T) {
 	for _, tc := range tt {
 		r := NewMetricsRecorder(app)
 
-		err := r.PushCounter("PollCount", tc.value)
-		require.NoError(err)
+		r.PushCounter("PollCount", tc.value)
 
 		record, ok := r.GetRecord("counter", "PollCount")
 		require.True(ok)
@@ -44,29 +43,21 @@ func TestUpdateCounter(t *testing.T) {
 	}
 }
 
-func TestPushCounterWithInvalidValue(t *testing.T) {
-	app := app.NewServer()
-	r := NewMetricsRecorder(app)
-
-	err := r.PushCounter("PollCount", "15/")
-	require.Error(t, err)
-}
-
 func TestUpdateGauge(t *testing.T) {
 	tt := []struct {
-		value    string
+		value    metrics.Gauge
 		expected metrics.Gauge
 	}{
 		{
-			value:    "3.123000",
+			value:    3.123000,
 			expected: 3.123,
 		},
 		{
-			value:    "5.456230",
+			value:    5.456230,
 			expected: 5.45623,
 		},
 		{
-			value:    "13.123856",
+			value:    13.123856,
 			expected: 13.123856,
 		},
 	}
@@ -77,8 +68,7 @@ func TestUpdateGauge(t *testing.T) {
 	for _, tc := range tt {
 		r := NewMetricsRecorder(app)
 
-		err := r.PushGauge("Alloc", tc.value)
-		require.NoError(err)
+		r.PushGauge("Alloc", tc.value)
 
 		record, ok := r.GetRecord("gauge", "Alloc")
 		require.True(ok)
@@ -86,24 +76,13 @@ func TestUpdateGauge(t *testing.T) {
 	}
 }
 
-func TestPushGaugeWithInvalidValue(t *testing.T) {
-	app := app.NewServer()
-	r := NewMetricsRecorder(app)
-
-	err := r.PushGauge("Alloc", "15.234/")
-	require.Error(t, err)
-}
-
 func TestPushMetricsWithSimilarNamesButDifferentKinds(t *testing.T) {
 	require := require.New(t)
 	app := app.NewServer()
 	r := NewMetricsRecorder(app)
 
-	err := r.PushCounter("X", "10")
-	require.NoError(err)
-
-	err = r.PushGauge("X", "20.123")
-	require.NoError(err)
+	r.PushCounter("X", 10)
+	r.PushGauge("X", 20.123)
 
 	first, ok := r.GetRecord("counter", "X")
 	require.True(ok)
@@ -153,8 +132,8 @@ func TestListMetrics(t *testing.T) {
 	app := app.NewServer()
 	r := NewMetricsRecorder(app)
 
-	r.PushCounter("PollCount", "10")
-	r.PushGauge("Alloc", "11.123")
+	r.PushCounter("PollCount", 10)
+	r.PushGauge("Alloc", 11.123)
 	expected := []storage.Record{
 		{Name: "Alloc", Value: metrics.Gauge(11.123)},
 		{Name: "PollCount", Value: metrics.Counter(10)},

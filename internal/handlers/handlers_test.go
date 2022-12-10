@@ -1,21 +1,26 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func sendTestRequest(t *testing.T, method, path string) *http.Response {
+func sendTestRequest(t *testing.T, method, path string, payload []byte) *http.Response {
 	srv := httptest.NewServer(Router("../../web/views", services.RecorderMock{}))
 	defer srv.Close()
 
-	req, err := http.NewRequest(method, srv.URL+path, nil)
+	body := bytes.NewReader(payload)
+
+	req, err := http.NewRequest(method, srv.URL+path, body)
 	require.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -24,9 +29,10 @@ func sendTestRequest(t *testing.T, method, path string) *http.Response {
 	return resp
 }
 
-func TestUpdateMetricHandler(t *testing.T) {
+func TestUpdateMetric(t *testing.T) {
 	type result struct {
 		code int
+		body string
 	}
 
 	tt := []struct {
@@ -39,6 +45,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path: "/update/counter/PollCount/10",
 			expected: result{
 				code: http.StatusOK,
+				body: "10",
 			},
 		},
 		{
@@ -46,6 +53,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path: "/update/gauge/Alloc/13.123",
 			expected: result{
 				code: http.StatusOK,
+				body: "13.123",
 			},
 		},
 		{
@@ -71,14 +79,15 @@ func TestUpdateMetricHandler(t *testing.T) {
 		},
 		{
 			name: "Push counter with invalid value",
-			path: "/update/counter/fail/10.0",
+			path: "/update/counter/PollCount/10\\.0",
+
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
 			name: "Push gauge with invalid value",
-			path: "/update/gauge/fail/10.234;",
+			path: "/update/gauge/Alloc/15.234;",
 			expected: result{
 				code: http.StatusBadRequest,
 			},
@@ -89,7 +98,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			resp := sendTestRequest(t, http.MethodPost, tc.path)
+			resp := sendTestRequest(t, http.MethodPost, tc.path, nil)
 
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
@@ -98,15 +107,101 @@ func TestUpdateMetricHandler(t *testing.T) {
 				require.NoError(t, err)
 				defer resp.Body.Close()
 
-				assert.Zero(len(respBody))
+				assert.Equal(tc.expected.body, string(respBody))
 			}
 		})
 	}
 }
 
-func TestGetMetricHandler(t *testing.T) {
+func TestUpdateJSONMetric(t *testing.T) {
 	type result struct {
 		code int
+	}
+
+	tt := []struct {
+		name     string
+		req      schema.MetricReq
+		expected result
+	}{
+		{
+			name: "Push counter",
+			req:  schema.NewUpdateCounterReq("PollCount", 10),
+			expected: result{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name: "Push gauge",
+			req:  schema.NewUpdateGaugeReq("Alloc", 13.123),
+			expected: result{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name: "Push unknown metric kind",
+			req: schema.MetricReq{
+				ID:    "X",
+				MType: "unknown",
+			},
+			expected: result{
+				code: http.StatusNotImplemented,
+			},
+		},
+		{
+			name: "Push counter with invalid name",
+			req: schema.MetricReq{
+				ID:    "X)",
+				MType: "unknown",
+			},
+			expected: result{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "Push gauge with invalid name",
+			req: schema.MetricReq{
+				ID:    "X;",
+				MType: "unknown",
+			},
+			expected: result{
+				code: http.StatusBadRequest,
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+
+			payload, err := json.Marshal(tc.req)
+			require.NoError(err)
+
+			resp := sendTestRequest(t, http.MethodPost, "/update", payload)
+
+			assert.Equal(tc.expected.code, resp.StatusCode)
+
+			if tc.expected.code == http.StatusOK {
+				assert.Equal("application/json", resp.Header.Get("Content-Type"))
+
+				respBody, err := io.ReadAll(resp.Body)
+				require.NoError(err)
+				defer resp.Body.Close()
+
+				var resp schema.MetricReq
+				err = json.Unmarshal(respBody, &resp)
+				require.NoError(err)
+
+				assert.Equal(tc.req, resp)
+			}
+		})
+	}
+}
+
+func TestGetMetric(t *testing.T) {
+	type result struct {
+		code int
+		body string
 	}
 
 	tt := []struct {
@@ -119,6 +214,7 @@ func TestGetMetricHandler(t *testing.T) {
 			path: "/value/counter/PollCount",
 			expected: result{
 				code: http.StatusOK,
+				body: "10",
 			},
 		},
 		{
@@ -126,6 +222,7 @@ func TestGetMetricHandler(t *testing.T) {
 			path: "/value/gauge/Alloc",
 			expected: result{
 				code: http.StatusOK,
+				body: "11.345",
 			},
 		},
 		{
@@ -169,24 +266,119 @@ func TestGetMetricHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			resp := sendTestRequest(t, http.MethodGet, tc.path)
+			resp := sendTestRequest(t, http.MethodGet, tc.path, nil)
 
 			assert.Equal(tc.expected.code, resp.StatusCode)
 			assert.Equal("text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
 
-			respBody, err := io.ReadAll(resp.Body)
-			require.NoError(t, err)
-			defer resp.Body.Close()
+			if tc.expected.code == http.StatusOK {
+				respBody, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				defer resp.Body.Close()
 
-			assert.NotZero(len(respBody))
+				assert.Equal(tc.expected.body, string(respBody))
+			}
 		})
 	}
 }
 
-func TestRootHandler(t *testing.T) {
+func TestGetJSONMetric(t *testing.T) {
+	type result struct {
+		code int
+		body schema.MetricReq
+	}
+
+	tt := []struct {
+		name     string
+		req      schema.MetricReq
+		expected result
+	}{
+		{
+			name: "Get counter",
+			req:  schema.NewGetCounterReq("PollCount"),
+			expected: result{
+				code: http.StatusOK,
+				body: schema.NewUpdateCounterReq("PollCount", 10),
+			},
+		},
+		{
+			name: "Get gauge",
+			req:  schema.NewGetGaugeReq("Alloc"),
+			expected: result{
+				code: http.StatusOK,
+				body: schema.NewUpdateGaugeReq("Alloc", 11.345),
+			},
+		},
+		{
+			name: "Get unknown metric kind",
+			req:  schema.MetricReq{ID: "Alloc", MType: "unknown"},
+			expected: result{
+				code: http.StatusNotImplemented,
+			},
+		},
+		{
+			name: "Get unknown counter",
+			req:  schema.NewGetCounterReq("unknown"),
+			expected: result{
+				code: http.StatusNotFound,
+			},
+		},
+		{
+			name: "Get unknown gauge",
+			req:  schema.NewGetGaugeReq("unknown"),
+			expected: result{
+				code: http.StatusNotFound,
+			},
+		},
+		{
+			name: "Get counter with invalid name",
+			req:  schema.NewGetCounterReq("X)"),
+			expected: result{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "Get gauge with invalid name",
+			req:  schema.NewGetGaugeReq("X;"),
+			expected: result{
+				code: http.StatusBadRequest,
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+
+			payload, err := json.Marshal(tc.req)
+			require.NoError(err)
+
+			resp := sendTestRequest(t, http.MethodPost, "/value", payload)
+
+			assert.Equal(tc.expected.code, resp.StatusCode)
+
+			if tc.expected.code == http.StatusOK {
+				assert.Equal("application/json", resp.Header.Get("Content-Type"))
+
+				respBody, err := io.ReadAll(resp.Body)
+				require.NoError(err)
+				defer resp.Body.Close()
+
+				var resp schema.MetricReq
+				err = json.Unmarshal(respBody, &resp)
+				require.NoError(err)
+
+				assert.Equal(tc.expected.body, resp)
+			}
+		})
+	}
+}
+
+func TestListMetrics(t *testing.T) {
 	require := require.New(t)
 
-	resp := sendTestRequest(t, http.MethodGet, "/")
+	resp := sendTestRequest(t, http.MethodGet, "/", nil)
 
 	require.Equal(http.StatusOK, resp.StatusCode)
 	require.Equal("text/html; charset=utf-8", resp.Header.Get("Content-Type"))

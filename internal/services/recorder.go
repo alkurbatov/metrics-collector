@@ -17,12 +17,7 @@ func NewMetricsRecorder(app *app.Server) MetricsRecorder {
 	return MetricsRecorder{storage: app.Storage}
 }
 
-func (r MetricsRecorder) PushCounter(name, rawValue string) error {
-	value, err := metrics.ToCounter(rawValue)
-	if err != nil {
-		return err
-	}
-
+func (r MetricsRecorder) PushCounter(name string, value metrics.Counter) metrics.Counter {
 	id := name + "_counter"
 
 	prevValue, ok := r.storage.Get(id)
@@ -31,19 +26,14 @@ func (r MetricsRecorder) PushCounter(name, rawValue string) error {
 	}
 
 	r.storage.Push(id, storage.Record{Name: name, Value: value})
-	return nil
+	return value
 }
 
-func (r MetricsRecorder) PushGauge(name, rawValue string) error {
-	value, err := metrics.ToGauge(rawValue)
-	if err != nil {
-		return err
-	}
-
+func (r MetricsRecorder) PushGauge(name string, value metrics.Gauge) metrics.Gauge {
 	id := name + "_gauge"
 
 	r.storage.Push(id, storage.Record{Name: name, Value: value})
-	return nil
+	return value
 }
 
 func (r MetricsRecorder) GetRecord(kind, name string) (storage.Record, bool) {

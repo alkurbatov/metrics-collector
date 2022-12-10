@@ -1,8 +1,6 @@
 package services
 
 import (
-	"errors"
-
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 )
@@ -10,20 +8,12 @@ import (
 type RecorderMock struct {
 }
 
-func (m RecorderMock) PushCounter(name, rawValue string) error {
-	if name == "fail" {
-		return errors.New("failure")
-	}
-
-	return nil
+func (m RecorderMock) PushCounter(name string, value metrics.Counter) metrics.Counter {
+	return value
 }
 
-func (m RecorderMock) PushGauge(name, rawValue string) error {
-	if name == "fail" {
-		return errors.New("failure")
-	}
-
-	return nil
+func (m RecorderMock) PushGauge(name string, value metrics.Gauge) metrics.Gauge {
+	return value
 }
 
 func (m RecorderMock) GetRecord(kind, name string) (storage.Record, bool) {
