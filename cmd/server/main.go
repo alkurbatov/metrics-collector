@@ -14,7 +14,7 @@ func main() {
 	recorder := services.NewMetricsRecorder(app)
 	router := handlers.Router("./web/views", recorder)
 
-	logging.Log.Info("Listening on " + app.Config.ListenAddress)
+	logging.Log.Info(app.Config)
 
 	if err := http.ListenAndServe(app.Config.ListenAddress, router); err != nil {
 		logging.Log.Fatal(err)

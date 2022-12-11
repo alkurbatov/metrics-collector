@@ -49,4 +49,10 @@ e2e-tests: tests/devopstest ### Run e2e tests
 		-source-path=. \
 		-binary-path=cmd/server/server \
 		-agent-binary-path=cmd/agent/agent
+	@ADDRESS="localhost:3000" \
+	$(E2E_TEST) -test.v -test.run=^TestIteration5$$ \
+		-source-path=. \
+		-agent-binary-path=cmd/agent/agent \
+		-binary-path=cmd/server/server \
+		-server-port=3000
 .PHONY: e2e-tests

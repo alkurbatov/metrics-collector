@@ -2,12 +2,15 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/exporter"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/caarlos0/env/v6"
 )
 
 // Log if panic occurres but try to avoid program termination.
@@ -20,17 +23,31 @@ func tryRecover() {
 }
 
 type AgentConfig struct {
-	PollInterval     time.Duration
-	ReportInterval   time.Duration
-	CollectorAddress string
+	PollInterval     time.Duration `env:"POLL_INTERVAL" envDefault:"2s"`
+	ReportInterval   time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
+	CollectorAddress string        `env:"ADDRESS" envDefault:"0.0.0.0:8080"`
 }
 
 func NewAgentConfig() AgentConfig {
-	return AgentConfig{
-		PollInterval:     2 * time.Second,
-		ReportInterval:   10 * time.Second,
-		CollectorAddress: "127.0.0.1:8080",
+	cfg := AgentConfig{}
+
+	err := env.Parse(&cfg)
+	if err != nil {
+		logging.Log.Fatal(err)
 	}
+
+	return cfg
+}
+
+func (c AgentConfig) String() string {
+	var sb strings.Builder
+
+	sb.WriteString("Configuration:\n")
+	sb.WriteString(fmt.Sprintf("\t\tPoll interval: %s\n", c.PollInterval))
+	sb.WriteString(fmt.Sprintf("\t\tReport interval: %s\n", c.ReportInterval))
+	sb.WriteString(fmt.Sprintf("\t\tCollector address: %s\n", c.CollectorAddress))
+
+	return sb.String()
 }
 
 type Agent struct {
