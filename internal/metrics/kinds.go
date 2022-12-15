@@ -26,5 +26,5 @@ func (g Gauge) Kind() string {
 }
 
 func (g Gauge) String() string {
-	return strconv.FormatFloat(float64(g), 'f', 3, 64)
+	return strconv.FormatFloat(float64(g), 'f', -1, 64)
 }

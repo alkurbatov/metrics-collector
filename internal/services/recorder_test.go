@@ -3,12 +3,27 @@ package services
 import (
 	"testing"
 
-	"github.com/alkurbatov/metrics-collector/internal/app"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func pushCounter(t *testing.T, recorder Recorder, name string, value metrics.Counter, expected metrics.Counter) {
+	require := require.New(t)
+
+	rv, err := recorder.PushCounter(name, value)
+	require.NoError(err)
+	require.Equal(expected, rv)
+}
+
+func pushGauge(t *testing.T, recorder Recorder, name string, value metrics.Gauge, expected metrics.Gauge) {
+	require := require.New(t)
+
+	rv, err := recorder.PushGauge(name, value)
+	require.NoError(err)
+	require.Equal(expected, rv)
+}
 
 func TestUpdateCounter(t *testing.T) {
 	tt := []struct {
@@ -30,12 +45,12 @@ func TestUpdateCounter(t *testing.T) {
 	}
 
 	require := require.New(t)
-	app := app.NewServer()
+	storage := storage.NewMemStorage()
 
 	for _, tc := range tt {
-		r := NewMetricsRecorder(app)
+		r := NewMetricsRecorder(storage)
 
-		r.PushCounter("PollCount", tc.value)
+		pushCounter(t, r, "PollCount", tc.value, tc.expected)
 
 		record, ok := r.GetRecord("counter", "PollCount")
 		require.True(ok)
@@ -63,12 +78,12 @@ func TestUpdateGauge(t *testing.T) {
 	}
 
 	require := require.New(t)
-	app := app.NewServer()
+	storage := storage.NewMemStorage()
 
 	for _, tc := range tt {
-		r := NewMetricsRecorder(app)
+		r := NewMetricsRecorder(storage)
 
-		r.PushGauge("Alloc", tc.value)
+		pushGauge(t, r, "Alloc", tc.value, tc.expected)
 
 		record, ok := r.GetRecord("gauge", "Alloc")
 		require.True(ok)
@@ -78,11 +93,10 @@ func TestUpdateGauge(t *testing.T) {
 
 func TestPushMetricsWithSimilarNamesButDifferentKinds(t *testing.T) {
 	require := require.New(t)
-	app := app.NewServer()
-	r := NewMetricsRecorder(app)
+	r := NewMetricsRecorder(storage.NewMemStorage())
 
-	r.PushCounter("X", 10)
-	r.PushGauge("X", 20.123)
+	pushCounter(t, r, "X", 10, 10)
+	pushGauge(t, r, "X", 20.123, 20.123)
 
 	first, ok := r.GetRecord("counter", "X")
 	require.True(ok)
@@ -91,6 +105,18 @@ func TestPushMetricsWithSimilarNamesButDifferentKinds(t *testing.T) {
 	second, ok := r.GetRecord("gauge", "X")
 	require.True(ok)
 	require.Equal(metrics.Gauge(20.123), second.Value)
+}
+
+func TestPushMetricsToBrokenStorage(t *testing.T) {
+	require := require.New(t)
+	store := &storage.BrokenStorage{}
+	r := NewMetricsRecorder(store)
+
+	_, err := r.PushCounter("PollCount", metrics.Counter(1))
+	require.Error(err)
+
+	_, err = r.PushGauge("Alloc", metrics.Gauge(13.2))
+	require.Error(err)
 }
 
 func TestGetUnknownMetric(t *testing.T) {
@@ -118,8 +144,7 @@ func TestGetUnknownMetric(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			app := app.NewServer()
-			r := NewMetricsRecorder(app)
+			r := NewMetricsRecorder(storage.NewMemStorage())
 
 			_, ok := r.GetRecord(tc.kind, tc.metric)
 			assert.False(t, ok)
@@ -129,11 +154,11 @@ func TestGetUnknownMetric(t *testing.T) {
 
 func TestListMetrics(t *testing.T) {
 	require := require.New(t)
-	app := app.NewServer()
-	r := NewMetricsRecorder(app)
+	r := NewMetricsRecorder(storage.NewMemStorage())
 
-	r.PushCounter("PollCount", 10)
-	r.PushGauge("Alloc", 11.123)
+	pushCounter(t, r, "PollCount", 10, 10)
+	pushGauge(t, r, "Alloc", 11.123, 11.123)
+
 	expected := []storage.Record{
 		{Name: "Alloc", Value: metrics.Gauge(11.123)},
 		{Name: "PollCount", Value: metrics.Counter(10)},

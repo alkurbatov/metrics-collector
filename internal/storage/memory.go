@@ -1,32 +1,58 @@
 package storage
 
+import "sync"
+
 type MemStorage struct {
-	data map[string]Record
+	Data map[string]Record `json:"records"`
+	sync.RWMutex
 }
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		data: make(map[string]Record),
+		Data: make(map[string]Record),
 	}
 }
 
-func (m *MemStorage) Push(key string, record Record) {
-	m.data[key] = record
+func (m *MemStorage) Push(key string, record Record) error {
+	m.Lock()
+	defer m.Unlock()
+
+	m.Data[key] = record
+	return nil
 }
 
 func (m *MemStorage) Get(key string) (Record, bool) {
-	record, ok := m.data[key]
+	m.RLock()
+	defer m.RUnlock()
+
+	record, ok := m.Data[key]
 	return record, ok
 }
 
 func (m *MemStorage) GetAll() []Record {
-	rv := make([]Record, len(m.data))
+	m.RLock()
+	defer m.RUnlock()
+
+	rv := make([]Record, len(m.Data))
 
 	i := 0
-	for _, v := range m.data {
+	for _, v := range m.Data {
 		rv[i] = v
 		i++
 	}
 
 	return rv
+}
+
+func (m *MemStorage) Snapshot() *MemStorage {
+	m.RLock()
+	defer m.RUnlock()
+
+	snapshot := make(map[string]Record, len(m.Data))
+
+	for k, v := range m.Data {
+		snapshot[k] = v
+	}
+
+	return &MemStorage{Data: snapshot}
 }

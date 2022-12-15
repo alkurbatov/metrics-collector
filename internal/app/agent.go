@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -12,15 +11,6 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/caarlos0/env/v6"
 )
-
-// Log if panic occurres but try to avoid program termination.
-func tryRecover() {
-	if p := recover(); p != nil {
-		l := logging.Log.WithField("event", "panic")
-		l.Error(p)
-		l.Error(string(debug.Stack()))
-	}
-}
 
 type AgentConfig struct {
 	PollInterval     time.Duration `env:"POLL_INTERVAL" envDefault:"2s"`

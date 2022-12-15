@@ -55,4 +55,13 @@ e2e-tests: tests/devopstest ### Run e2e tests
 		-agent-binary-path=cmd/agent/agent \
 		-binary-path=cmd/server/server \
 		-server-port=3000
+	@ADDRESS="localhost:3000" \
+	TEMP_FILE="/tmp/test_store123.json" \
+	$(E2E_TEST) -test.v -test.run=^TestIteration6$$ \
+		-source-path=. \
+		-agent-binary-path=cmd/agent/agent \
+		-binary-path=cmd/server/server \
+		-server-port=3000 \
+		-database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+		-file-storage-path="/tmp/test_store123.json"
 .PHONY: e2e-tests

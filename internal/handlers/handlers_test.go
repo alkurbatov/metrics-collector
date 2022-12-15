@@ -92,6 +92,20 @@ func TestUpdateMetric(t *testing.T) {
 				code: http.StatusBadRequest,
 			},
 		},
+		{
+			name: "Push counter when recorder fails",
+			path: "/update/counter/fail/10",
+			expected: result{
+				code: http.StatusInternalServerError,
+			},
+		},
+		{
+			name: "Push gauge when recorder fails",
+			path: "/update/gauge/fail/10.234",
+			expected: result{
+				code: http.StatusInternalServerError,
+			},
+		},
 	}
 
 	for _, tc := range tt {
@@ -149,22 +163,30 @@ func TestUpdateJSONMetric(t *testing.T) {
 		},
 		{
 			name: "Push counter with invalid name",
-			req: schema.MetricReq{
-				ID:    "X)",
-				MType: "unknown",
-			},
+			req:  schema.NewUpdateCounterReq("X)", 10),
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
 			name: "Push gauge with invalid name",
-			req: schema.MetricReq{
-				ID:    "X;",
-				MType: "unknown",
-			},
+			req:  schema.NewUpdateGaugeReq("X;", 13.123),
 			expected: result{
 				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "Push counter  when recorder fails",
+			req:  schema.NewUpdateCounterReq("fail", 13),
+			expected: result{
+				code: http.StatusInternalServerError,
+			},
+		},
+		{
+			name: "Push gauge when recorder fails",
+			req:  schema.NewUpdateGaugeReq("fail", 13.123),
+			expected: result{
+				code: http.StatusInternalServerError,
 			},
 		},
 	}

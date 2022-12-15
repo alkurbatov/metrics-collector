@@ -6,8 +6,8 @@ import (
 )
 
 type Recorder interface {
-	PushCounter(name string, value metrics.Counter) metrics.Counter
-	PushGauge(name string, value metrics.Gauge) metrics.Gauge
+	PushCounter(name string, value metrics.Counter) (metrics.Counter, error)
+	PushGauge(name string, value metrics.Gauge) (metrics.Gauge, error)
 	GetRecord(kind, name string) (storage.Record, bool)
 	ListRecords() []storage.Record
 }

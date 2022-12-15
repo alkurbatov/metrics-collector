@@ -49,7 +49,12 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		newDelta := h.recorder.PushCounter(name, value)
+		newDelta, err := h.recorder.PushCounter(name, value)
+		if err != nil {
+			writeErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
 		if _, err = io.WriteString(w, newDelta.String()); err != nil {
 			writeErrorResponse(w, http.StatusInternalServerError, err)
 			return
@@ -62,7 +67,12 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		newValue := h.recorder.PushGauge(name, value)
+		newValue, err := h.recorder.PushGauge(name, value)
+		if err != nil {
+			writeErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
 		if _, err = io.WriteString(w, newValue.String()); err != nil {
 			writeErrorResponse(w, http.StatusInternalServerError, err)
 			return
@@ -90,11 +100,21 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 
 	switch data.MType {
 	case "counter":
-		newDelta := h.recorder.PushCounter(data.ID, *data.Delta)
+		newDelta, err := h.recorder.PushCounter(data.ID, *data.Delta)
+		if err != nil {
+			writeErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
 		data.Delta = &newDelta
 
 	case "gauge":
-		newValue := h.recorder.PushGauge(data.ID, *data.Value)
+		newValue, err := h.recorder.PushGauge(data.ID, *data.Value)
+		if err != nil {
+			writeErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
 		data.Value = &newValue
 
 	default:
