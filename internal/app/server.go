@@ -14,17 +14,50 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/caarlos0/env/v6"
+
+	flag "github.com/spf13/pflag"
 )
 
 type ServerConfig struct {
-	ListenAddress  string        `env:"ADDRESS" envDefault:"0.0.0.0:8080"`
-	StoreInterval  time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`
-	StorePath      string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
-	RestoreOnStart bool          `env:"RESTORE" envDefault:"true"`
+	ListenAddress  NetAddress    `env:"ADDRESS"`
+	StoreInterval  time.Duration `env:"STORE_INTERVAL"`
+	StorePath      string        `env:"STORE_FILE"`
+	RestoreOnStart bool          `env:"RESTORE"`
 }
 
 func NewServerConfig() (*ServerConfig, error) {
-	cfg := &ServerConfig{}
+	listenAddress := NetAddress("0.0.0.0:8080")
+	flag.VarP(
+		&listenAddress,
+		"listen-address",
+		"a",
+		"address:port server listens on",
+	)
+	storeInterval := flag.DurationP(
+		"store-interval",
+		"i",
+		300*time.Second,
+		"count of seconds after which metrics are dumped to the disk, zero value activates saving after each request",
+	)
+	storePath := flag.StringP(
+		"store-file",
+		"f",
+		"/tmp/devops-metrics-db.json",
+		"path to file to store metrics",
+	)
+	restoreOnStart := flag.BoolP(
+		"restore",
+		"r",
+		true, "whether to restore state on startup or not",
+	)
+	flag.Parse()
+
+	cfg := &ServerConfig{
+		ListenAddress:  listenAddress,
+		StorePath:      *storePath,
+		StoreInterval:  *storeInterval,
+		RestoreOnStart: *restoreOnStart,
+	}
 
 	err := env.Parse(cfg)
 	if err != nil {
@@ -69,7 +102,7 @@ func NewServer() *Server {
 
 	recorder := services.NewMetricsRecorder(dataStore)
 	router := handlers.Router("./web/views", recorder)
-	srv := &http.Server{Addr: cfg.ListenAddress, Handler: router}
+	srv := &http.Server{Addr: cfg.ListenAddress.String(), Handler: router}
 
 	return &Server{
 		Config:     cfg,
