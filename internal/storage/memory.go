@@ -56,3 +56,7 @@ func (m *MemStorage) Snapshot() *MemStorage {
 
 	return &MemStorage{Data: snapshot}
 }
+
+func (m *MemStorage) String() string {
+	return "in-memory storage"
+}

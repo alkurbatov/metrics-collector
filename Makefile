@@ -1,6 +1,7 @@
 COMPONENTS = agent server
 E2E_TEST = tests/devopstest
 CCFLAGS =
+PG_URL = 'postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable'
 
 DEFAULT_GOAL := help
 
@@ -37,6 +38,7 @@ unit-tests: ## Run unit tests
 .PHONY: unit-tests
 
 e2e-tests: tests/devopstest ### Run e2e tests
+	@rm -f /tmp/test_store*.json
 	@$(E2E_TEST) -test.v -test.run=^TestIteration1$$ \
 		-agent-binary-path=cmd/agent/agent
 	@$(E2E_TEST) -test.v -test.run=^TestIteration2[b]*$$ \
@@ -49,28 +51,37 @@ e2e-tests: tests/devopstest ### Run e2e tests
 		-source-path=. \
 		-binary-path=cmd/server/server \
 		-agent-binary-path=cmd/agent/agent
-	@ADDRESS="localhost:3000" \
+	@ADDRESS="localhost:5000" \
 	$(E2E_TEST) -test.v -test.run=^TestIteration5$$ \
 		-source-path=. \
 		-agent-binary-path=cmd/agent/agent \
 		-binary-path=cmd/server/server \
-		-server-port=3000
-	@ADDRESS="localhost:3000" \
-	TEMP_FILE="/tmp/test_store123.json" \
+		-server-port=5000
+	@ADDRESS="localhost:6000" \
+	TEMP_FILE="/tmp/test_store6.json" \
 	$(E2E_TEST) -test.v -test.run=^TestIteration6$$ \
 		-source-path=. \
 		-agent-binary-path=cmd/agent/agent \
 		-binary-path=cmd/server/server \
-		-server-port=3000 \
-		-database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
-		-file-storage-path="/tmp/test_store123.json"
-	@ADDRESS="localhost:3000" \
-	TEMP_FILE="/tmp/test_store456.json" \
+		-server-port=6000 \
+		-database-dsn=$(PG_URL) \
+		-file-storage-path="/tmp/test_store6.json"
+	@ADDRESS="localhost:7000" \
+	TEMP_FILE="/tmp/test_store7.json" \
 	$(E2E_TEST) -test.v -test.run=^TestIteration7$$ \
 		-source-path=. \
-		 -agent-binary-path=cmd/agent/agent \
-		 -binary-path=cmd/server/server \
-		 -server-port=3000 \
-		 -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
-		 -file-storage-path="/tmp/test_store456.json"
+		-agent-binary-path=cmd/agent/agent \
+		-binary-path=cmd/server/server \
+		-server-port=7000 \
+		-database-dsn=$(PG_URL) \
+		-file-storage-path="/tmp/test_store7.json"
+	@ADDRESS="localhost:8000" \
+	TEMP_FILE="/tmp/test_store8.json"
+	$(E2E_TEST) -test.v -test.run=^TestIteration8$$ \
+		-source-path=. \
+		-agent-binary-path=cmd/agent/agent \
+		-binary-path=cmd/server/server \
+		-server-port=8000 \
+		-database-dsn=$(PG_URL) \
+		-file-storage-path=/tmp/test_store8.json
 .PHONY: e2e-tests

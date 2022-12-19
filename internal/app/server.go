@@ -65,7 +65,7 @@ func NewServerConfig() (*ServerConfig, error) {
 	}
 
 	if len(cfg.StorePath) == 0 && cfg.RestoreOnStart {
-		return nil, errors.New("State restoration was requested, but path to store file is not set!")
+		return nil, errors.New("state restoration was requested, but path to store file is not set")
 	}
 
 	return cfg, nil
@@ -87,7 +87,7 @@ func (c ServerConfig) String() string {
 type Server struct {
 	Config     *ServerConfig
 	Storage    storage.Storage
-	HttpServer *http.Server
+	HTTPServer *http.Server
 }
 
 func NewServer() *Server {
@@ -99,6 +99,7 @@ func NewServer() *Server {
 	logging.Log.Info(cfg)
 
 	dataStore := storage.NewDataStore(cfg.StorePath, cfg.StoreInterval)
+	logging.Log.Info("Attached " + dataStore.String())
 
 	recorder := services.NewMetricsRecorder(dataStore)
 	router := handlers.Router("./web/views", recorder)
@@ -107,7 +108,7 @@ func NewServer() *Server {
 	return &Server{
 		Config:     cfg,
 		Storage:    dataStore,
-		HttpServer: srv,
+		HTTPServer: srv,
 	}
 }
 
@@ -159,7 +160,7 @@ func (app *Server) Serve(ctx context.Context) {
 		go app.dumpStorage(ctx)
 	}
 
-	if err := app.HttpServer.ListenAndServe(); err != http.ErrServerClosed {
+	if err := app.HTTPServer.ListenAndServe(); err != http.ErrServerClosed {
 		logging.Log.Fatal(err)
 	}
 }
@@ -167,7 +168,7 @@ func (app *Server) Serve(ctx context.Context) {
 func (app *Server) Shutdown(signal os.Signal) {
 	logging.Log.Info(fmt.Sprintf("Signal '%s' received, shutting down...", signal))
 
-	if err := app.HttpServer.Shutdown(context.Background()); err != nil {
+	if err := app.HTTPServer.Shutdown(context.Background()); err != nil {
 		logging.Log.Error(err)
 	}
 

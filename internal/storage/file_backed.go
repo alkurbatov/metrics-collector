@@ -87,3 +87,7 @@ func (f *FileBackedStorage) Dump() error {
 
 	return nil
 }
+
+func (f *FileBackedStorage) String() string {
+	return "file storage backed by " + f.storePath
+}

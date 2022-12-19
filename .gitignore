@@ -6,7 +6,7 @@
 *.dylib
 
 # Test binary, built with `go test -c`
-*.tes
+*.test
 
 # Yandex Practicum e2e test
 tests/devopstest

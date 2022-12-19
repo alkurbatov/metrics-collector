@@ -221,6 +221,8 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h metricsResource) List(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
 	records := h.recorder.ListRecords()
 	if err := h.view.Execute(w, records); err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err)

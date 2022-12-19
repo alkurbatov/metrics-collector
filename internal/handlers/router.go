@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/alkurbatov/metrics-collector/internal/compression"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/go-chi/chi/v5"
@@ -14,6 +15,8 @@ func Router(viewsPath string, recorder services.Recorder) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(logging.RequestsLogger)
+	r.Use(compression.DecompressRequest)
+	r.Use(compression.CompressResponse)
 
 	r.Get("/", metrics.List)
 
