@@ -48,7 +48,8 @@ func NewServerConfig() (*ServerConfig, error) {
 	restoreOnStart := flag.BoolP(
 		"restore",
 		"r",
-		true, "whether to restore state on startup or not",
+		true,
+		"whether to restore state on startup or not",
 	)
 	flag.Parse()
 

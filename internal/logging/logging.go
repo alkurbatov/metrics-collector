@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
@@ -15,7 +14,7 @@ func init() {
 
 func RequestsLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		Log.Info(fmt.Sprintf("%s %s", r.Method, r.URL.String()))
+		Log.Info(r.Method + " " + r.URL.String())
 
 		next.ServeHTTP(w, r)
 	})

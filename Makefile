@@ -9,12 +9,12 @@ help: ## Display this help screen
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 .PHONY: help
 
-install-tools: tests/devopstest ## Install additional tools required for tests
+install-tools: $(E2E_TEST) ## Install additional tools required for tests
 .PHONY: install-tools
 
 $(E2E_TEST):
 	curl -L https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.4/devopstest-darwin-amd64 -o $@
-	@chmod +x ./tests/devopstest
+	@chmod +x $(E2E_TEST)
 
 build: $(COMPONENTS) ## Build whole project
 .PHONY: build
@@ -37,7 +37,7 @@ unit-tests: ## Run unit tests
 	@go tool cover -func=coverage.out
 .PHONY: unit-tests
 
-e2e-tests: tests/devopstest ### Run e2e tests
+e2e-tests: $(E2E_TEST) ### Run e2e tests
 	@rm -f /tmp/test_store*.json
 	@$(E2E_TEST) -test.v -test.run=^TestIteration1$$ \
 		-agent-binary-path=cmd/agent/agent
