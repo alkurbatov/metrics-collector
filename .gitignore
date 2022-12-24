@@ -9,7 +9,7 @@
 *.test
 
 # Yandex Practicum e2e test
-tests/devopstest
+test/devopstest
 
 # Output of the go coverage tool
 coverage.*

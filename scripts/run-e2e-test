@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+E2E_TEST=./test/devopstest
+AGENT_PATH=./cmd/agent/agent
+SERVER_PATH=./cmd/server/server
+
+PG_URL="postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
+
+# Cleanup artifacts from previous tests.
+rm -f /tmp/test_store*.json
+
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration1$ \
+    -agent-binary-path=${AGENT_PATH}
+
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration2[b]*$ \
+    -source-path=. \
+    -binary-path=${SERVER_PATH}
+
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration3[b]*$ \
+    -source-path=. \
+    -binary-path=${SERVER_PATH}
+
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration4$ \
+    -source-path=. \
+    -binary-path=${SERVER_PATH} \
+    -agent-binary-path=${AGENT_PATH}
+
+PORT=5000
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration5$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port=${PORT}
+
+PORT=6000
+TEMP_FILE="/tmp/test_store6.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration6$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port=${PORT} \
+       -database-dsn="${PG_URL}" \
+       -file-storage-path=${TEMP_FILE}
+
+PORT=7000
+TEMP_FILE="/tmp/test_store7.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration7$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port=${PORT} \
+       -database-dsn="${PG_URL}" \
+       -file-storage-path=${TEMP_FILE}
+
+PORT=8000
+TEMP_FILE="/tmp/test_store8.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration8$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port=${PORT} \
+       -database-dsn="${PG_URL}" \
+       -file-storage-path=${TEMP_FILE}
