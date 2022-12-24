@@ -1,0 +1,56 @@
+---
+linters:
+  enable-all: true
+  disable:
+    - cyclop
+    - deadcode
+    - exhaustivestruct
+    - exhaustruct
+    - forcetypeassert
+    - funlen
+    - gci
+    - gochecknoglobals
+    - gochecknoinits
+    - gofumpt
+    - golint
+    - gomnd
+    - ifshort
+    - interfacer
+    - ireturn
+    - maligned
+    - nlreturn
+    - nosnakecase
+    - rowserrcheck
+    - rowserrcheck
+    - scopelint
+    - sqlclosecheck
+    - structcheck
+    - varcheck
+    - varnamelen
+    - wastedassign
+
+    # FIXME (alkurbatov): Enable when we add parallelism to the tests.
+    - paralleltest
+
+    # FIXME (alkurbatov): Enable after transition to grequests and
+    # implementation of graceful shutdown in agent.
+    - noctx
+
+    # FIXME: (alkurbatov): Review the tests and test only exported methods.
+    - testpackage
+
+    # FIXME (alkurbatov): Enable it back om iter13
+    - wrapcheck
+    - goerr113
+
+issues:
+  exclude-rules:
+    # FIXME: (alkurbatov): We should introduce some constants project-wide.
+    - path: internal/handlers/handlers.go
+      text: "string `counter` has 4 occurrences, make it a constant"
+      linters:
+        - goconst
+    - path: internal/handlers/handlers.go
+      text: "string `gauge` has 4 occurrences, make it a constant"
+      linters:
+        - goconst

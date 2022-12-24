@@ -9,11 +9,14 @@ help: ## Display this help screen
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 .PHONY: help
 
-install-tools: $(E2E_TEST) ## Install additional tools required for tests
+install-tools: $(E2E_TEST) ## Install additional test tools
 .PHONY: install-tools
 
 $(E2E_TEST):
-	curl -L https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.4/devopstest-darwin-amd64 -o $@
+	@echo Installing $@
+	curl -sSfL \
+		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.8/devopstest-darwin-amd64 \
+		-o $@
 	@chmod +x $(E2E_TEST)
 
 build: $(COMPONENTS) ## Build whole project
@@ -22,12 +25,12 @@ build: $(COMPONENTS) ## Build whole project
 $(COMPONENTS):
 	go build $(CCFLAGS) -o cmd/$@/$@ cmd/$@/*.go
 
-clean: ## Cleanup build artifacts
-	rm -f cmd/agent/agent cmd/server/server
+clean: ## Remove build artifacts and downloaded test tools
+	rm -f cmd/agent/agent cmd/server/server $(E2E_TEST)
 .PHONY: clean
 
 lint: ## Run linters on the source code
-	go vet ./...
+	golangci-lint run
 .PHONY: lint
 
 unit-tests: ## Run unit tests
