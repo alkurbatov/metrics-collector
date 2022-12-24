@@ -15,6 +15,8 @@ import (
 )
 
 func sendTestRequest(t *testing.T, method, path string, payload []byte) *http.Response {
+	t.Helper()
+
 	srv := httptest.NewServer(Router("../../web/views", services.RecorderMock{}))
 	defer srv.Close()
 

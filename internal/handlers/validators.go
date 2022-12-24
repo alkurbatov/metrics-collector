@@ -5,7 +5,7 @@ import (
 	"regexp"
 )
 
-var metricName *regexp.Regexp = regexp.MustCompile(`^[A-Za-z\d]+$`)
+var metricName = regexp.MustCompile(`^[A-Za-z\d]+$`)
 
 func validateMetricName(name string) error {
 	if metricName.MatchString(name) {

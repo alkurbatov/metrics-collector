@@ -19,6 +19,7 @@ func (a *NetAddress) Set(src string) error {
 	}
 
 	*a = NetAddress(src)
+
 	return nil
 }
 

@@ -33,6 +33,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		"a",
 		"address:port server listens on",
 	)
+
 	storeInterval := flag.DurationP(
 		"store-interval",
 		"i",
@@ -51,6 +52,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		true,
 		"whether to restore state on startup or not",
 	)
+
 	flag.Parse()
 
 	cfg := &ServerConfig{
@@ -104,7 +106,11 @@ func NewServer() *Server {
 
 	recorder := services.NewMetricsRecorder(dataStore)
 	router := handlers.Router("./web/views", recorder)
-	srv := &http.Server{Addr: cfg.ListenAddress.String(), Handler: router}
+	srv := &http.Server{
+		Addr:              cfg.ListenAddress.String(),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 
 	return &Server{
 		Config:     cfg,
@@ -161,7 +167,7 @@ func (app *Server) Serve(ctx context.Context) {
 		go app.dumpStorage(ctx)
 	}
 
-	if err := app.HTTPServer.ListenAndServe(); err != http.ErrServerClosed {
+	if err := app.HTTPServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		logging.Log.Fatal(err)
 	}
 }

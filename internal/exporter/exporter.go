@@ -13,21 +13,21 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 )
 
-type httpExporter struct {
+type HTTPExporter struct {
 	baseURL string
 	client  *http.Client
 	err     error
 }
 
-func NewExporter(collectorAddress string) httpExporter {
+func NewExporter(collectorAddress string) HTTPExporter {
 	baseURL := fmt.Sprintf("http://%s", collectorAddress)
 
 	client := &http.Client{Timeout: 2 * time.Second}
 
-	return httpExporter{baseURL: baseURL, client: client, err: nil}
+	return HTTPExporter{baseURL: baseURL, client: client, err: nil}
 }
 
-func (h *httpExporter) doExport(req string, payload []byte) *httpExporter {
+func (h *HTTPExporter) doExport(req string, payload []byte) *HTTPExporter {
 	logging.Log.Info(req)
 
 	resp, err := h.client.Post(req, "Content-Type: application/json", bytes.NewReader(payload))
@@ -38,6 +38,7 @@ func (h *httpExporter) doExport(req string, payload []byte) *httpExporter {
 
 	defer resp.Body.Close()
 	_, err = io.ReadAll(resp.Body)
+
 	if err != nil {
 		h.err = err
 		return h
@@ -51,13 +52,14 @@ func (h *httpExporter) doExport(req string, payload []byte) *httpExporter {
 	return h
 }
 
-func (h *httpExporter) exportGauge(name string, value metrics.Gauge) *httpExporter {
+func (h *HTTPExporter) exportGauge(name string, value metrics.Gauge) *HTTPExporter {
 	if h.err != nil {
 		return h
 	}
 
 	req := schema.NewUpdateGaugeReq(name, value)
 	payload, err := json.Marshal(req)
+
 	if err != nil {
 		h.err = err
 		return h
@@ -66,13 +68,14 @@ func (h *httpExporter) exportGauge(name string, value metrics.Gauge) *httpExport
 	return h.doExport(h.baseURL+"/update", payload)
 }
 
-func (h *httpExporter) exportCounter(name string, value metrics.Counter) *httpExporter {
+func (h *HTTPExporter) exportCounter(name string, value metrics.Counter) *HTTPExporter {
 	if h.err != nil {
 		return h
 	}
 
 	req := schema.NewUpdateCounterReq(name, value)
 	payload, err := json.Marshal(req)
+
 	if err != nil {
 		h.err = err
 		return h

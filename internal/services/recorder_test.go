@@ -10,6 +10,7 @@ import (
 )
 
 func pushCounter(t *testing.T, recorder Recorder, name string, value metrics.Counter, expected metrics.Counter) {
+	t.Helper()
 	require := require.New(t)
 
 	rv, err := recorder.PushCounter(name, value)
@@ -18,6 +19,7 @@ func pushCounter(t *testing.T, recorder Recorder, name string, value metrics.Cou
 }
 
 func pushGauge(t *testing.T, recorder Recorder, name string, value metrics.Gauge, expected metrics.Gauge) {
+	t.Helper()
 	require := require.New(t)
 
 	rv, err := recorder.PushGauge(name, value)

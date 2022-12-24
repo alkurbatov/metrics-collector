@@ -25,6 +25,7 @@ func main() {
 	go app.Serve(ctx)
 
 	signal := <-sigChan
+
 	cancel()
 	app.Shutdown(signal)
 }

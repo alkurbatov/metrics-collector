@@ -27,6 +27,7 @@ func NewAgentConfig() AgentConfig {
 		"a",
 		"address:port of metrics collector",
 	)
+
 	reportInterval := flag.DurationP(
 		"report-interval",
 		"r",
@@ -39,6 +40,7 @@ func NewAgentConfig() AgentConfig {
 		2*time.Second,
 		"metrics poll interval in seconds",
 	)
+
 	flag.Parse()
 
 	cfg := AgentConfig{

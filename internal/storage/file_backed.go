@@ -63,6 +63,7 @@ func (f *FileBackedStorage) Restore() error {
 	}
 
 	logging.Log.Info("Storage data was successfully restored")
+
 	return nil
 }
 
@@ -81,6 +82,7 @@ func (f *FileBackedStorage) Dump() error {
 
 	encoder := json.NewEncoder(file)
 	snapshot := f.MemStorage.Snapshot()
+
 	if err := encoder.Encode(snapshot); err != nil {
 		return err
 	}

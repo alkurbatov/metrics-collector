@@ -48,9 +48,10 @@ func TestToCounter(t *testing.T) {
 		},
 	}
 
-	assert := assert.New(t)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			assert := assert.New(t)
+
 			metric, err := ToCounter(tc.value)
 			if tc.valid {
 				assert.NoError(err)
@@ -123,9 +124,10 @@ func TestToGauge(t *testing.T) {
 		},
 	}
 
-	assert := assert.New(t)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			assert := assert.New(t)
+
 			metric, err := ToGauge(tc.value)
 			if tc.valid {
 				assert.NoError(err)
