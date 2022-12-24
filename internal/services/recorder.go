@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/alkurbatov/metrics-collector/internal/app"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 )
@@ -13,16 +12,11 @@ type MetricsRecorder struct {
 	storage storage.Storage
 }
 
-func NewMetricsRecorder(app *app.Server) MetricsRecorder {
-	return MetricsRecorder{storage: app.Storage}
+func NewMetricsRecorder(dataStore storage.Storage) MetricsRecorder {
+	return MetricsRecorder{storage: dataStore}
 }
 
-func (r MetricsRecorder) PushCounter(name, rawValue string) error {
-	value, err := metrics.ToCounter(rawValue)
-	if err != nil {
-		return err
-	}
-
+func (r MetricsRecorder) PushCounter(name string, value metrics.Counter) (metrics.Counter, error) {
 	id := name + "_counter"
 
 	prevValue, ok := r.storage.Get(id)
@@ -30,20 +24,23 @@ func (r MetricsRecorder) PushCounter(name, rawValue string) error {
 		value += prevValue.Value.(metrics.Counter)
 	}
 
-	r.storage.Push(id, storage.Record{Name: name, Value: value})
-	return nil
-}
-
-func (r MetricsRecorder) PushGauge(name, rawValue string) error {
-	value, err := metrics.ToGauge(rawValue)
+	err := r.storage.Push(id, storage.Record{Name: name, Value: value})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
+	return value, nil
+}
+
+func (r MetricsRecorder) PushGauge(name string, value metrics.Gauge) (metrics.Gauge, error) {
 	id := name + "_gauge"
 
-	r.storage.Push(id, storage.Record{Name: name, Value: value})
-	return nil
+	err := r.storage.Push(id, storage.Record{Name: name, Value: value})
+	if err != nil {
+		return 0, err
+	}
+
+	return value, nil
 }
 
 func (r MetricsRecorder) GetRecord(kind, name string) (storage.Record, bool) {
@@ -53,8 +50,7 @@ func (r MetricsRecorder) GetRecord(kind, name string) (storage.Record, bool) {
 }
 
 func (r MetricsRecorder) ListRecords() []storage.Record {
-	rv := make([]storage.Record, 0)
-	rv = append(rv, r.storage.GetAll()...)
+	rv := append([]storage.Record(nil), r.storage.GetAll()...)
 
 	sort.Slice(rv, func(i, j int) bool {
 		return rv[i].Name < rv[j].Name

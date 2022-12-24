@@ -1,6 +1,8 @@
 package metrics
 
-import "fmt"
+import (
+	"strconv"
+)
 
 type Metric interface {
 	Kind() string
@@ -14,7 +16,7 @@ func (c Counter) Kind() string {
 }
 
 func (c Counter) String() string {
-	return fmt.Sprintf("%d", c)
+	return strconv.FormatInt(int64(c), 10)
 }
 
 type Gauge float64
@@ -24,5 +26,5 @@ func (g Gauge) Kind() string {
 }
 
 func (g Gauge) String() string {
-	return fmt.Sprintf("%.3f", g)
+	return strconv.FormatFloat(float64(g), 'f', -1, 64)
 }

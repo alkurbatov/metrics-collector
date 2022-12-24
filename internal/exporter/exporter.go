@@ -1,6 +1,8 @@
 package exporter
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/alkurbatov/metrics-collector/internal/schema"
 )
 
 type httpExporter struct {
@@ -24,10 +27,10 @@ func NewExporter(collectorAddress string) httpExporter {
 	return httpExporter{baseURL: baseURL, client: client, err: nil}
 }
 
-func (h *httpExporter) doExport(req string) *httpExporter {
+func (h *httpExporter) doExport(req string, payload []byte) *httpExporter {
 	logging.Log.Info(req)
 
-	resp, err := h.client.Post(req, "Content-Type: text/plain", nil)
+	resp, err := h.client.Post(req, "Content-Type: application/json", bytes.NewReader(payload))
 	if err != nil {
 		h.err = err
 		return h
@@ -53,8 +56,14 @@ func (h *httpExporter) exportGauge(name string, value metrics.Gauge) *httpExport
 		return h
 	}
 
-	req := fmt.Sprintf("%s/update/gauge/%s/%f", h.baseURL, name, value)
-	return h.doExport(req)
+	req := schema.NewUpdateGaugeReq(name, value)
+	payload, err := json.Marshal(req)
+	if err != nil {
+		h.err = err
+		return h
+	}
+
+	return h.doExport(h.baseURL+"/update", payload)
 }
 
 func (h *httpExporter) exportCounter(name string, value metrics.Counter) *httpExporter {
@@ -62,8 +71,14 @@ func (h *httpExporter) exportCounter(name string, value metrics.Counter) *httpEx
 		return h
 	}
 
-	req := fmt.Sprintf("%s/update/counter/%s/%d", h.baseURL, name, value)
-	return h.doExport(req)
+	req := schema.NewUpdateCounterReq(name, value)
+	payload, err := json.Marshal(req)
+	if err != nil {
+		h.err = err
+		return h
+	}
+
+	return h.doExport(h.baseURL+"/update", payload)
 }
 
 func SendMetrics(collectorAddress string, stats metrics.Metrics) error {

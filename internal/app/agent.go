@@ -2,35 +2,68 @@ package app
 
 import (
 	"context"
-	"runtime/debug"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/exporter"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/caarlos0/env/v6"
+	flag "github.com/spf13/pflag"
 )
 
-// Log if panic occurres but try to avoid program termination.
-func tryRecover() {
-	if p := recover(); p != nil {
-		l := logging.Log.WithField("event", "panic")
-		l.Error(p)
-		l.Error(string(debug.Stack()))
-	}
-}
-
 type AgentConfig struct {
-	PollInterval     time.Duration
-	ReportInterval   time.Duration
-	CollectorAddress string
+	PollInterval     time.Duration `env:"POLL_INTERVAL"`
+	ReportInterval   time.Duration `env:"REPORT_INTERVAL"`
+	CollectorAddress NetAddress    `env:"ADDRESS"`
 }
 
 func NewAgentConfig() AgentConfig {
-	return AgentConfig{
-		PollInterval:     2 * time.Second,
-		ReportInterval:   10 * time.Second,
-		CollectorAddress: "127.0.0.1:8080",
+	collectorAddress := NetAddress("0.0.0.0:8080")
+	flag.VarP(
+		&collectorAddress,
+		"collector-address",
+		"a",
+		"address:port of metrics collector",
+	)
+	reportInterval := flag.DurationP(
+		"report-interval",
+		"r",
+		10*time.Second,
+		"metrics report interval in seconds",
+	)
+	pollInterval := flag.DurationP(
+		"poll-interval",
+		"p",
+		2*time.Second,
+		"metrics poll interval in seconds",
+	)
+	flag.Parse()
+
+	cfg := AgentConfig{
+		CollectorAddress: collectorAddress,
+		ReportInterval:   *reportInterval,
+		PollInterval:     *pollInterval,
 	}
+
+	err := env.Parse(&cfg)
+	if err != nil {
+		logging.Log.Fatal(err)
+	}
+
+	return cfg
+}
+
+func (c AgentConfig) String() string {
+	var sb strings.Builder
+
+	sb.WriteString("Configuration:\n")
+	sb.WriteString(fmt.Sprintf("\t\tPoll interval: %s\n", c.PollInterval))
+	sb.WriteString(fmt.Sprintf("\t\tReport interval: %s\n", c.ReportInterval))
+	sb.WriteString(fmt.Sprintf("\t\tCollector address: %s\n", c.CollectorAddress))
+
+	return sb.String()
 }
 
 type Agent struct {
@@ -56,7 +89,7 @@ func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
 			}()
 
 		case <-ctx.Done():
-			logging.Log.Info("Shutdown metrics gatzering")
+			logging.Log.Info("Shutdown metrics gathering")
 			return
 		}
 	}
@@ -74,7 +107,7 @@ func (app *Agent) Report(ctx context.Context, stats *metrics.Metrics) {
 
 				logging.Log.Info("Sending application metrics")
 
-				if err := exporter.SendMetrics(app.Config.CollectorAddress, *stats); err != nil {
+				if err := exporter.SendMetrics(app.Config.CollectorAddress.String(), *stats); err != nil {
 					logging.Log.Error(err)
 				}
 			}()

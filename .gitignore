@@ -8,6 +8,9 @@
 # Test binary, built with `go test -c`
 *.test
 
+# Yandex Practicum e2e test
+tests/devopstest
+
 # Output of the go coverage tool
 coverage.*
 

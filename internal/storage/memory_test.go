@@ -4,21 +4,23 @@ import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPush(t *testing.T) {
-	name := "PollCount_counter"
+	id := "PollCount_counter"
+	name := "PollCount"
 
 	m := NewMemStorage()
 
 	value := metrics.Counter(10)
-	m.Push(name, Record{Name: name, Value: value})
-	require.Equal(t, value, m.data[name].Value)
+	m.Push(id, Record{Name: name, Value: value})
+	require.Equal(t, value, m.Data[id].Value)
 
 	value = metrics.Counter(23)
-	m.Push(name, Record{Name: name, Value: value})
-	require.Equal(t, value, m.data[name].Value)
+	m.Push(id, Record{Name: name, Value: value})
+	require.Equal(t, value, m.Data[id].Value)
 }
 
 func TestGet(t *testing.T) {
@@ -60,4 +62,31 @@ func TestGetAll(t *testing.T) {
 
 	m.Push("New_counter", Record{Name: "New", Value: metrics.Counter(1)})
 	require.Equal(len(input), len(records))
+}
+
+func TestGetAllOnEmptyStorage(t *testing.T) {
+	m := NewMemStorage()
+	records := m.GetAll()
+
+	assert.Empty(t, records)
+}
+
+func TestSnapshot(t *testing.T) {
+	id := "PollCount_counter"
+	name := "PollCount"
+
+	require := require.New(t)
+	m := NewMemStorage()
+
+	value := metrics.Counter(10)
+	m.Push(id, Record{Name: name, Value: value})
+	require.Equal(value, m.Data[id].Value)
+
+	snapshot := m.Snapshot()
+	require.ElementsMatch(m.GetAll(), snapshot.GetAll())
+
+	newValue := metrics.Counter(22)
+	m.Push(id, Record{Name: name, Value: newValue})
+	require.Equal(newValue, m.Data[id].Value)
+	require.Equal(value, snapshot.Data[id].Value)
 }

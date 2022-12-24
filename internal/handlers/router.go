@@ -3,19 +3,30 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/alkurbatov/metrics-collector/internal/middleware"
+	"github.com/alkurbatov/metrics-collector/internal/compression"
+	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/go-chi/chi/v5"
 )
 
 func Router(viewsPath string, recorder services.Recorder) http.Handler {
+	metrics := newMetricsResource(viewsPath, recorder)
+
 	r := chi.NewRouter()
 
-	r.Use(middleware.RequestsLogger)
+	r.Use(logging.RequestsLogger)
+	r.Use(compression.DecompressRequest)
+	r.Use(compression.CompressResponse)
 
-	r.Method("GET", "/", NewRootHandler(viewsPath, recorder))
-	r.Method("GET", "/value/{kind}/{name}", GetMetricHandler{Recorder: recorder})
-	r.Method("POST", "/update/{kind}/{name}/{value}", UpdateMetricHandler{Recorder: recorder})
+	r.Get("/", metrics.List)
+
+	r.Post("/value", metrics.GetJSON)
+	r.Post("/value/", metrics.GetJSON)
+	r.Get("/value/{kind}/{name}", metrics.Get)
+
+	r.Post("/update", metrics.UpdateJSON)
+	r.Post("/update/", metrics.UpdateJSON)
+	r.Post("/update/{kind}/{name}/{value}", metrics.Update)
 
 	return r
 }

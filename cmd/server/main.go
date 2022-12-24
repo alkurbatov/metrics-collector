@@ -1,22 +1,30 @@
 package main
 
 import (
-	"net/http"
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/alkurbatov/metrics-collector/internal/app"
-	"github.com/alkurbatov/metrics-collector/internal/handlers"
-	"github.com/alkurbatov/metrics-collector/internal/logging"
-	"github.com/alkurbatov/metrics-collector/internal/services"
 )
 
 func main() {
 	app := app.NewServer()
-	recorder := services.NewMetricsRecorder(app)
-	router := handlers.Router("./web/views", recorder)
 
-	logging.Log.Info("Listening on " + app.Config.ListenAddress)
+	sigChan := make(chan os.Signal, 2)
+	signal.Notify(sigChan,
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
 
-	if err := http.ListenAndServe(app.Config.ListenAddress, router); err != nil {
-		logging.Log.Fatal(err)
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go app.Serve(ctx)
+
+	signal := <-sigChan
+	cancel()
+	app.Shutdown(signal)
 }

@@ -10,20 +10,20 @@ import (
 type RecorderMock struct {
 }
 
-func (m RecorderMock) PushCounter(name, rawValue string) error {
+func (m RecorderMock) PushCounter(name string, value metrics.Counter) (metrics.Counter, error) {
 	if name == "fail" {
-		return errors.New("failure")
+		return 0, errors.New("failure")
 	}
 
-	return nil
+	return value, nil
 }
 
-func (m RecorderMock) PushGauge(name, rawValue string) error {
+func (m RecorderMock) PushGauge(name string, value metrics.Gauge) (metrics.Gauge, error) {
 	if name == "fail" {
-		return errors.New("failure")
+		return 0, errors.New("failure")
 	}
 
-	return nil
+	return value, nil
 }
 
 func (m RecorderMock) GetRecord(kind, name string) (storage.Record, bool) {

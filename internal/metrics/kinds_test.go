@@ -19,13 +19,13 @@ func TestStringConvertion(t *testing.T) {
 		},
 		{
 			name:     "Convert gauge",
-			metric:   Gauge(15.546000),
-			expected: "15.546",
+			metric:   Gauge(15.546789),
+			expected: "15.546789",
 		},
 		{
 			name:     "Convert small gauge",
 			metric:   Gauge(0.12),
-			expected: "0.120",
+			expected: "0.12",
 		},
 	}
 
