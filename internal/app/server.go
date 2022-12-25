@@ -107,8 +107,14 @@ func NewServer() *Server {
 	recorder := services.NewMetricsRecorder(dataStore)
 	router := handlers.Router("./web/views", recorder)
 	srv := &http.Server{
-		Addr:              cfg.ListenAddress.String(),
-		Handler:           router,
+		Addr:    cfg.ListenAddress.String(),
+		Handler: router,
+
+		// NB (alkurbatov): Set reasonable timeouts, see:
+		// https://habr.com/ru/company/ispring/blog/560032/
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
