@@ -8,6 +8,10 @@ SERVER_PATH=./cmd/server/server
 
 PG_URL="postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
 
+function get_random_port() {
+    awk 'BEGIN{srand(); print int(rand() * (63000-2000)) + 2000 }'
+}
+
 # Cleanup artifacts from previous tests.
 rm -f /tmp/test_store*.json
 
@@ -31,7 +35,7 @@ ${E2E_TEST} \
     -binary-path=${SERVER_PATH} \
     -agent-binary-path=${AGENT_PATH}
 
-PORT=5000
+PORT="$(get_random_port)"
 ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -test.v -test.run=^TestIteration5$ \
        -source-path=. \
@@ -39,7 +43,7 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -binary-path=${SERVER_PATH} \
        -server-port=${PORT}
 
-PORT=6000
+PORT="$(get_random_port)"
 TEMP_FILE="/tmp/test_store6.json"
 ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -test.v -test.run=^TestIteration6$ \
@@ -50,7 +54,7 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -database-dsn="${PG_URL}" \
        -file-storage-path=${TEMP_FILE}
 
-PORT=7000
+PORT="$(get_random_port)"
 TEMP_FILE="/tmp/test_store7.json"
 ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -test.v -test.run=^TestIteration7$ \
@@ -61,7 +65,7 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -database-dsn="${PG_URL}" \
        -file-storage-path=${TEMP_FILE}
 
-PORT=8000
+PORT="$(get_random_port)"
 TEMP_FILE="/tmp/test_store8.json"
 ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -test.v -test.run=^TestIteration8$ \
