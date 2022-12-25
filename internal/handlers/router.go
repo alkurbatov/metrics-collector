@@ -9,8 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func Router(viewsPath string, recorder services.Recorder) http.Handler {
-	metrics := newMetricsResource(viewsPath, recorder)
+func Router(viewsPath string, recorder services.Recorder, signer *services.Signer) http.Handler {
+	metrics := newMetricsResource(viewsPath, recorder, signer)
 
 	r := chi.NewRouter()
 

@@ -7,6 +7,7 @@ type MetricReq struct {
 	MType string           `json:"type"`            // gauge or counter
 	Delta *metrics.Counter `json:"delta,omitempty"` // metric value if type is counter
 	Value *metrics.Gauge   `json:"value,omitempty"` // metric value if type is gauge
+	Hash  string           `json:"hash,omitempty"`  // hash value of the data
 }
 
 func NewUpdateCounterReq(name string, value metrics.Counter) MetricReq {

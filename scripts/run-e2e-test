@@ -75,3 +75,15 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -server-port=${PORT} \
        -database-dsn="${PG_URL}" \
        -file-storage-path=${TEMP_FILE}
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store9.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration9$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port=${PORT} \
+       -file-storage-path=$TEMP_FILE \
+       -database-dsn="${PG_URL}" \
+       -key=${TEMP_FILE}

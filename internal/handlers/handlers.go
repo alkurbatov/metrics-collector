@@ -17,6 +17,7 @@ import (
 type metricsResource struct {
 	view     *template.Template
 	recorder services.Recorder
+	signer   *services.Signer
 }
 
 func writeErrorResponse(w http.ResponseWriter, code int, err error) {
@@ -25,10 +26,10 @@ func writeErrorResponse(w http.ResponseWriter, code int, err error) {
 	http.Error(w, resp, code)
 }
 
-func newMetricsResource(viewsPath string, recorder services.Recorder) metricsResource {
+func newMetricsResource(viewsPath string, recorder services.Recorder, signer *services.Signer) metricsResource {
 	view := loadViewTemplate(viewsPath + "/metrics.html")
 
-	return metricsResource{view: view, recorder: recorder}
+	return metricsResource{view: view, recorder: recorder, signer: signer}
 }
 
 func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +99,20 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.signer != nil {
+		valid, err := h.signer.VerifySignature(data)
+		if err != nil {
+			// NB (alkurbatov): We don't want to give any hints to potential attacker,
+			// but still want to debug implementation errors. Thus, the error is only logged.
+			logging.Log.Error(err)
+		}
+
+		if err != nil || !valid {
+			writeErrorResponse(w, http.StatusBadRequest, errInvalidSignature)
+			return
+		}
+	}
+
 	switch data.MType {
 	case "counter":
 		newDelta, err := h.recorder.PushCounter(data.ID, *data.Delta)
@@ -120,6 +135,13 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeErrorResponse(w, http.StatusNotImplemented, errMetricNotImplemented)
 		return
+	}
+
+	if h.signer != nil {
+		if err := h.signer.SignRequest(data); err != nil {
+			writeErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -208,6 +230,13 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeErrorResponse(w, http.StatusNotImplemented, errMetricNotImplemented)
 		return
+	}
+
+	if h.signer != nil {
+		if err := h.signer.SignRequest(data); err != nil {
+			writeErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

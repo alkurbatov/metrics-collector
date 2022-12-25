@@ -14,10 +14,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func sendTestRequest(t *testing.T, method, path string, payload []byte) *http.Response {
+func sendTestRequest(t *testing.T, method, path string, payload []byte, key services.Secret) *http.Response {
 	t.Helper()
 
-	srv := httptest.NewServer(Router("../../web/views", services.RecorderMock{}))
+	var signer *services.Signer
+	if len(key) > 0 {
+		signer = services.NewSigner(key)
+	}
+
+	srv := httptest.NewServer(Router("../../web/views", services.RecorderMock{}, signer))
 	defer srv.Close()
 
 	body := bytes.NewReader(payload)
@@ -114,7 +119,7 @@ func TestUpdateMetric(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			resp := sendTestRequest(t, http.MethodPost, tc.path, nil)
+			resp := sendTestRequest(t, http.MethodPost, tc.path, nil, "")
 
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
@@ -135,9 +140,11 @@ func TestUpdateJSONMetric(t *testing.T) {
 	}
 
 	tt := []struct {
-		name     string
-		req      schema.MetricReq
-		expected result
+		name      string
+		req       schema.MetricReq
+		clientKey services.Secret
+		serverKey services.Secret
+		expected  result
 	}{
 		{
 			name: "Push counter",
@@ -151,6 +158,42 @@ func TestUpdateJSONMetric(t *testing.T) {
 			req:  schema.NewUpdateGaugeReq("Alloc", 13.123),
 			expected: result{
 				code: http.StatusOK,
+			},
+		},
+		{
+			name:      "Should push counter with signature",
+			req:       schema.NewUpdateCounterReq("PollCount", 10),
+			clientKey: "abc",
+			serverKey: "abc",
+			expected: result{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name:      "Should push gauge with signature",
+			req:       schema.NewUpdateGaugeReq("Alloc", 13.123),
+			clientKey: "abc",
+			serverKey: "abc",
+			expected: result{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name:      "Should fail if counter signature doesn't match",
+			req:       schema.NewUpdateCounterReq("PollCount", 10),
+			clientKey: "abc",
+			serverKey: "xxx",
+			expected: result{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:      "Should fail if gauge signature doesn't match",
+			req:       schema.NewUpdateGaugeReq("Alloc", 13.123),
+			clientKey: "abc",
+			serverKey: "xxx",
+			expected: result{
+				code: http.StatusBadRequest,
 			},
 		},
 		{
@@ -198,10 +241,16 @@ func TestUpdateJSONMetric(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 
+			if len(tc.clientKey) > 0 {
+				signer := services.NewSigner(tc.clientKey)
+				err := signer.SignRequest(&tc.req)
+				require.NoError(err)
+			}
+
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
 
-			resp := sendTestRequest(t, http.MethodPost, "/update", payload)
+			resp := sendTestRequest(t, http.MethodPost, "/update", payload, tc.serverKey)
 
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
@@ -290,7 +339,7 @@ func TestGetMetric(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			resp := sendTestRequest(t, http.MethodGet, tc.path, nil)
+			resp := sendTestRequest(t, http.MethodGet, tc.path, nil, "")
 
 			assert.Equal(tc.expected.code, resp.StatusCode)
 			assert.Equal("text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
@@ -310,12 +359,14 @@ func TestGetJSONMetric(t *testing.T) {
 	type result struct {
 		code int
 		body schema.MetricReq
+		hash string
 	}
 
 	tt := []struct {
-		name     string
-		req      schema.MetricReq
-		expected result
+		name      string
+		req       schema.MetricReq
+		serverKey services.Secret
+		expected  result
 	}{
 		{
 			name: "Get counter",
@@ -331,6 +382,26 @@ func TestGetJSONMetric(t *testing.T) {
 			expected: result{
 				code: http.StatusOK,
 				body: schema.NewUpdateGaugeReq("Alloc", 11.345),
+			},
+		},
+		{
+			name:      "Should get signed counter",
+			req:       schema.NewGetCounterReq("PollCount"),
+			serverKey: "abc",
+			expected: result{
+				code: http.StatusOK,
+				body: schema.NewUpdateCounterReq("PollCount", 10),
+				hash: "0833001195f2e062140968e0c00dd44f00eb9a0b309aedc464817f904b244c8a",
+			},
+		},
+		{
+			name:      "Should get signed gauge",
+			req:       schema.NewGetGaugeReq("Alloc"),
+			serverKey: "abc",
+			expected: result{
+				code: http.StatusOK,
+				body: schema.NewUpdateGaugeReq("Alloc", 11.345),
+				hash: "2d32037265fd3547d65d4f51d69d8ea53490bef6e924fa2cfe2e4045ad50527d",
 			},
 		},
 		{
@@ -378,7 +449,7 @@ func TestGetJSONMetric(t *testing.T) {
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
 
-			resp := sendTestRequest(t, http.MethodPost, "/value", payload)
+			resp := sendTestRequest(t, http.MethodPost, "/value", payload, tc.serverKey)
 
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
@@ -393,6 +464,7 @@ func TestGetJSONMetric(t *testing.T) {
 				err = json.Unmarshal(respBody, &resp)
 				require.NoError(err)
 
+				tc.expected.body.Hash = tc.expected.hash
 				assert.Equal(tc.expected.body, resp)
 			}
 		})
@@ -402,7 +474,7 @@ func TestGetJSONMetric(t *testing.T) {
 func TestListMetrics(t *testing.T) {
 	require := require.New(t)
 
-	resp := sendTestRequest(t, http.MethodGet, "/", nil)
+	resp := sendTestRequest(t, http.MethodGet, "/", nil, "")
 
 	require.Equal(http.StatusOK, resp.StatusCode)
 	require.Equal("text/html; charset=utf-8", resp.Header.Get("Content-Type"))

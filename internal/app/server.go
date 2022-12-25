@@ -19,10 +19,11 @@ import (
 )
 
 type ServerConfig struct {
-	ListenAddress  NetAddress    `env:"ADDRESS"`
-	StoreInterval  time.Duration `env:"STORE_INTERVAL"`
-	StorePath      string        `env:"STORE_FILE"`
-	RestoreOnStart bool          `env:"RESTORE"`
+	ListenAddress  NetAddress      `env:"ADDRESS"`
+	StoreInterval  time.Duration   `env:"STORE_INTERVAL"`
+	StorePath      string          `env:"STORE_FILE"`
+	RestoreOnStart bool            `env:"RESTORE"`
+	Secret         services.Secret `env:"KEY"`
 }
 
 func NewServerConfig() (*ServerConfig, error) {
@@ -52,6 +53,12 @@ func NewServerConfig() (*ServerConfig, error) {
 		true,
 		"whether to restore state on startup or not",
 	)
+	secret := flag.StringP(
+		"key",
+		"k",
+		"",
+		"secret key for signature generation",
+	)
 
 	flag.Parse()
 
@@ -60,6 +67,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		StorePath:      *storePath,
 		StoreInterval:  *storeInterval,
 		RestoreOnStart: *restoreOnStart,
+		Secret:         services.Secret(*secret),
 	}
 
 	err := env.Parse(cfg)
@@ -84,6 +92,10 @@ func (c ServerConfig) String() string {
 	sb.WriteString(fmt.Sprintf("\t\tStore path: %s\n", c.StorePath))
 	sb.WriteString(fmt.Sprintf("\t\tRestore on start: %t\n", c.RestoreOnStart))
 
+	if len(c.Secret) > 0 {
+		sb.WriteString(fmt.Sprintf("\t\tSecret key: %s\n", c.Secret))
+	}
+
 	return sb.String()
 }
 
@@ -105,7 +117,13 @@ func NewServer() *Server {
 	logging.Log.Info("Attached " + dataStore.String())
 
 	recorder := services.NewMetricsRecorder(dataStore)
-	router := handlers.Router("./web/views", recorder)
+
+	var signer *services.Signer
+	if len(cfg.Secret) > 0 {
+		signer = services.NewSigner(cfg.Secret)
+	}
+
+	router := handlers.Router("./web/views", recorder, signer)
 	srv := &http.Server{
 		Addr:    cfg.ListenAddress.String(),
 		Handler: router,

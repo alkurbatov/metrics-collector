@@ -11,26 +11,50 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
+	"github.com/alkurbatov/metrics-collector/internal/services"
 )
 
 type HTTPExporter struct {
 	baseURL string
 	client  *http.Client
+	signer  *services.Signer
 	err     error
 }
 
-func NewExporter(collectorAddress string) HTTPExporter {
+func NewExporter(collectorAddress string, secret services.Secret) HTTPExporter {
 	baseURL := fmt.Sprintf("http://%s", collectorAddress)
-
 	client := &http.Client{Timeout: 2 * time.Second}
 
-	return HTTPExporter{baseURL: baseURL, client: client, err: nil}
+	var signer *services.Signer
+	if len(secret) > 0 {
+		signer = services.NewSigner(secret)
+	}
+
+	return HTTPExporter{
+		baseURL: baseURL,
+		client:  client,
+		signer:  signer,
+		err:     nil,
+	}
 }
 
-func (h *HTTPExporter) doExport(req string, payload []byte) *HTTPExporter {
-	logging.Log.Info(req)
+func (h *HTTPExporter) doExport(req *schema.MetricReq) *HTTPExporter {
+	logging.Log.WithField("type", req.MType).Info("Update " + req.ID)
 
-	resp, err := h.client.Post(req, "Content-Type: application/json", bytes.NewReader(payload))
+	if h.signer != nil {
+		if err := h.signer.SignRequest(req); err != nil {
+			h.err = err
+			return h
+		}
+	}
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		h.err = err
+		return h
+	}
+
+	resp, err := h.client.Post(h.baseURL+"/update", "Content-Type: application/json", bytes.NewReader(payload))
 	if err != nil {
 		h.err = err
 		return h
@@ -58,14 +82,8 @@ func (h *HTTPExporter) exportGauge(name string, value metrics.Gauge) *HTTPExport
 	}
 
 	req := schema.NewUpdateGaugeReq(name, value)
-	payload, err := json.Marshal(req)
 
-	if err != nil {
-		h.err = err
-		return h
-	}
-
-	return h.doExport(h.baseURL+"/update", payload)
+	return h.doExport(&req)
 }
 
 func (h *HTTPExporter) exportCounter(name string, value metrics.Counter) *HTTPExporter {
@@ -74,18 +92,12 @@ func (h *HTTPExporter) exportCounter(name string, value metrics.Counter) *HTTPEx
 	}
 
 	req := schema.NewUpdateCounterReq(name, value)
-	payload, err := json.Marshal(req)
 
-	if err != nil {
-		h.err = err
-		return h
-	}
-
-	return h.doExport(h.baseURL+"/update", payload)
+	return h.doExport(&req)
 }
 
-func SendMetrics(collectorAddress string, stats metrics.Metrics) error {
-	exporter := NewExporter(collectorAddress)
+func SendMetrics(collectorAddress string, secret services.Secret, stats metrics.Metrics) error {
+	exporter := NewExporter(collectorAddress, secret)
 
 	exporter.
 		exportGauge("Alloc", stats.Memory.Alloc).
