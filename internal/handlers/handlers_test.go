@@ -9,17 +9,18 @@ import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/schema"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func sendTestRequest(t *testing.T, method, path string, payload []byte, key services.Secret) *http.Response {
+func sendTestRequest(t *testing.T, method, path string, payload []byte, key security.Secret) *http.Response {
 	t.Helper()
 
-	var signer *services.Signer
+	var signer *security.Signer
 	if len(key) > 0 {
-		signer = services.NewSigner(key)
+		signer = security.NewSigner(key)
 	}
 
 	srv := httptest.NewServer(Router("../../web/views", services.RecorderMock{}, signer))
@@ -142,8 +143,8 @@ func TestUpdateJSONMetric(t *testing.T) {
 	tt := []struct {
 		name      string
 		req       schema.MetricReq
-		clientKey services.Secret
-		serverKey services.Secret
+		clientKey security.Secret
+		serverKey security.Secret
 		expected  result
 	}{
 		{
@@ -242,7 +243,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 			require := require.New(t)
 
 			if len(tc.clientKey) > 0 {
-				signer := services.NewSigner(tc.clientKey)
+				signer := security.NewSigner(tc.clientKey)
 				err := signer.SignRequest(&tc.req)
 				require.NoError(err)
 			}
@@ -365,7 +366,7 @@ func TestGetJSONMetric(t *testing.T) {
 	tt := []struct {
 		name      string
 		req       schema.MetricReq
-		serverKey services.Secret
+		serverKey security.Secret
 		expected  result
 	}{
 		{

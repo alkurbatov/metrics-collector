@@ -11,13 +11,42 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 )
 
 type metricsResource struct {
 	view     *template.Template
 	recorder services.Recorder
-	signer   *services.Signer
+	signer   *security.Signer
+}
+
+func parse(r *http.Request, signer *security.Signer) (*schema.MetricReq, error) {
+	req := new(schema.MetricReq)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return nil, err
+	}
+
+	if err := schema.ValidateMetricName(req.ID); err != nil {
+		return nil, err
+	}
+
+	if signer == nil {
+		return req, nil
+	}
+
+	valid, err := signer.VerifySignature(req)
+	if err != nil {
+		// NB (alkurbatov): We don't want to give any hints to potential attacker,
+		// but still want to debug implementation errors. Thus, the error is only logged.
+		logging.Log.Error(err)
+	}
+
+	if err != nil || !valid {
+		return nil, errInvalidSignature
+	}
+
+	return req, nil
 }
 
 func writeErrorResponse(w http.ResponseWriter, code int, err error) {
@@ -26,7 +55,7 @@ func writeErrorResponse(w http.ResponseWriter, code int, err error) {
 	http.Error(w, resp, code)
 }
 
-func newMetricsResource(viewsPath string, recorder services.Recorder, signer *services.Signer) metricsResource {
+func newMetricsResource(viewsPath string, recorder services.Recorder, signer *security.Signer) metricsResource {
 	view := loadViewTemplate(viewsPath + "/metrics.html")
 
 	return metricsResource{view: view, recorder: recorder, signer: signer}
@@ -37,7 +66,7 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	rawValue := chi.URLParam(r, "value")
 
-	if err := validateMetricName(name); err != nil {
+	if err := schema.ValidateMetricName(name); err != nil {
 		writeErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
@@ -88,29 +117,10 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
-	data := &schema.MetricReq{}
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+	data, err := parse(r, h.signer)
+	if err != nil {
 		writeErrorResponse(w, http.StatusBadRequest, err)
 		return
-	}
-
-	if err := validateMetricName(data.ID); err != nil {
-		writeErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	if h.signer != nil {
-		valid, err := h.signer.VerifySignature(data)
-		if err != nil {
-			// NB (alkurbatov): We don't want to give any hints to potential attacker,
-			// but still want to debug implementation errors. Thus, the error is only logged.
-			logging.Log.Error(err)
-		}
-
-		if err != nil || !valid {
-			writeErrorResponse(w, http.StatusBadRequest, errInvalidSignature)
-			return
-		}
 	}
 
 	switch data.MType {
@@ -158,7 +168,7 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 	kind := chi.URLParam(r, "kind")
 	name := chi.URLParam(r, "name")
 
-	if err := validateMetricName(name); err != nil {
+	if err := schema.ValidateMetricName(name); err != nil {
 		writeErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
@@ -185,13 +195,8 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
-	data := &schema.MetricReq{}
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		writeErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	if err := validateMetricName(data.ID); err != nil {
+	data, err := parse(r, nil)
+	if err != nil {
 		writeErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}

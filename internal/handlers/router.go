@@ -5,11 +5,12 @@ import (
 
 	"github.com/alkurbatov/metrics-collector/internal/compression"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/go-chi/chi/v5"
 )
 
-func Router(viewsPath string, recorder services.Recorder, signer *services.Signer) http.Handler {
+func Router(viewsPath string, recorder services.Recorder, signer *security.Signer) http.Handler {
 	metrics := newMetricsResource(viewsPath, recorder, signer)
 
 	r := chi.NewRouter()

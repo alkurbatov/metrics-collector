@@ -1,8 +1,9 @@
-package handlers
+package schema_test
 
 import (
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,7 +67,7 @@ func TestValidateMetricsName(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateMetricName(tc.metric)
+			err := schema.ValidateMetricName(tc.metric)
 			if tc.valid {
 				assert.NoError(t, err)
 			} else {

@@ -11,23 +11,23 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
-	"github.com/alkurbatov/metrics-collector/internal/services"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 )
 
 type HTTPExporter struct {
 	baseURL string
 	client  *http.Client
-	signer  *services.Signer
+	signer  *security.Signer
 	err     error
 }
 
-func NewExporter(collectorAddress string, secret services.Secret) HTTPExporter {
+func NewExporter(collectorAddress string, secret security.Secret) HTTPExporter {
 	baseURL := fmt.Sprintf("http://%s", collectorAddress)
 	client := &http.Client{Timeout: 2 * time.Second}
 
-	var signer *services.Signer
+	var signer *security.Signer
 	if len(secret) > 0 {
-		signer = services.NewSigner(secret)
+		signer = security.NewSigner(secret)
 	}
 
 	return HTTPExporter{
@@ -96,7 +96,7 @@ func (h *HTTPExporter) exportCounter(name string, value metrics.Counter) *HTTPEx
 	return h.doExport(&req)
 }
 
-func SendMetrics(collectorAddress string, secret services.Secret, stats metrics.Metrics) error {
+func SendMetrics(collectorAddress string, secret security.Secret, stats metrics.Metrics) error {
 	exporter := NewExporter(collectorAddress, secret)
 
 	exporter.

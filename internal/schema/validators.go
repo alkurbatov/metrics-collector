@@ -1,4 +1,4 @@
-package handlers
+package schema
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 
 var metricName = regexp.MustCompile(`^[A-Za-z\d]+$`)
 
-func validateMetricName(name string) error {
+func ValidateMetricName(name string) error {
 	if metricName.MatchString(name) {
 		return nil
 	}

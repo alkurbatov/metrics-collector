@@ -1,39 +1,14 @@
-package services
+package security_test
 
 import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/schema"
-	"github.com/stretchr/testify/assert"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/stretchr/testify/require"
 )
 
 const secret = "abc"
-
-func TestSecretStringConversion(t *testing.T) {
-	tt := []struct {
-		name     string
-		secret   Secret
-		expected string
-	}{
-		{
-			name:     "Basic secret",
-			secret:   "some-secret",
-			expected: "***********",
-		},
-		{
-			name:     "Empty secret",
-			secret:   "",
-			expected: "",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, tc.secret.String())
-		})
-	}
-}
 
 func TestSignRequest(t *testing.T) {
 	tt := []struct {
@@ -71,7 +46,7 @@ func TestSignRequest(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			require := require.New(t)
-			signer := NewSigner(secret)
+			signer := security.NewSigner(secret)
 
 			err := signer.SignRequest(&tc.req)
 			if !tc.ok {
@@ -139,7 +114,7 @@ func TestVerifySignature(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			require := require.New(t)
-			signer := NewSigner(secret)
+			signer := security.NewSigner(secret)
 
 			tc.req.Hash = tc.hash
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/alkurbatov/metrics-collector/internal/handlers"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/caarlos0/env/v6"
@@ -23,7 +24,7 @@ type ServerConfig struct {
 	StoreInterval  time.Duration   `env:"STORE_INTERVAL"`
 	StorePath      string          `env:"STORE_FILE"`
 	RestoreOnStart bool            `env:"RESTORE"`
-	Secret         services.Secret `env:"KEY"`
+	Secret         security.Secret `env:"KEY"`
 }
 
 func NewServerConfig() (*ServerConfig, error) {
@@ -67,7 +68,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		StorePath:      *storePath,
 		StoreInterval:  *storeInterval,
 		RestoreOnStart: *restoreOnStart,
-		Secret:         services.Secret(*secret),
+		Secret:         security.Secret(*secret),
 	}
 
 	err := env.Parse(cfg)
@@ -118,9 +119,9 @@ func NewServer() *Server {
 
 	recorder := services.NewMetricsRecorder(dataStore)
 
-	var signer *services.Signer
+	var signer *security.Signer
 	if len(cfg.Secret) > 0 {
-		signer = services.NewSigner(cfg.Secret)
+		signer = security.NewSigner(cfg.Secret)
 	}
 
 	router := handlers.Router("./web/views", recorder, signer)

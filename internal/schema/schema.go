@@ -1,6 +1,8 @@
 package schema
 
-import "github.com/alkurbatov/metrics-collector/internal/metrics"
+import (
+	"github.com/alkurbatov/metrics-collector/internal/metrics"
+)
 
 type MetricReq struct {
 	ID    string           `json:"id"`              // name of a metric

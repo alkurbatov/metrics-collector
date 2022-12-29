@@ -1,4 +1,4 @@
-package services
+package security
 
 import (
 	"crypto/hmac"
@@ -6,17 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 )
-
-type Secret string
-
-func (s Secret) String() string {
-	return strings.Repeat("*", len(s))
-}
 
 var (
 	errIncompleteRequest  = errors.New("metrics value not set")

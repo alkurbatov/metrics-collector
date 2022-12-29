@@ -9,7 +9,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/exporter"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
-	"github.com/alkurbatov/metrics-collector/internal/services"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/caarlos0/env/v6"
 	flag "github.com/spf13/pflag"
 )
@@ -18,7 +18,7 @@ type AgentConfig struct {
 	PollInterval     time.Duration   `env:"POLL_INTERVAL"`
 	ReportInterval   time.Duration   `env:"REPORT_INTERVAL"`
 	CollectorAddress NetAddress      `env:"ADDRESS"`
-	Secret           services.Secret `env:"KEY"`
+	Secret           security.Secret `env:"KEY"`
 }
 
 func NewAgentConfig() AgentConfig {
@@ -55,7 +55,7 @@ func NewAgentConfig() AgentConfig {
 		CollectorAddress: collectorAddress,
 		ReportInterval:   *reportInterval,
 		PollInterval:     *pollInterval,
-		Secret:           services.Secret(*secret),
+		Secret:           security.Secret(*secret),
 	}
 
 	err := env.Parse(&cfg)
