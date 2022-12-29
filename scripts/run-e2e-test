@@ -6,14 +6,18 @@ E2E_TEST=./test/devopstest
 AGENT_PATH=./cmd/agent/agent
 SERVER_PATH=./cmd/server/server
 
-PG_URL="postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
+PG_URL="postgres://postgres:postgres@127.0.0.1:5432/praktikum?sslmode=disable"
 
 function get_random_port() {
     awk 'BEGIN{srand(); print int(rand() * (63000-2000)) + 2000 }'
 }
 
 # Cleanup artifacts from previous tests.
+# The test leaves environment dirty on failure for investigation.
+docker compose down || true
 rm -f /tmp/test_store*.json
+
+docker-compose up -d
 
 ${E2E_TEST} \
     -test.v -test.run=^TestIteration1$ \
@@ -41,7 +45,7 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -source-path=. \
        -agent-binary-path=${AGENT_PATH} \
        -binary-path=${SERVER_PATH} \
-       -server-port=${PORT}
+       -server-port="${PORT}"
 
 PORT="$(get_random_port)"
 TEMP_FILE="/tmp/test_store6.json"
@@ -50,7 +54,7 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -source-path=. \
        -agent-binary-path=${AGENT_PATH} \
        -binary-path=${SERVER_PATH} \
-       -server-port=${PORT} \
+       -server-port="${PORT}" \
        -database-dsn="${PG_URL}" \
        -file-storage-path=${TEMP_FILE}
 
@@ -61,7 +65,7 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -source-path=. \
        -agent-binary-path=${AGENT_PATH} \
        -binary-path=${SERVER_PATH} \
-       -server-port=${PORT} \
+       -server-port="${PORT}" \
        -database-dsn="${PG_URL}" \
        -file-storage-path=${TEMP_FILE}
 
@@ -72,7 +76,7 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -source-path=. \
        -agent-binary-path=${AGENT_PATH} \
        -binary-path=${SERVER_PATH} \
-       -server-port=${PORT} \
+       -server-port="${PORT}" \
        -database-dsn="${PG_URL}" \
        -file-storage-path=${TEMP_FILE}
 
@@ -83,7 +87,20 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -source-path=. \
        -agent-binary-path=${AGENT_PATH} \
        -binary-path=${SERVER_PATH} \
-       -server-port=${PORT} \
+       -server-port="${PORT}" \
        -file-storage-path=$TEMP_FILE \
        -database-dsn="${PG_URL}" \
        -key=${TEMP_FILE}
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store10.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration10[b]*$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -database-dsn="${PG_URL}" \
+       -key="${TEMP_FILE}"
+
+docker compose down

@@ -46,6 +46,11 @@ func (m *MemStorage) GetAll() []Record {
 	return rv
 }
 
+func (m *MemStorage) Close() error {
+	// noop
+	return nil
+}
+
 func (m *MemStorage) Snapshot() *MemStorage {
 	m.RLock()
 	defer m.RUnlock()

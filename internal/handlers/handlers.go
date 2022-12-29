@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"html/template"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -264,4 +267,30 @@ func (h metricsResource) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logging.Log.Info(codeToResponse(http.StatusOK))
+}
+
+type livenessProbe struct {
+	healthcheck services.HealthCheck
+}
+
+func newLivenessProbe(healthcheck services.HealthCheck) livenessProbe {
+	return livenessProbe{healthcheck: healthcheck}
+}
+
+func (h livenessProbe) Ping(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	err := h.healthcheck.CheckStorage(ctx)
+	if err == nil {
+		logging.Log.Info(codeToResponse(http.StatusOK))
+		return
+	}
+
+	if errors.Is(err, services.ErrHealthCheckNotSupported) {
+		writeErrorResponse(w, http.StatusNotImplemented, err)
+		return
+	}
+
+	writeErrorResponse(w, http.StatusInternalServerError, err)
 }

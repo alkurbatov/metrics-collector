@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,18 +13,23 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func sendTestRequest(t *testing.T, method, path string, payload []byte, key security.Secret) *http.Response {
-	t.Helper()
-
+func newRouter(key security.Secret, healthcheck services.HealthCheck) http.Handler {
 	var signer *security.Signer
 	if len(key) > 0 {
 		signer = security.NewSigner(key)
 	}
 
-	srv := httptest.NewServer(Router("../../web/views", services.RecorderMock{}, signer))
+	return Router("../../web/views", services.RecorderMock{}, healthcheck, signer)
+}
+
+func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) *http.Response {
+	t.Helper()
+
+	srv := httptest.NewServer(router)
 	defer srv.Close()
 
 	body := bytes.NewReader(payload)
@@ -88,7 +94,6 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			name: "Push counter with invalid value",
 			path: "/update/counter/PollCount/10\\.0",
-
 			expected: result{
 				code: http.StatusBadRequest,
 			},
@@ -119,9 +124,9 @@ func TestUpdateMetric(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
+			router := newRouter("", nil)
 
-			resp := sendTestRequest(t, http.MethodPost, tc.path, nil, "")
-
+			resp := sendTestRequest(t, router, http.MethodPost, tc.path, nil)
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
 			if tc.expected.code == http.StatusOK {
@@ -241,6 +246,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
+			router := newRouter(tc.serverKey, nil)
 
 			if len(tc.clientKey) > 0 {
 				signer := security.NewSigner(tc.clientKey)
@@ -251,7 +257,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
 
-			resp := sendTestRequest(t, http.MethodPost, "/update", payload, tc.serverKey)
+			resp := sendTestRequest(t, router, http.MethodPost, "/update", payload)
 
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
@@ -339,9 +345,9 @@ func TestGetMetric(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
+			router := newRouter("", nil)
 
-			resp := sendTestRequest(t, http.MethodGet, tc.path, nil, "")
-
+			resp := sendTestRequest(t, router, http.MethodGet, tc.path, nil)
 			assert.Equal(tc.expected.code, resp.StatusCode)
 			assert.Equal("text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
 
@@ -446,12 +452,12 @@ func TestGetJSONMetric(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
+			router := newRouter(tc.serverKey, nil)
 
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
 
-			resp := sendTestRequest(t, http.MethodPost, "/value", payload, tc.serverKey)
-
+			resp := sendTestRequest(t, router, http.MethodPost, "/value", payload)
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
 			if tc.expected.code == http.StatusOK {
@@ -474,9 +480,9 @@ func TestGetJSONMetric(t *testing.T) {
 
 func TestListMetrics(t *testing.T) {
 	require := require.New(t)
+	router := newRouter("", nil)
 
-	resp := sendTestRequest(t, http.MethodGet, "/", nil, "")
-
+	resp := sendTestRequest(t, router, http.MethodGet, "/", nil)
 	require.Equal(http.StatusOK, resp.StatusCode)
 	require.Equal("text/html; charset=utf-8", resp.Header.Get("Content-Type"))
 
@@ -485,4 +491,62 @@ func TestListMetrics(t *testing.T) {
 
 	require.NoError(err)
 	require.NotZero(len(respBody))
+}
+
+func TestPing(t *testing.T) {
+	type result struct {
+		code int
+	}
+
+	tt := []struct {
+		name      string
+		checkResp error
+		expected  result
+	}{
+		{
+			name:      "Should return OK, if storage online",
+			checkResp: nil,
+			expected: result{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name:      "Should return not implemented, if storage doesn't support health check",
+			checkResp: services.ErrHealthCheckNotSupported,
+			expected: result{
+				code: http.StatusNotImplemented,
+			},
+		},
+		{
+			name:      "Should return internal error, if storage offline",
+			checkResp: errors.New("offline"),
+			expected: result{
+				code: http.StatusInternalServerError,
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			require := require.New(t)
+
+			m := new(services.HealthCheckMock)
+			m.On("CheckStorage", mock.Anything).Return(tc.checkResp)
+
+			router := newRouter("", m)
+
+			resp := sendTestRequest(t, router, http.MethodGet, "/ping", nil)
+			require.Equal(tc.expected.code, resp.StatusCode)
+
+			respBody, err := io.ReadAll(resp.Body)
+			require.NoError(err)
+			defer resp.Body.Close()
+
+			if tc.expected.code == http.StatusOK {
+				require.Zero(len(respBody))
+			} else {
+				require.NotZero(len(respBody))
+			}
+		})
+	}
 }

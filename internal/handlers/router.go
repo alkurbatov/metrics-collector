@@ -10,8 +10,14 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func Router(viewsPath string, recorder services.Recorder, signer *security.Signer) http.Handler {
+func Router(
+	viewsPath string,
+	recorder services.Recorder,
+	healthcheck services.HealthCheck,
+	signer *security.Signer,
+) http.Handler {
 	metrics := newMetricsResource(viewsPath, recorder, signer)
+	probe := newLivenessProbe(healthcheck)
 
 	r := chi.NewRouter()
 
@@ -28,6 +34,8 @@ func Router(viewsPath string, recorder services.Recorder, signer *security.Signe
 	r.Post("/update", metrics.UpdateJSON)
 	r.Post("/update/", metrics.UpdateJSON)
 	r.Post("/update/{kind}/{name}/{value}", metrics.Update)
+
+	r.Get("/ping", probe.Ping)
 
 	return r
 }

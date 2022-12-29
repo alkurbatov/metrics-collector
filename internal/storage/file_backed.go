@@ -39,6 +39,10 @@ func (f *FileBackedStorage) Push(key string, record Record) error {
 	return nil
 }
 
+func (f *FileBackedStorage) Close() error {
+	return f.Dump()
+}
+
 func (f *FileBackedStorage) Restore() error {
 	f.Lock()
 	defer f.Unlock()

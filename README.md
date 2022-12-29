@@ -2,22 +2,23 @@
 Репозиторий для практического трека «Go в DevOps»: реализация сбора (агент) и хранения (сервер) метрик.
 
 ## Задания
-1. [Инкремент 1 (агент)](./docs/tasks/increment1.md)
-2. [Инкремент 2 (сервер)](./docs/tasks/increment2.md)
-3. [Инкремент 3 (web framework)](./docs/tasks/increment3.md)
-4. [Инкремент 4 (JSON API)](./docs/tasks/increment4.md)
-5. [Инкремент 5 (переменные окружения)](./docs/tasks/increment5.md)
-6. [Инкремент 6 (сохранение данных на диск)](./docs/tasks/increment6.md)
-7. [Инкремент 7 (флаги командной строки)](./docs/tasks/increment7.md)
-8. [Инкремент 8 (поддержка сжатия)](./docs/tasks/increment8.md)
-9. [Инкремент 9 (подписывание передаваемых данных)](./docs/tasks/increment9.md)
+1.  [Инкремент 1 (агент)](./docs/tasks/increment1.md)
+2.  [Инкремент 2 (сервер)](./docs/tasks/increment2.md)
+3.  [Инкремент 3 (web framework)](./docs/tasks/increment3.md)
+4.  [Инкремент 4 (JSON API)](./docs/tasks/increment4.md)
+5.  [Инкремент 5 (переменные окружения)](./docs/tasks/increment5.md)
+6.  [Инкремент 6 (сохранение данных на диск)](./docs/tasks/increment6.md)
+7.  [Инкремент 7 (флаги командной строки)](./docs/tasks/increment7.md)
+8.  [Инкремент 8 (поддержка сжатия)](./docs/tasks/increment8.md)
+9.  [Инкремент 9 (подписывание передаваемых данных)](./docs/tasks/increment9.md)
+10. [Инкремент 10 (проверка соединения с базой)](./docs/tasks/increment10.md)
 
 ## Разработка и тестирование
 ### golangci-lint
 В проекте используется `golangci-lint` для локальной разработки. Для установки линтера воспользуйтесь [официальной инструкцией](https://golangci-lint.run/usage/install/).
 
 ### pre-commit
-В проекте используется `pre-commit` для запуска линтеров перед коммитом. Для установки линтера воспользуйтесь [официальной инструкций](https://pre-commit.com/#install), затем выполните команду:
+В проекте используется `pre-commit` для запуска линтеров перед коммитом. Для установки утилиты воспользуйтесь [официальной инструкцией](https://pre-commit.com/#install), затем выполните команду:
 ```bash
 make install-tools
 ```
@@ -60,6 +61,9 @@ export RESTORE=true
 
 # Секретный ключ для генерации подписи (по умолчанию не задан):
 export KEY=
+
+# Полный URL для установления соединения с базой (по умолчанию не задан):
+export DATABASE_DSN=
 ```
 
 ## Запуск агента

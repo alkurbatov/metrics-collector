@@ -15,16 +15,18 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/caarlos0/env/v6"
+	"github.com/jackc/pgx/v5"
 
 	flag "github.com/spf13/pflag"
 )
 
 type ServerConfig struct {
-	ListenAddress  NetAddress      `env:"ADDRESS"`
-	StoreInterval  time.Duration   `env:"STORE_INTERVAL"`
-	StorePath      string          `env:"STORE_FILE"`
-	RestoreOnStart bool            `env:"RESTORE"`
-	Secret         security.Secret `env:"KEY"`
+	ListenAddress  NetAddress           `env:"ADDRESS"`
+	StoreInterval  time.Duration        `env:"STORE_INTERVAL"`
+	StorePath      string               `env:"STORE_FILE"`
+	RestoreOnStart bool                 `env:"RESTORE"`
+	Secret         security.Secret      `env:"KEY"`
+	DatabaseDSN    security.DatabaseURL `env:"DATABASE_DSN"`
 }
 
 func NewServerConfig() (*ServerConfig, error) {
@@ -60,6 +62,12 @@ func NewServerConfig() (*ServerConfig, error) {
 		"",
 		"secret key for signature generation",
 	)
+	databaseDSN := flag.StringP(
+		"db-dsn",
+		"d",
+		"",
+		"full database connection URL",
+	)
 
 	flag.Parse()
 
@@ -69,6 +77,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		StoreInterval:  *storeInterval,
 		RestoreOnStart: *restoreOnStart,
 		Secret:         security.Secret(*secret),
+		DatabaseDSN:    security.DatabaseURL(*databaseDSN),
 	}
 
 	err := env.Parse(cfg)
@@ -97,6 +106,10 @@ func (c ServerConfig) String() string {
 		sb.WriteString(fmt.Sprintf("\t\tSecret key: %s\n", c.Secret))
 	}
 
+	if len(c.DatabaseDSN) > 0 {
+		sb.WriteString(fmt.Sprintf("\t\tDatabase DSN: %s\n", c.DatabaseDSN))
+	}
+
 	return sb.String()
 }
 
@@ -114,17 +127,26 @@ func NewServer() *Server {
 
 	logging.Log.Info(cfg)
 
-	dataStore := storage.NewDataStore(cfg.StorePath, cfg.StoreInterval)
+	var db *pgx.Conn
+	if len(cfg.DatabaseDSN) > 0 {
+		db, err = pgx.Connect(context.Background(), string(cfg.DatabaseDSN))
+		if err != nil {
+			logging.Log.Fatal(err)
+		}
+	}
+
+	dataStore := storage.NewDataStore(db, cfg.StorePath, cfg.StoreInterval)
 	logging.Log.Info("Attached " + dataStore.String())
 
 	recorder := services.NewMetricsRecorder(dataStore)
+	healthcheck := services.NewHealthCheck(dataStore)
 
 	var signer *security.Signer
 	if len(cfg.Secret) > 0 {
 		signer = security.NewSigner(cfg.Secret)
 	}
 
-	router := handlers.Router("./web/views", recorder, signer)
+	router := handlers.Router("./web/views", recorder, healthcheck, signer)
 	srv := &http.Server{
 		Addr:    cfg.ListenAddress.String(),
 		Handler: router,
@@ -184,12 +206,14 @@ func (app *Server) dumpStorage(ctx context.Context) {
 }
 
 func (app *Server) Serve(ctx context.Context) {
-	if app.Config.RestoreOnStart {
-		app.restoreStorage()
-	}
+	if len(app.Config.DatabaseDSN) == 0 && len(app.Config.StorePath) > 0 {
+		if app.Config.RestoreOnStart {
+			app.restoreStorage()
+		}
 
-	if len(app.Config.StorePath) > 0 && app.Config.StoreInterval > 0 {
-		go app.dumpStorage(ctx)
+		if app.Config.StoreInterval > 0 {
+			go app.dumpStorage(ctx)
+		}
 	}
 
 	if err := app.HTTPServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
@@ -204,11 +228,8 @@ func (app *Server) Shutdown(signal os.Signal) {
 		logging.Log.Error(err)
 	}
 
-	dataStore, ok := app.Storage.(*storage.FileBackedStorage)
-	if ok {
-		if err := dataStore.Dump(); err != nil {
-			logging.Log.Error(err)
-		}
+	if err := app.Storage.Close(); err != nil {
+		logging.Log.Error(err)
 	}
 
 	logging.Log.Info("Successfully shutdown the service")

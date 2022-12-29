@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 )
@@ -10,4 +12,8 @@ type Recorder interface {
 	PushGauge(name string, value metrics.Gauge) (metrics.Gauge, error)
 	GetRecord(kind, name string) (storage.Record, bool)
 	ListRecords() []storage.Record
+}
+
+type HealthCheck interface {
+	CheckStorage(ctx context.Context) error
 }

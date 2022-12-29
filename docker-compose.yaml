@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:15.1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: praktikum
+    ports:
+      - "5432:5432"
+    networks:
+      - praktikum
+
+networks:
+  praktikum:
+    driver: bridge
