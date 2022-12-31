@@ -1,30 +1,31 @@
-package metrics
+package metrics_test
 
 import (
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStringConvertion(t *testing.T) {
 	tt := []struct {
 		name     string
-		metric   Metric
+		metric   metrics.Metric
 		expected string
 	}{
 		{
 			name:     "Convert counter",
-			metric:   Counter(15),
+			metric:   metrics.Counter(15),
 			expected: "15",
 		},
 		{
 			name:     "Convert gauge",
-			metric:   Gauge(15.546789),
+			metric:   metrics.Gauge(15.546789),
 			expected: "15.546789",
 		},
 		{
 			name:     "Convert small gauge",
-			metric:   Gauge(0.12),
+			metric:   metrics.Gauge(0.12),
 			expected: "0.12",
 		},
 	}
@@ -39,17 +40,17 @@ func TestStringConvertion(t *testing.T) {
 func TestKind(t *testing.T) {
 	tt := []struct {
 		name     string
-		metric   Metric
+		metric   metrics.Metric
 		expected string
 	}{
 		{
-			name:     "Counter kind",
-			metric:   Counter(15),
+			name:     "metrics.Counter kind",
+			metric:   metrics.Counter(15),
 			expected: "counter",
 		},
 		{
-			name:     "Gauge kind",
-			metric:   Gauge(0.5),
+			name:     "metrics.Gauge kind",
+			metric:   metrics.Gauge(0.5),
 			expected: "gauge",
 		},
 	}

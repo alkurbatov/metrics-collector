@@ -12,8 +12,8 @@ func buildResponse(code int, msg string) string {
 	return fmt.Sprintf("%d %s", code, msg)
 }
 
-func codeToResponse(code int) string {
-	return buildResponse(code, http.StatusText(code))
+func OK() string {
+	return buildResponse(http.StatusOK, http.StatusText(http.StatusOK))
 }
 
 func loadViewTemplate(src string) *template.Template {

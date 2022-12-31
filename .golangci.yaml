@@ -36,9 +36,6 @@ linters:
     # implementation of graceful shutdown in agent.
     - noctx
 
-    # FIXME: (alkurbatov): Review the tests and test only exported methods.
-    - testpackage
-
     # FIXME (alkurbatov): Enable it back om iter13
     - wrapcheck
     - goerr113

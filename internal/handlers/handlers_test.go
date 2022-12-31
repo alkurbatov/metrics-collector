@@ -1,4 +1,4 @@
-package handlers
+package handlers_test
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/handlers"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
@@ -23,7 +24,7 @@ func newRouter(key security.Secret, healthcheck services.HealthCheck) http.Handl
 		signer = security.NewSigner(key)
 	}
 
-	return Router("../../web/views", services.RecorderMock{}, healthcheck, signer)
+	return handlers.Router("../../web/views", services.RecorderMock{}, healthcheck, signer)
 }
 
 func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) *http.Response {

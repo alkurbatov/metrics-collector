@@ -116,7 +116,7 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logging.Log.Info(codeToResponse(http.StatusOK))
+	logging.Log.Info(OK())
 }
 
 func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +164,7 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logging.Log.Info(codeToResponse(http.StatusOK))
+	logging.Log.Info(OK())
 }
 
 func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
@@ -194,7 +194,7 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logging.Log.Info(codeToResponse(http.StatusOK))
+	logging.Log.Info(OK())
 }
 
 func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
@@ -254,7 +254,7 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logging.Log.Info(codeToResponse(http.StatusOK))
+	logging.Log.Info(OK())
 }
 
 func (h metricsResource) List(w http.ResponseWriter, r *http.Request) {
@@ -266,7 +266,7 @@ func (h metricsResource) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logging.Log.Info(codeToResponse(http.StatusOK))
+	logging.Log.Info(OK())
 }
 
 type livenessProbe struct {
@@ -283,7 +283,7 @@ func (h livenessProbe) Ping(w http.ResponseWriter, r *http.Request) {
 
 	err := h.healthcheck.CheckStorage(ctx)
 	if err == nil {
-		logging.Log.Info(codeToResponse(http.StatusOK))
+		logging.Log.Info(OK())
 		return
 	}
 
