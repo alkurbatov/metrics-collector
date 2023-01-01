@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 )
 
@@ -29,7 +30,7 @@ func (r *Record) UnmarshalJSON(src []byte) error {
 	r.Name = data["name"]
 
 	switch data["kind"] {
-	case "counter":
+	case entity.Counter:
 		value, err := metrics.ToCounter(data["value"])
 		if err != nil {
 			return err
@@ -37,7 +38,7 @@ func (r *Record) UnmarshalJSON(src []byte) error {
 
 		r.Value = value
 
-	case "gauge":
+	case entity.Gauge:
 		value, err := metrics.ToGauge(data["value"])
 		if err != nil {
 			return err

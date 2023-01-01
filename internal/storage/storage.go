@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Storage interface {
-	Push(key string, record Record) error
-	Get(key string) (Record, bool)
-	GetAll() []Record
-	String() string
+	Push(ctx context.Context, key string, record Record) error
+	Get(ctx context.Context, key string) (*Record, error)
+	GetAll(ctx context.Context) ([]Record, error)
 	Close() error
 }
 
@@ -19,20 +19,24 @@ type Storage interface {
 // - if DB connection was initialized, use database storage;
 // - if filePath is set, use file backed storage;
 // - otherwise store data in memory.
-func NewDataStore(db *pgx.Conn, filePath string, storeInterval time.Duration) Storage {
-	if db != nil {
-		return NewDatabaseStorage(db)
+func NewDataStore(pool *pgxpool.Pool, filePath string, storeInterval time.Duration) Storage {
+	if pool != nil {
+		logging.Log.Info("Attached database storage")
+		return NewDatabaseStorage(pool)
 	}
 
 	if len(filePath) == 0 {
+		logging.Log.Info("Attached in-memory storage")
 		return NewMemStorage()
 	}
+
+	logging.Log.Info("Attached file-backed storage")
 
 	return NewFileBackedStorage(filePath, storeInterval == 0)
 }
 
-type DBConn interface {
-	Config() *pgx.ConnConfig
+type DBConnPool interface {
+	Acquire(ctx context.Context) (*pgxpool.Conn, error)
 	Ping(ctx context.Context) error
-	Close(ctx context.Context) error
+	Close()
 }

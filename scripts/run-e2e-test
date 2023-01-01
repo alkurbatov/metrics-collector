@@ -103,4 +103,15 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -database-dsn="${PG_URL}" \
        -key="${TEMP_FILE}"
 
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store11.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration11$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -database-dsn="${PG_URL}" \
+       -key="${TEMP_FILE}"
+
 docker compose down

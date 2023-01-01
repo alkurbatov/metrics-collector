@@ -9,13 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/handlers"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/caarlos0/env/v6"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	flag "github.com/spf13/pflag"
 )
@@ -26,7 +27,7 @@ type ServerConfig struct {
 	StorePath      string               `env:"STORE_FILE"`
 	RestoreOnStart bool                 `env:"RESTORE"`
 	Secret         security.Secret      `env:"KEY"`
-	DatabaseDSN    security.DatabaseURL `env:"DATABASE_DSN"`
+	DatabaseURL    security.DatabaseURL `env:"DATABASE_DSN"`
 }
 
 func NewServerConfig() (*ServerConfig, error) {
@@ -62,7 +63,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		"",
 		"secret key for signature generation",
 	)
-	databaseDSN := flag.StringP(
+	databaseURL := flag.StringP(
 		"db-dsn",
 		"d",
 		"",
@@ -77,7 +78,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		StoreInterval:  *storeInterval,
 		RestoreOnStart: *restoreOnStart,
 		Secret:         security.Secret(*secret),
-		DatabaseDSN:    security.DatabaseURL(*databaseDSN),
+		DatabaseURL:    security.DatabaseURL(*databaseURL),
 	}
 
 	err := env.Parse(cfg)
@@ -86,7 +87,7 @@ func NewServerConfig() (*ServerConfig, error) {
 	}
 
 	if len(cfg.StorePath) == 0 && cfg.RestoreOnStart {
-		return nil, errors.New("state restoration was requested, but path to store file is not set")
+		return nil, entity.ErrRestoreNoSource
 	}
 
 	return cfg, nil
@@ -106,8 +107,8 @@ func (c ServerConfig) String() string {
 		sb.WriteString(fmt.Sprintf("\t\tSecret key: %s\n", c.Secret))
 	}
 
-	if len(c.DatabaseDSN) > 0 {
-		sb.WriteString(fmt.Sprintf("\t\tDatabase DSN: %s\n", c.DatabaseDSN))
+	if len(c.DatabaseURL) > 0 {
+		sb.WriteString(fmt.Sprintf("\t\tDatabase URL: %s\n", c.DatabaseURL))
 	}
 
 	return sb.String()
@@ -127,17 +128,20 @@ func NewServer() *Server {
 
 	logging.Log.Info(cfg)
 
-	var db *pgx.Conn
-	if len(cfg.DatabaseDSN) > 0 {
-		db, err = pgx.Connect(context.Background(), string(cfg.DatabaseDSN))
+	var pool *pgxpool.Pool
+
+	if len(cfg.DatabaseURL) > 0 {
+		if err = runMigrations(cfg.DatabaseURL); err != nil {
+			logging.Log.Fatal(err)
+		}
+
+		pool, err = pgxpool.New(context.Background(), string(cfg.DatabaseURL))
 		if err != nil {
 			logging.Log.Fatal(err)
 		}
 	}
 
-	dataStore := storage.NewDataStore(db, cfg.StorePath, cfg.StoreInterval)
-	logging.Log.Info("Attached " + dataStore.String())
-
+	dataStore := storage.NewDataStore(pool, cfg.StorePath, cfg.StoreInterval)
 	recorder := services.NewMetricsRecorder(dataStore)
 	healthcheck := services.NewHealthCheck(dataStore)
 
@@ -206,7 +210,7 @@ func (app *Server) dumpStorage(ctx context.Context) {
 }
 
 func (app *Server) Serve(ctx context.Context) {
-	if len(app.Config.DatabaseDSN) == 0 && len(app.Config.StorePath) > 0 {
+	if len(app.Config.DatabaseURL) == 0 && len(app.Config.StorePath) > 0 {
 		if app.Config.RestoreOnStart {
 			app.restoreStorage()
 		}

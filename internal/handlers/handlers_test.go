@@ -3,12 +3,12 @@ package handlers_test
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/handlers"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/security"
@@ -513,14 +513,14 @@ func TestPing(t *testing.T) {
 		},
 		{
 			name:      "Should return not implemented, if storage doesn't support health check",
-			checkResp: services.ErrHealthCheckNotSupported,
+			checkResp: entity.ErrHealthCheckNotSupported,
 			expected: result{
 				code: http.StatusNotImplemented,
 			},
 		},
 		{
 			name:      "Should return internal error, if storage offline",
-			checkResp: errors.New("offline"),
+			checkResp: entity.ErrUnexpected,
 			expected: result{
 				code: http.StatusInternalServerError,
 			},

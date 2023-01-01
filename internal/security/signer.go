@@ -4,17 +4,11 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
-)
-
-var (
-	errIncompleteRequest  = errors.New("metrics value not set")
-	errNotSigned          = errors.New("request not signed")
-	errMetricNotSupported = errors.New("unsupported metric type")
 )
 
 type Signer struct {
@@ -36,22 +30,22 @@ func (s *Signer) calculateSignature(req *schema.MetricReq) ([]byte, error) {
 	var msg string
 
 	switch req.MType {
-	case "counter":
+	case entity.Counter:
 		if req.Delta == nil {
-			return nil, errIncompleteRequest
+			return nil, entity.ErrIncompleteRequest
 		}
 
 		msg = fmt.Sprintf("%s:%s:%d", req.ID, req.MType, *req.Delta)
 
-	case "gauge":
+	case entity.Gauge:
 		if req.Value == nil {
-			return nil, errIncompleteRequest
+			return nil, entity.ErrIncompleteRequest
 		}
 
 		msg = fmt.Sprintf("%s:%s:%f", req.ID, req.MType, *req.Value)
 
 	default:
-		return nil, errMetricNotSupported
+		return nil, entity.ErrMetricNotImplemented
 	}
 
 	mac.Write([]byte(msg))
@@ -72,7 +66,7 @@ func (s *Signer) SignRequest(req *schema.MetricReq) error {
 
 func (s *Signer) VerifySignature(req *schema.MetricReq) (bool, error) {
 	if len(req.Hash) == 0 {
-		return false, errNotSigned
+		return false, entity.ErrNotSigned
 	}
 
 	expected, err := hex.DecodeString(req.Hash)

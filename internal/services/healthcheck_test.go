@@ -2,9 +2,9 @@ package services_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/stretchr/testify/assert"
@@ -21,13 +21,13 @@ func TestCheckStorage(t *testing.T) {
 		},
 		{
 			name: "Should return error, if storage offline",
-			err:  errors.New("offline"),
+			err:  entity.ErrUnexpected,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			m := storage.NewDBConnMock()
+			m := storage.NewDBConnPoolMock()
 			m.On("Ping", mock.Anything).Return(tc.err)
 
 			store := storage.NewDatabaseStorage(m)
@@ -44,5 +44,5 @@ func TestCheckStorageOnUnsupportedStorage(t *testing.T) {
 	probe := services.NewHealthCheck(store)
 
 	err := probe.CheckStorage(context.Background())
-	assert.ErrorIs(t, err, services.ErrHealthCheckNotSupported)
+	assert.ErrorIs(t, err, entity.ErrHealthCheckNotSupported)
 }

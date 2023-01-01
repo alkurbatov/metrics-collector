@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"sync"
@@ -27,8 +28,8 @@ func NewFileBackedStorage(storePath string, syncMode bool) *FileBackedStorage {
 	}
 }
 
-func (f *FileBackedStorage) Push(key string, record Record) error {
-	if err := f.MemStorage.Push(key, record); err != nil {
+func (f *FileBackedStorage) Push(ctx context.Context, key string, record Record) error {
+	if err := f.MemStorage.Push(ctx, key, record); err != nil {
 		return err
 	}
 
@@ -92,8 +93,4 @@ func (f *FileBackedStorage) Dump() error {
 	}
 
 	return nil
-}
-
-func (f *FileBackedStorage) String() string {
-	return "file storage backed by " + f.storePath
 }

@@ -1,8 +1,10 @@
 package storage_test
 
 import (
+	"context"
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/stretchr/testify/assert"
@@ -14,40 +16,43 @@ const metricID = "PollCount_counter"
 
 func TestPush(t *testing.T) {
 	require := require.New(t)
+	ctx := context.Background()
 	m := storage.NewMemStorage()
 
 	value := metrics.Counter(10)
-	err := m.Push(metricID, storage.Record{Name: metricName, Value: value})
+	err := m.Push(ctx, metricID, storage.Record{Name: metricName, Value: value})
 	require.NoError(err)
 	require.Equal(value, m.Data[metricID].Value)
 
 	value = metrics.Counter(23)
-	err = m.Push(metricID, storage.Record{Name: metricName, Value: value})
+	err = m.Push(ctx, metricID, storage.Record{Name: metricName, Value: value})
 	require.NoError(err)
 	require.Equal(value, m.Data[metricID].Value)
 }
 
 func TestGet(t *testing.T) {
+	ctx := context.Background()
 	value := metrics.Counter(10)
 
 	require := require.New(t)
 	m := storage.NewMemStorage()
-	err := m.Push(metricID, storage.Record{Name: metricName, Value: value})
+	err := m.Push(ctx, metricID, storage.Record{Name: metricName, Value: value})
 	require.NoError(err)
 
-	record, ok := m.Get(metricID)
-	require.True(ok)
+	record, err := m.Get(ctx, metricID)
+	require.NoError(err)
 	require.Equal(value, record.Value)
 }
 
 func TestGetUnknownstorageRecord(t *testing.T) {
 	m := storage.NewMemStorage()
 
-	_, ok := m.Get("XXX")
-	require.False(t, ok)
+	_, err := m.Get(context.Background(), "XXX")
+	require.ErrorIs(t, err, entity.ErrMetricNotFound)
 }
 
 func TestGetAll(t *testing.T) {
+	ctx := context.Background()
 	require := require.New(t)
 	keys := []string{"Alloc_gauge", "PollCount_counter", "Random_gauge"}
 	input := []storage.Record{
@@ -58,22 +63,24 @@ func TestGetAll(t *testing.T) {
 
 	m := storage.NewMemStorage()
 	for i, key := range keys {
-		err := m.Push(key, input[i])
+		err := m.Push(ctx, key, input[i])
 		require.NoError(err)
 	}
 
-	records := m.GetAll()
+	records, err := m.GetAll(ctx)
+	require.NoError(err)
 	require.ElementsMatch(input, records)
 
-	err := m.Push("New_counter", storage.Record{Name: "New", Value: metrics.Counter(1)})
+	err = m.Push(ctx, "New_counter", storage.Record{Name: "New", Value: metrics.Counter(1)})
 	require.NoError(err)
 	require.Equal(len(input), len(records))
 }
 
 func TestGetAllOnEmptyStorage(t *testing.T) {
 	m := storage.NewMemStorage()
-	records := m.GetAll()
+	records, err := m.GetAll(context.Background())
 
+	assert.NoError(t, err)
 	assert.Empty(t, records)
 }
 
@@ -82,19 +89,30 @@ func TestSnapshot(t *testing.T) {
 	name := "PollCount"
 
 	require := require.New(t)
+	ctx := context.Background()
 	m := storage.NewMemStorage()
 
 	value := metrics.Counter(10)
-	err := m.Push(id, storage.Record{Name: name, Value: value})
+	err := m.Push(ctx, id, storage.Record{Name: name, Value: value})
 	require.NoError(err)
 	require.Equal(value, m.Data[id].Value)
 
 	snapshot := m.Snapshot()
-	require.ElementsMatch(m.GetAll(), snapshot.GetAll())
+	snapshotMetrics, err := m.Snapshot().GetAll(ctx)
+	require.NoError(err)
+
+	currentMetrics, err := m.GetAll(ctx)
+	require.NoError(err)
+	require.ElementsMatch(currentMetrics, snapshotMetrics)
 
 	newValue := metrics.Counter(22)
-	err = m.Push(id, storage.Record{Name: name, Value: newValue})
+	err = m.Push(ctx, id, storage.Record{Name: name, Value: newValue})
 	require.NoError(err)
 	require.Equal(newValue, m.Data[id].Value)
 	require.Equal(value, snapshot.Data[id].Value)
+}
+
+func TestCloseIsNoop(t *testing.T) {
+	m := storage.NewMemStorage()
+	assert.NoError(t, m.Close())
 }

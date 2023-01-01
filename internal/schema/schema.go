@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 )
 
@@ -21,9 +22,9 @@ func NewUpdateGaugeReq(name string, value metrics.Gauge) MetricReq {
 }
 
 func NewGetCounterReq(name string) MetricReq {
-	return MetricReq{ID: name, MType: "counter"}
+	return MetricReq{ID: name, MType: entity.Counter}
 }
 
 func NewGetGaugeReq(name string) MetricReq {
-	return MetricReq{ID: name, MType: "gauge"}
+	return MetricReq{ID: name, MType: entity.Gauge}
 }

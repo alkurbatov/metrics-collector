@@ -3,6 +3,7 @@ package security_test
 import (
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/stretchr/testify/require"
@@ -31,11 +32,11 @@ func TestSignRequest(t *testing.T) {
 		},
 		{
 			name: "Should fail on missing delta",
-			req:  schema.MetricReq{ID: "PollCount", MType: "counter"},
+			req:  schema.MetricReq{ID: "PollCount", MType: entity.Counter},
 		},
 		{
 			name: "Should fail on missing value",
-			req:  schema.MetricReq{ID: "Alloc", MType: "gauge"},
+			req:  schema.MetricReq{ID: "Alloc", MType: entity.Gauge},
 		},
 		{
 			name: "Should fail on unexpected metric type",

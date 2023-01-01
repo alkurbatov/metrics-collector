@@ -8,10 +8,10 @@ import (
 )
 
 type Recorder interface {
-	PushCounter(name string, value metrics.Counter) (metrics.Counter, error)
-	PushGauge(name string, value metrics.Gauge) (metrics.Gauge, error)
-	GetRecord(kind, name string) (storage.Record, bool)
-	ListRecords() []storage.Record
+	PushCounter(ctx context.Context, name string, value metrics.Counter) (metrics.Counter, error)
+	PushGauge(ctx context.Context, name string, value metrics.Gauge) (metrics.Gauge, error)
+	GetRecord(ctx context.Context, kind, name string) (*storage.Record, error)
+	ListRecords(ctx context.Context) ([]storage.Record, error)
 }
 
 type HealthCheck interface {

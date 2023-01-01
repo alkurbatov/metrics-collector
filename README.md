@@ -12,8 +12,14 @@
 8.  [Инкремент 8 (поддержка сжатия)](./docs/tasks/increment8.md)
 9.  [Инкремент 9 (подписывание передаваемых данных)](./docs/tasks/increment9.md)
 10. [Инкремент 10 (проверка соединения с базой)](./docs/tasks/increment10.md)
+11. [Инкремент 11 (сохранение данных в базе)](./docs/tasks/increment11.md)
 
 ## Разработка и тестирование
+Для получения полного списка доступных команд выполните:
+```bash
+make help
+```
+
 ### golangci-lint
 В проекте используется `golangci-lint` для локальной разработки. Для установки линтера воспользуйтесь [официальной инструкцией](https://golangci-lint.run/usage/install/).
 
@@ -23,9 +29,26 @@
 make install-tools
 ```
 
-Для получения полного списка доступных команд выполните:
+### migrate
+Для работы с миграциями БД необходимо установить утилиту [golang-migrate](https://github.com/golang-migrate/migrate):
 ```bash
-make help
+go install -tags "postgres" github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+### Команды
+Для добавления новой миграции выполните:
+```bash
+migrate create -ext sql -dir ./migrations -seq имя_миграции
+```
+
+Для применения миграций выполните команду:
+```bash
+migrate -database ${DATABASE_DSN} -path ./migrations up
+```
+
+Для возврата базы данных в первоначальное состояние выполните команду:
+```bash
+migrate -database ${DATABASE_DSN} -path ./migrations down -all
 ```
 
 ## Запуск сервера
@@ -62,7 +85,8 @@ export RESTORE=true
 # Секретный ключ для генерации подписи (по умолчанию не задан):
 export KEY=
 
-# Полный URL для установления соединения с базой (по умолчанию не задан):
+# Полный URL для установления соединения с базой (по умолчанию не задан).
+# Сервер автоматически запустит все необходимые миграции после установления соединения с базой.
 export DATABASE_DSN=
 ```
 

@@ -1,6 +1,11 @@
 package storage
 
-import "sync"
+import (
+	"context"
+	"sync"
+
+	"github.com/alkurbatov/metrics-collector/internal/entity"
+)
 
 type MemStorage struct {
 	Data map[string]Record `json:"records"`
@@ -13,7 +18,7 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (m *MemStorage) Push(key string, record Record) error {
+func (m *MemStorage) Push(ctx context.Context, key string, record Record) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -22,16 +27,19 @@ func (m *MemStorage) Push(key string, record Record) error {
 	return nil
 }
 
-func (m *MemStorage) Get(key string) (Record, bool) {
+func (m *MemStorage) Get(ctx context.Context, key string) (*Record, error) {
 	m.RLock()
 	defer m.RUnlock()
 
 	record, ok := m.Data[key]
+	if !ok {
+		return nil, entity.ErrMetricNotFound
+	}
 
-	return record, ok
+	return &record, nil
 }
 
-func (m *MemStorage) GetAll() []Record {
+func (m *MemStorage) GetAll(ctx context.Context) ([]Record, error) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -43,12 +51,11 @@ func (m *MemStorage) GetAll() []Record {
 		i++
 	}
 
-	return rv
+	return rv, nil
 }
 
 func (m *MemStorage) Close() error {
-	// noop
-	return nil
+	return nil // noop
 }
 
 func (m *MemStorage) Snapshot() *MemStorage {
@@ -62,8 +69,4 @@ func (m *MemStorage) Snapshot() *MemStorage {
 	}
 
 	return &MemStorage{Data: snapshot}
-}
-
-func (m *MemStorage) String() string {
-	return "in-memory storage"
 }

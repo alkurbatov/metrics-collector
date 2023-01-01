@@ -14,12 +14,12 @@ func TestSecretStringConversion(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "Basic secret",
+			name:     "Should hide content",
 			secret:   "some-secret",
 			expected: "***********",
 		},
 		{
-			name:     "Empty secret",
+			name:     "Should work with empty content",
 			secret:   "",
 			expected: "",
 		},
@@ -28,6 +28,31 @@ func TestSecretStringConversion(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expected, tc.secret.String())
+		})
+	}
+}
+
+func TestDatabaseURLStringConversion(t *testing.T) {
+	tt := []struct {
+		name     string
+		url      security.DatabaseURL
+		expected string
+	}{
+		{
+			name:     "Should hide login and password",
+			url:      "postgres://postgres:postgres@127.0.0.1:5432/praktikum?sslmode=disable",
+			expected: "postgres://*****:*****@127.0.0.1:5432/praktikum?sslmode=disable",
+		},
+		{
+			name:     "Should work with empty content",
+			url:      "",
+			expected: "",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.url.String())
 		})
 	}
 }

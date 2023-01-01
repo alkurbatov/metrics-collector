@@ -1,8 +1,9 @@
 package services
 
 import (
-	"errors"
+	"context"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 )
@@ -10,42 +11,42 @@ import (
 type RecorderMock struct {
 }
 
-func (m RecorderMock) PushCounter(name string, value metrics.Counter) (metrics.Counter, error) {
+func (m RecorderMock) PushCounter(ctx context.Context, name string, value metrics.Counter) (metrics.Counter, error) {
 	if name == "fail" {
-		return 0, errors.New("failure")
+		return 0, entity.ErrUnexpected
 	}
 
 	return value, nil
 }
 
-func (m RecorderMock) PushGauge(name string, value metrics.Gauge) (metrics.Gauge, error) {
+func (m RecorderMock) PushGauge(ctx context.Context, name string, value metrics.Gauge) (metrics.Gauge, error) {
 	if name == "fail" {
-		return 0, errors.New("failure")
+		return 0, entity.ErrUnexpected
 	}
 
 	return value, nil
 }
 
-func (m RecorderMock) GetRecord(kind, name string) (storage.Record, bool) {
+func (m RecorderMock) GetRecord(ctx context.Context, kind, name string) (*storage.Record, error) {
 	if name == "unknown" {
-		return storage.Record{}, false
+		return nil, entity.ErrMetricNotFound
 	}
 
 	switch kind {
-	case "counter":
-		return storage.Record{Name: name, Value: metrics.Counter(10)}, true
-	case "gauge":
-		return storage.Record{Name: name, Value: metrics.Gauge(11.345)}, true
+	case entity.Counter:
+		return &storage.Record{Name: name, Value: metrics.Counter(10)}, nil
+	case entity.Gauge:
+		return &storage.Record{Name: name, Value: metrics.Gauge(11.345)}, nil
 	default:
-		return storage.Record{}, false
+		return nil, entity.ErrMetricNotImplemented
 	}
 }
 
-func (m RecorderMock) ListRecords() []storage.Record {
+func (m RecorderMock) ListRecords(ctx context.Context) ([]storage.Record, error) {
 	rv := []storage.Record{
 		{Name: "A", Value: metrics.Counter(10)},
 		{Name: "B", Value: metrics.Gauge(11.345)},
 	}
 
-	return rv
+	return rv, nil
 }

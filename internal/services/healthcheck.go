@@ -2,12 +2,10 @@ package services
 
 import (
 	"context"
-	"errors"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 )
-
-var ErrHealthCheckNotSupported = errors.New("storage doesn't support healthcheck")
 
 type HealthCheckImpl struct {
 	storage storage.Storage
@@ -18,9 +16,9 @@ func NewHealthCheck(dataStore storage.Storage) HealthCheckImpl {
 }
 
 func (h HealthCheckImpl) CheckStorage(ctx context.Context) error {
-	database, ok := h.storage.(*storage.DatabaseStorage)
+	database, ok := h.storage.(storage.DatabaseStorage)
 	if !ok {
-		return ErrHealthCheckNotSupported
+		return entity.ErrHealthCheckNotSupported
 	}
 
 	return database.Ping(ctx)

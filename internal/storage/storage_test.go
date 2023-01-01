@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/storage"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewDataStore(t *testing.T) {
 	tt := []struct {
 		name     string
-		db       *pgx.Conn
+		db       *pgxpool.Pool
 		path     string
 		interval time.Duration
 		expected storage.Storage
@@ -20,9 +20,9 @@ func TestNewDataStore(t *testing.T) {
 		{
 			name:     "Should create database storage, if DB connection set",
 			path:     "some/path",
-			db:       &pgx.Conn{},
+			db:       &pgxpool.Pool{},
 			interval: 10 * time.Second,
-			expected: &storage.DatabaseStorage{},
+			expected: storage.DatabaseStorage{},
 		},
 		{
 			name:     "Should create file backed storage, if path and interval are set",

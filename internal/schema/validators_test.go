@@ -1,8 +1,10 @@
 package schema_test
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/stretchr/testify/assert"
 )
@@ -11,68 +13,89 @@ func TestValidateMetricsName(t *testing.T) {
 	tt := []struct {
 		name   string
 		metric string
-		valid  bool
+		kind   string
+		err    error
 	}{
 		{
-			name:   "Basic name",
+			name:   "Should accept basic name",
 			metric: "Alloc",
-			valid:  true,
+			kind:   entity.Counter,
 		},
 		{
-			name:   "Long name with several capital letters",
+			name:   "Should accept long name with several capital letters",
 			metric: "NumForcedGC",
-			valid:  true,
+			kind:   entity.Gauge,
 		},
 		{
-			name:   "Name with lowercase letters",
+			name:   "Should accept name with lowercase letters",
 			metric: "count",
-			valid:  true,
+			kind:   entity.Counter,
 		},
 		{
-			name:   "Name with numbers at the beginning",
+			name:   "Should accept name with numbers at the beginning",
 			metric: "1Num",
-			valid:  true,
+			kind:   entity.Gauge,
 		},
 		{
-			name:   "Name with numbers in middle",
+			name:   "Should accept name with numbers in middle",
 			metric: "Num5Num",
-			valid:  true,
+			kind:   entity.Gauge,
 		},
 		{
-			name:   "Name with numbers at the end",
+			name:   "Should accept name with numbers at the end",
 			metric: "Num1",
-			valid:  true,
+			kind:   entity.Gauge,
 		},
 		{
-			name:   "Name only with numbers",
+			name:   "Should accept name only with numbers",
 			metric: "123",
-			valid:  true,
+			kind:   entity.Gauge,
 		},
 		{
-			name:   "Name with a dot",
+			name:   "Should reject name with a dot",
 			metric: "Some.Name",
-			valid:  false,
+			kind:   entity.Gauge,
+			err:    entity.ErrMetricInvalidName,
 		},
 		{
-			name:   "Name with a -",
+			name:   "Should reject name with a -",
 			metric: "Some-Name",
-			valid:  false,
+			kind:   entity.Gauge,
+			err:    entity.ErrMetricInvalidName,
 		},
 		{
-			name:   "Name with a _",
+			name:   "Should reject name with a _",
 			metric: "Some_Name",
-			valid:  false,
+			kind:   entity.Gauge,
+			err:    entity.ErrMetricInvalidName,
+		},
+		{
+			name: "Should reject empty names",
+			kind: entity.Gauge,
+			err:  entity.ErrMetricInvalidName,
+		},
+		{
+			name:   "Should accept long counter names under limit",
+			metric: strings.Repeat("a", 254-len(entity.Counter)),
+			kind:   entity.Counter,
+		},
+		{
+			name:   "Should accept long gauge names under limit",
+			metric: strings.Repeat("a", 254-len(entity.Gauge)),
+			kind:   entity.Gauge,
+		},
+		{
+			name:   "Should reject too long names",
+			metric: strings.Repeat("a", 250),
+			kind:   entity.Gauge,
+			err:    entity.ErrMetricLongName,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			err := schema.ValidateMetricName(tc.metric)
-			if tc.valid {
-				assert.NoError(t, err)
-			} else {
-				assert.NotNil(t, err)
-			}
+			err := schema.ValidateMetricName(tc.metric, tc.kind)
+			assert.ErrorIs(t, tc.err, err)
 		})
 	}
 }

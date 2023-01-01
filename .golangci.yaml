@@ -39,15 +39,3 @@ linters:
     # FIXME (alkurbatov): Enable it back om iter13
     - wrapcheck
     - goerr113
-
-issues:
-  exclude-rules:
-    # FIXME: (alkurbatov): We should introduce some constants project-wide.
-    - path: internal/handlers/handlers.go
-      text: "string `counter` has 4 occurrences, make it a constant"
-      linters:
-        - goconst
-    - path: internal/handlers/handlers.go
-      text: "string `gauge` has 4 occurrences, make it a constant"
-      linters:
-        - goconst

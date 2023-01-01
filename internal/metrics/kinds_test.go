@@ -3,6 +3,7 @@ package metrics_test
 import (
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/stretchr/testify/assert"
 )
@@ -46,12 +47,12 @@ func TestKind(t *testing.T) {
 		{
 			name:     "metrics.Counter kind",
 			metric:   metrics.Counter(15),
-			expected: "counter",
+			expected: entity.Counter,
 		},
 		{
 			name:     "metrics.Gauge kind",
 			metric:   metrics.Gauge(0.5),
-			expected: "gauge",
+			expected: entity.Gauge,
 		},
 	}
 

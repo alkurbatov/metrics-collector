@@ -1,8 +1,10 @@
 package services_test
 
 import (
+	"context"
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
@@ -18,18 +20,22 @@ func pushCounter(
 	expected metrics.Counter,
 ) {
 	t.Helper()
+
+	ctx := context.Background()
 	require := require.New(t)
 
-	rv, err := recorder.PushCounter(name, value)
+	rv, err := recorder.PushCounter(ctx, name, value)
 	require.NoError(err)
 	require.Equal(expected, rv)
 }
 
 func pushGauge(t *testing.T, recorder services.Recorder, name string, value metrics.Gauge, expected metrics.Gauge) {
 	t.Helper()
+
+	ctx := context.Background()
 	require := require.New(t)
 
-	rv, err := recorder.PushGauge(name, value)
+	rv, err := recorder.PushGauge(ctx, name, value)
 	require.NoError(err)
 	require.Equal(expected, rv)
 }
@@ -57,12 +63,13 @@ func TestUpdateCounter(t *testing.T) {
 	storage := storage.NewMemStorage()
 
 	for _, tc := range tt {
+		ctx := context.Background()
 		r := services.NewMetricsRecorder(storage)
 
 		pushCounter(t, r, "PollCount", tc.value, tc.expected)
 
-		record, ok := r.GetRecord("counter", "PollCount")
-		require.True(ok)
+		record, err := r.GetRecord(ctx, entity.Counter, "PollCount")
+		require.NoError(err)
 		require.Equal(tc.expected, record.Value)
 	}
 }
@@ -90,73 +97,81 @@ func TestUpdateGauge(t *testing.T) {
 	storage := storage.NewMemStorage()
 
 	for _, tc := range tt {
+		ctx := context.Background()
 		r := services.NewMetricsRecorder(storage)
 
 		pushGauge(t, r, "Alloc", tc.value, tc.expected)
 
-		record, ok := r.GetRecord("gauge", "Alloc")
-		require.True(ok)
+		record, err := r.GetRecord(ctx, entity.Gauge, "Alloc")
+		require.NoError(err)
 		require.Equal(tc.expected, record.Value)
 	}
 }
 
 func TestPushMetricsWithSimilarNamesButDifferentKinds(t *testing.T) {
 	require := require.New(t)
+	ctx := context.Background()
 	r := services.NewMetricsRecorder(storage.NewMemStorage())
 
 	pushCounter(t, r, "X", 10, 10)
 	pushGauge(t, r, "X", 20.123, 20.123)
 
-	first, ok := r.GetRecord("counter", "X")
-	require.True(ok)
+	first, err := r.GetRecord(ctx, entity.Counter, "X")
+	require.NoError(err)
 	require.Equal(metrics.Counter(10), first.Value)
 
-	second, ok := r.GetRecord("gauge", "X")
-	require.True(ok)
+	second, err := r.GetRecord(ctx, entity.Gauge, "X")
+	require.NoError(err)
 	require.Equal(metrics.Gauge(20.123), second.Value)
 }
 
 func TestPushMetricsToBrokenStorage(t *testing.T) {
 	require := require.New(t)
+	ctx := context.Background()
 	store := &storage.BrokenStorage{}
 	r := services.NewMetricsRecorder(store)
 
-	_, err := r.PushCounter("PollCount", metrics.Counter(1))
+	_, err := r.PushCounter(ctx, "PollCount", metrics.Counter(1))
 	require.Error(err)
 
-	_, err = r.PushGauge("Alloc", metrics.Gauge(13.2))
+	_, err = r.PushGauge(ctx, "Alloc", metrics.Gauge(13.2))
 	require.Error(err)
 }
 
 func TestGetUnknownMetric(t *testing.T) {
 	tt := []struct {
-		name   string
-		kind   string
-		metric string
+		name     string
+		kind     string
+		metric   string
+		expected error
 	}{
 		{
-			name:   "Unknown counter",
-			kind:   "counter",
-			metric: "XXX",
+			name:     "Should return error on unknown counter",
+			kind:     entity.Counter,
+			metric:   "unknown",
+			expected: entity.ErrMetricNotFound,
 		},
 		{
-			name:   "unknown gauge",
-			kind:   "gauge",
-			metric: "XXX",
+			name:     "Should return error on unknown gauge",
+			kind:     entity.Gauge,
+			metric:   "unknown",
+			expected: entity.ErrMetricNotFound,
 		},
 		{
-			name:   "Unknown kind",
-			kind:   "unknown",
-			metric: "PollCounter",
+			name:     "Should return error on unknown kind",
+			kind:     "unknown",
+			metric:   "PollCounter",
+			expected: entity.ErrMetricNotImplemented,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			r := services.NewMetricsRecorder(storage.NewMemStorage())
+			ctx := context.Background()
+			r := services.RecorderMock{}
 
-			_, ok := r.GetRecord(tc.kind, tc.metric)
-			assert.False(t, ok)
+			_, err := r.GetRecord(ctx, tc.kind, tc.metric)
+			assert.ErrorIs(t, err, tc.expected)
 		})
 	}
 }
@@ -173,8 +188,9 @@ func TestListMetrics(t *testing.T) {
 		{Name: "PollCount", Value: metrics.Counter(10)},
 	}
 
-	data := r.ListRecords()
+	data, err := r.ListRecords(context.Background())
 
+	require.NoError(err)
 	require.Equal(2, len(data))
 	require.Equal(expected, data)
 }
