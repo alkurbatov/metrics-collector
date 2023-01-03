@@ -9,6 +9,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -128,14 +129,24 @@ func TestPushMetricsWithSimilarNamesButDifferentKinds(t *testing.T) {
 func TestPushMetricsToBrokenStorage(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
-	store := &storage.BrokenStorage{}
+
+	store := new(storage.Mock)
+	store.On("Get", ctx, "NotFound_counter").Return(nil, entity.ErrMetricNotFound)
+	store.On("Get", ctx, mock.AnythingOfType("string")).Return(nil, entity.ErrUnexpected)
+	store.On("Push", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("Record")).Return(entity.ErrUnexpected)
+
 	r := services.NewMetricsRecorder(store)
 
 	_, err := r.PushCounter(ctx, "PollCount", metrics.Counter(1))
 	require.Error(err)
 
+	_, err = r.PushCounter(ctx, "NotFound", metrics.Counter(1))
+	require.Error(err)
+
 	_, err = r.PushGauge(ctx, "Alloc", metrics.Gauge(13.2))
 	require.Error(err)
+
+	store.AssertExpectations(t)
 }
 
 func TestGetUnknownMetric(t *testing.T) {
@@ -157,21 +168,19 @@ func TestGetUnknownMetric(t *testing.T) {
 			metric:   "unknown",
 			expected: entity.ErrMetricNotFound,
 		},
-		{
-			name:     "Should return error on unknown kind",
-			kind:     "unknown",
-			metric:   "PollCounter",
-			expected: entity.ErrMetricNotImplemented,
-		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			r := services.RecorderMock{}
+
+			store := new(storage.Mock)
+			store.On("Get", ctx, mock.AnythingOfType("string")).Return(nil, entity.ErrMetricNotFound)
+			r := services.NewMetricsRecorder(store)
 
 			_, err := r.GetRecord(ctx, tc.kind, tc.metric)
 			assert.ErrorIs(t, err, tc.expected)
+			store.AssertExpectations(t)
 		})
 	}
 }
@@ -193,4 +202,16 @@ func TestListMetrics(t *testing.T) {
 	require.NoError(err)
 	require.Equal(2, len(data))
 	require.Equal(expected, data)
+}
+
+func TestListMetricsOnBrokenStorage(t *testing.T) {
+	store := new(storage.Mock)
+	store.On("GetAll", mock.Anything).Return(nil, entity.ErrUnexpected)
+
+	r := services.NewMetricsRecorder(store)
+	_, err := r.ListRecords(context.Background())
+
+	require.ErrorIs(t, entity.ErrUnexpected, err)
+
+	store.AssertExpectations(t)
 }
