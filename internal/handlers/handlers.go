@@ -113,7 +113,7 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 		}
 
 	default:
-		writeErrorResponse(w, http.StatusNotImplemented, entity.ErrMetricNotImplemented)
+		writeErrorResponse(w, http.StatusNotImplemented, &entity.MetricNotImplementedError{Kind: kind})
 		return
 	}
 
@@ -147,7 +147,7 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 		data.Value = &newValue
 
 	default:
-		writeErrorResponse(w, http.StatusNotImplemented, entity.ErrMetricNotImplemented)
+		writeErrorResponse(w, http.StatusNotImplemented, &entity.MetricNotImplementedError{Kind: data.MType})
 		return
 	}
 
@@ -197,7 +197,7 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 		}
 
 	default:
-		writeErrorResponse(w, http.StatusNotImplemented, entity.ErrMetricNotImplemented)
+		writeErrorResponse(w, http.StatusNotImplemented, &entity.MetricNotImplementedError{Kind: kind})
 		return
 	}
 
@@ -255,7 +255,7 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 		data.Value = &value
 
 	default:
-		writeErrorResponse(w, http.StatusNotImplemented, entity.ErrMetricNotImplemented)
+		writeErrorResponse(w, http.StatusNotImplemented, &entity.MetricNotImplementedError{Kind: data.MType})
 		return
 	}
 

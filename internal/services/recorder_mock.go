@@ -38,7 +38,7 @@ func (m RecorderMock) GetRecord(ctx context.Context, kind, name string) (*storag
 	case entity.Gauge:
 		return &storage.Record{Name: name, Value: metrics.Gauge(11.345)}, nil
 	default:
-		return nil, entity.ErrMetricNotImplemented
+		return nil, &entity.MetricNotImplementedError{Kind: kind}
 	}
 }
 

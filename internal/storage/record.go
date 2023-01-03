@@ -2,7 +2,6 @@ package storage
 
 import (
 	"encoding/json"
-	"errors"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
@@ -47,7 +46,7 @@ func (r *Record) UnmarshalJSON(src []byte) error {
 		r.Value = value
 
 	default:
-		return errors.New("unexpected record kind: " + data["kind"])
+		return &entity.MetricNotImplementedError{Kind: data["kind"]}
 	}
 
 	return nil

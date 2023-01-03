@@ -84,7 +84,7 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (*Record, error) {
 		return &Record{Name: name, Value: metrics.Gauge(value)}, nil
 
 	default:
-		return nil, entity.ErrMetricNotImplemented
+		return nil, &entity.MetricNotImplementedError{Kind: kind}
 	}
 }
 
@@ -120,7 +120,7 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 			return nil
 
 		default:
-			return entity.ErrMetricNotImplemented
+			return &entity.MetricNotImplementedError{Kind: kind}
 		}
 	})
 

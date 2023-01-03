@@ -9,9 +9,16 @@ var (
 	ErrMetricInvalidName       = errors.New("metric name contains invalid characters")
 	ErrMetricLongName          = errors.New("metric name is too long")
 	ErrMetricNotFound          = errors.New("metric not found")
-	ErrMetricNotImplemented    = errors.New("support of metric type is not implemented")
 	ErrNotSigned               = errors.New("request not signed")
 	ErrRecordKindDontMatch     = errors.New("kind of recorded metric doesn't match request")
 	ErrRestoreNoSource         = errors.New("state restoration was requested, but path to store file is not set")
 	ErrUnexpected              = errors.New("unexpected error")
 )
+
+type MetricNotImplementedError struct {
+	Kind string
+}
+
+func (e *MetricNotImplementedError) Error() string {
+	return "support of metric type " + e.Kind + " is not implemented"
+}
