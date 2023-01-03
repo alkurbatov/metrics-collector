@@ -42,10 +42,12 @@ func NewAgentConfig() AgentConfig {
 		2*time.Second,
 		"metrics poll interval in seconds",
 	)
-	secret := flag.StringP(
+
+	secret := security.Secret("")
+	flag.VarP(
+		&secret,
 		"key",
 		"k",
-		"",
 		"secret key for signature generation",
 	)
 
@@ -55,7 +57,7 @@ func NewAgentConfig() AgentConfig {
 		CollectorAddress: collectorAddress,
 		ReportInterval:   *reportInterval,
 		PollInterval:     *pollInterval,
-		Secret:           security.Secret(*secret),
+		Secret:           secret,
 	}
 
 	err := env.Parse(&cfg)

@@ -5,12 +5,13 @@ import (
 
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSecretStringConversion(t *testing.T) {
 	tt := []struct {
 		name     string
-		secret   security.Secret
+		secret   string
 		expected string
 	}{
 		{
@@ -27,9 +28,19 @@ func TestSecretStringConversion(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, tc.secret.String())
+			key := new(security.Secret)
+
+			err := key.Set(tc.secret)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, key.String())
 		})
 	}
+}
+
+func TestSecretTypeMatchesString(t *testing.T) {
+	key := security.Secret("abcd")
+
+	assert.Equal(t, "string", key.Type())
 }
 
 func TestDatabaseURLStringConversion(t *testing.T) {

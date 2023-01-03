@@ -57,12 +57,14 @@ func NewServerConfig() (*ServerConfig, error) {
 		true,
 		"whether to restore state on startup or not",
 	)
-	secret := flag.StringP(
+	secret := security.Secret("")
+	flag.VarP(
+		&secret,
 		"key",
 		"k",
-		"",
 		"secret key for signature generation",
 	)
+
 	databaseURL := flag.StringP(
 		"db-dsn",
 		"d",
@@ -77,7 +79,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		StorePath:      *storePath,
 		StoreInterval:  *storeInterval,
 		RestoreOnStart: *restoreOnStart,
-		Secret:         security.Secret(*secret),
+		Secret:         secret,
 		DatabaseURL:    security.DatabaseURL(*databaseURL),
 	}
 

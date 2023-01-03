@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 )
 
@@ -16,12 +15,7 @@ type Signer struct {
 }
 
 func NewSigner(secret Secret) *Signer {
-	key := []byte(secret)
-	if len(key) < 32 {
-		logging.Log.Warning("Insecure signature: secret key is shorter than 32 bytes!")
-	}
-
-	return &Signer{secret: key}
+	return &Signer{secret: []byte(secret)}
 }
 
 func (s *Signer) calculateSignature(req *schema.MetricReq) ([]byte, error) {
