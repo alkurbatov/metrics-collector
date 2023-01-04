@@ -19,3 +19,13 @@ func ValidateMetricName(name, kind string) error {
 
 	return nil
 }
+
+func ValidateMetricKind(kind string) error {
+	switch kind {
+	case entity.Counter, entity.Gauge:
+		return nil
+
+	default:
+		return entity.MetricNotImplementedError(kind)
+	}
+}

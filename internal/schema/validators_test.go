@@ -99,3 +99,38 @@ func TestValidateMetricsName(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateMetricKind(t *testing.T) {
+	tt := []struct {
+		name string
+		kind string
+		err  error
+	}{
+		{
+			name: "Should accept counter",
+			kind: entity.Counter,
+		},
+		{
+			name: "Should accept gauge",
+			kind: entity.Gauge,
+		},
+		{
+			name: "Should reject unknown kind",
+			kind: "xxx",
+			err:  entity.MetricNotImplementedError("xxx"),
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			err := schema.ValidateMetricKind(tc.kind)
+
+			if tc.err == nil {
+				assert.NoError(t, err)
+				return
+			}
+
+			assert.ErrorAs(t, err, &tc.err)
+		})
+	}
+}

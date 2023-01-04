@@ -46,7 +46,7 @@ func (r *Record) UnmarshalJSON(src []byte) error {
 		r.Value = value
 
 	default:
-		return &entity.MetricNotImplementedError{Kind: data["kind"]}
+		return entity.MetricNotImplementedError(data["kind"])
 	}
 
 	return nil

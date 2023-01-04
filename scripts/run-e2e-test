@@ -12,7 +12,7 @@ function get_random_port() {
     awk 'BEGIN{srand(); print int(rand() * (63000-2000)) + 2000 }'
 }
 
-# Cleanup artifacts from previous tests.
+# NB (alkurbatov): Cleanup artifacts from previous tests.
 # The test leaves environment dirty on failure for investigation.
 docker compose down || true
 rm -f /tmp/test_store*.json
@@ -101,7 +101,7 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -binary-path=${SERVER_PATH} \
        -server-port="${PORT}" \
        -database-dsn="${PG_URL}" \
-       -key="${TEMP_FILE}"
+       -key=${TEMP_FILE}
 
 PORT="$(get_random_port)"
 TEMP_FILE="/tmp/test_store11.json"
@@ -112,6 +112,17 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -binary-path=${SERVER_PATH} \
        -server-port="${PORT}" \
        -database-dsn="${PG_URL}" \
-       -key="${TEMP_FILE}"
+       -key=${TEMP_FILE}
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store12.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration12$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -database-dsn="${PG_URL}" \
+       -key=${TEMP_FILE}
 
 docker compose down

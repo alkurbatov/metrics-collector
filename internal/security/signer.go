@@ -39,7 +39,7 @@ func (s *Signer) calculateSignature(req *schema.MetricReq) ([]byte, error) {
 		msg = fmt.Sprintf("%s:%s:%f", req.ID, req.MType, *req.Value)
 
 	default:
-		return nil, &entity.MetricNotImplementedError{Kind: req.MType}
+		return nil, entity.MetricNotImplementedError(req.MType)
 	}
 
 	mac.Write([]byte(msg))

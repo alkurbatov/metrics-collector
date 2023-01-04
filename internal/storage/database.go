@@ -53,10 +53,49 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 	return tx.Commit(ctx)
 }
 
-func (d DatabaseStorage) Get(ctx context.Context, key string) (*Record, error) {
+func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []Record) error {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
-		return nil, err
+		return err
+	}
+
+	defer conn.Release()
+
+	// NB (alkurbatov): Since batch queries are run in an implicit transaction
+	// (unless explicit transaction control statements are executed)
+	// we don't need to handle transactions manually.
+	// See: https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY
+	batch := new(pgx.Batch)
+	for i, record := range records {
+		batch.Queue(
+			"INSERT INTO metrics(id, name, kind, value) values ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET value = $4",
+			keys[i],
+			record.Name,
+			record.Value.Kind(),
+			record.Value.String(),
+		)
+	}
+
+	batchResp := conn.SendBatch(ctx, batch)
+	defer func() {
+		if err := batchResp.Close(); err != nil {
+			logging.Log.Error(err)
+		}
+	}()
+
+	for i := 0; i < len(records); i++ {
+		if _, err := batchResp.Exec(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
+	conn, err := d.pool.Acquire(ctx)
+	if err != nil {
+		return Record{}, err
 	}
 
 	defer conn.Release()
@@ -70,21 +109,21 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (*Record, error) {
 	err = conn.QueryRow(ctx, "SELECT name, kind, value FROM metrics WHERE id=$1", key).Scan(&name, &kind, &value)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, entity.ErrMetricNotFound
+			return Record{}, entity.ErrMetricNotFound
 		}
 
-		return nil, err
+		return Record{}, err
 	}
 
 	switch kind {
 	case entity.Counter:
-		return &Record{Name: name, Value: metrics.Counter(value)}, nil
+		return Record{Name: name, Value: metrics.Counter(value)}, nil
 
 	case entity.Gauge:
-		return &Record{Name: name, Value: metrics.Gauge(value)}, nil
+		return Record{Name: name, Value: metrics.Gauge(value)}, nil
 
 	default:
-		return nil, &entity.MetricNotImplementedError{Kind: kind}
+		return Record{}, entity.MetricNotImplementedError(kind)
 	}
 }
 
@@ -120,7 +159,7 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 			return nil
 
 		default:
-			return &entity.MetricNotImplementedError{Kind: kind}
+			return entity.MetricNotImplementedError(kind)
 		}
 	})
 

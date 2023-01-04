@@ -30,6 +30,43 @@ func TestPush(t *testing.T) {
 	require.Equal(value, m.Data[metricID].Value)
 }
 
+func TestPushList(t *testing.T) {
+	keys := []string{
+		"PollCount_counter",
+		"Alloc_gauge",
+	}
+	input := []storage.Record{
+		{Name: "PollCount", Value: metrics.Counter(10)},
+		{Name: "Alloc", Value: metrics.Gauge(13.123)},
+	}
+
+	tt := []struct {
+		name    string
+		keys    []string
+		records []storage.Record
+	}{
+		{
+			name:    "Should push list of records",
+			keys:    keys,
+			records: input,
+		},
+		{
+			name:    "Should not fail on empty input",
+			keys:    make([]string, 0),
+			records: make([]storage.Record, 0),
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			m := storage.NewMemStorage()
+
+			err := m.PushList(context.Background(), tc.keys, tc.records)
+			assert.NoError(t, err)
+		})
+	}
+}
+
 func TestGet(t *testing.T) {
 	ctx := context.Background()
 	value := metrics.Counter(10)

@@ -79,7 +79,7 @@ func TestUmrashalJSONOnCorruptedData(t *testing.T) {
 		{
 			name:     "Should fail on unknown counter",
 			data:     `{"name": "xxx", "kind": "unknown", "value": "12"}`,
-			expected: &entity.MetricNotImplementedError{Kind: "unknown"},
+			expected: entity.MetricNotImplementedError("unknown"),
 		},
 	}
 

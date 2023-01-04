@@ -40,6 +40,18 @@ func (f *FileBackedStorage) Push(ctx context.Context, key string, record Record)
 	return nil
 }
 
+func (f *FileBackedStorage) PushList(ctx context.Context, keys []string, records []Record) error {
+	if err := f.MemStorage.PushList(ctx, keys, records); err != nil {
+		return err
+	}
+
+	if f.syncMode {
+		return f.Dump()
+	}
+
+	return nil
+}
+
 func (f *FileBackedStorage) Close() error {
 	return f.Dump()
 }

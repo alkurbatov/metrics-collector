@@ -15,14 +15,15 @@ func (m *Mock) Push(ctx context.Context, key string, record Record) error {
 	return args.Error(0)
 }
 
-func (m *Mock) Get(ctx context.Context, key string) (*Record, error) {
+func (m *Mock) PushList(ctx context.Context, keys []string, records []Record) error {
+	args := m.Called(ctx, keys, records)
+	return args.Error(0)
+}
+
+func (m *Mock) Get(ctx context.Context, key string) (Record, error) {
 	args := m.Called(ctx, key)
 
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-
-	return args.Get(0).(*Record), args.Error(1)
+	return args.Get(0).(Record), args.Error(1)
 }
 
 func (m *Mock) GetAll(ctx context.Context) ([]Record, error) {

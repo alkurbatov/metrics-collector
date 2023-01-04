@@ -33,6 +33,8 @@ func Router(
 
 	r.Post("/update", metrics.UpdateJSON)
 	r.Post("/update/", metrics.UpdateJSON)
+	r.Post("/updates", metrics.BatchUpdateJSON)
+	r.Post("/updates/", metrics.BatchUpdateJSON)
 	r.Post("/update/{kind}/{name}/{value}", metrics.Update)
 
 	r.Get("/ping", probe.Ping)

@@ -3,50 +3,35 @@ package services
 import (
 	"context"
 
-	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/stretchr/testify/mock"
 )
 
 type RecorderMock struct {
+	mock.Mock
 }
 
-func (m RecorderMock) PushCounter(ctx context.Context, name string, value metrics.Counter) (metrics.Counter, error) {
-	if name == "fail" {
-		return 0, entity.ErrUnexpected
-	}
-
-	return value, nil
+func (m *RecorderMock) Push(ctx context.Context, record storage.Record) (storage.Record, error) {
+	args := m.Called(ctx, record)
+	return args.Get(0).(storage.Record), args.Error(1)
 }
 
-func (m RecorderMock) PushGauge(ctx context.Context, name string, value metrics.Gauge) (metrics.Gauge, error) {
-	if name == "fail" {
-		return 0, entity.ErrUnexpected
-	}
-
-	return value, nil
+func (m *RecorderMock) PushList(ctx context.Context, records []storage.Record) error {
+	args := m.Called(ctx, records)
+	return args.Error(0)
 }
 
-func (m RecorderMock) GetRecord(ctx context.Context, kind, name string) (*storage.Record, error) {
-	if name == "unknown" {
-		return nil, entity.ErrMetricNotFound
-	}
-
-	switch kind {
-	case entity.Counter:
-		return &storage.Record{Name: name, Value: metrics.Counter(10)}, nil
-	case entity.Gauge:
-		return &storage.Record{Name: name, Value: metrics.Gauge(11.345)}, nil
-	default:
-		return nil, &entity.MetricNotImplementedError{Kind: kind}
-	}
+func (m *RecorderMock) Get(ctx context.Context, kind, name string) (storage.Record, error) {
+	args := m.Called(ctx, kind, name)
+	return args.Get(0).(storage.Record), args.Error(1)
 }
 
-func (m RecorderMock) ListRecords(ctx context.Context) ([]storage.Record, error) {
-	rv := []storage.Record{
-		{Name: "A", Value: metrics.Counter(10)},
-		{Name: "B", Value: metrics.Gauge(11.345)},
+func (m *RecorderMock) List(ctx context.Context) ([]storage.Record, error) {
+	args := m.Called(ctx)
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
 
-	return rv, nil
+	return args.Get(0).([]storage.Record), args.Error(1)
 }

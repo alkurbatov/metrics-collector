@@ -13,32 +13,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func pushCounter(
+func pushMetric(
 	t *testing.T,
 	recorder services.Recorder,
 	name string,
-	value metrics.Counter,
-	expected metrics.Counter,
+	value metrics.Metric,
+	expected metrics.Metric,
 ) {
 	t.Helper()
 
 	ctx := context.Background()
 	require := require.New(t)
 
-	rv, err := recorder.PushCounter(ctx, name, value)
+	rv, err := recorder.Push(ctx, storage.Record{Name: name, Value: value})
 	require.NoError(err)
-	require.Equal(expected, rv)
-}
-
-func pushGauge(t *testing.T, recorder services.Recorder, name string, value metrics.Gauge, expected metrics.Gauge) {
-	t.Helper()
-
-	ctx := context.Background()
-	require := require.New(t)
-
-	rv, err := recorder.PushGauge(ctx, name, value)
-	require.NoError(err)
-	require.Equal(expected, rv)
+	require.Equal(storage.Record{Name: name, Value: expected}, rv)
 }
 
 func TestUpdateCounter(t *testing.T) {
@@ -67,9 +56,9 @@ func TestUpdateCounter(t *testing.T) {
 		ctx := context.Background()
 		r := services.NewMetricsRecorder(storage)
 
-		pushCounter(t, r, "PollCount", tc.value, tc.expected)
+		pushMetric(t, r, "PollCount", tc.value, tc.expected)
 
-		record, err := r.GetRecord(ctx, entity.Counter, "PollCount")
+		record, err := r.Get(ctx, entity.Counter, "PollCount")
 		require.NoError(err)
 		require.Equal(tc.expected, record.Value)
 	}
@@ -101,9 +90,9 @@ func TestUpdateGauge(t *testing.T) {
 		ctx := context.Background()
 		r := services.NewMetricsRecorder(storage)
 
-		pushGauge(t, r, "Alloc", tc.value, tc.expected)
+		pushMetric(t, r, "Alloc", tc.value, tc.expected)
 
-		record, err := r.GetRecord(ctx, entity.Gauge, "Alloc")
+		record, err := r.Get(ctx, entity.Gauge, "Alloc")
 		require.NoError(err)
 		require.Equal(tc.expected, record.Value)
 	}
@@ -114,14 +103,17 @@ func TestPushMetricsWithSimilarNamesButDifferentKinds(t *testing.T) {
 	ctx := context.Background()
 	r := services.NewMetricsRecorder(storage.NewMemStorage())
 
-	pushCounter(t, r, "X", 10, 10)
-	pushGauge(t, r, "X", 20.123, 20.123)
+	delta := metrics.Counter(10)
+	pushMetric(t, r, "X", delta, delta)
 
-	first, err := r.GetRecord(ctx, entity.Counter, "X")
+	value := metrics.Gauge(20.123)
+	pushMetric(t, r, "X", value, value)
+
+	first, err := r.Get(ctx, entity.Counter, "X")
 	require.NoError(err)
 	require.Equal(metrics.Counter(10), first.Value)
 
-	second, err := r.GetRecord(ctx, entity.Gauge, "X")
+	second, err := r.Get(ctx, entity.Gauge, "X")
 	require.NoError(err)
 	require.Equal(metrics.Gauge(20.123), second.Value)
 }
@@ -131,22 +123,105 @@ func TestPushMetricsToBrokenStorage(t *testing.T) {
 	ctx := context.Background()
 
 	store := new(storage.Mock)
-	store.On("Get", ctx, "NotFound_counter").Return(nil, entity.ErrMetricNotFound)
-	store.On("Get", ctx, mock.AnythingOfType("string")).Return(nil, entity.ErrUnexpected)
+	store.On("Get", ctx, "NotFound_counter").Return(storage.Record{}, entity.ErrMetricNotFound)
+	store.On("Get", ctx, mock.AnythingOfType("string")).Return(storage.Record{}, entity.ErrUnexpected)
 	store.On("Push", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("Record")).Return(entity.ErrUnexpected)
 
 	r := services.NewMetricsRecorder(store)
 
-	_, err := r.PushCounter(ctx, "PollCount", metrics.Counter(1))
+	_, err := r.Push(ctx, storage.Record{Name: "PollCount", Value: metrics.Counter(1)})
 	require.Error(err)
 
-	_, err = r.PushCounter(ctx, "NotFound", metrics.Counter(1))
+	_, err = r.Push(ctx, storage.Record{Name: "NotFound", Value: metrics.Counter(1)})
 	require.Error(err)
 
-	_, err = r.PushGauge(ctx, "Alloc", metrics.Gauge(13.2))
+	_, err = r.Push(ctx, storage.Record{Name: "Alloc", Value: metrics.Gauge(13.2)})
 	require.Error(err)
 
 	store.AssertExpectations(t)
+}
+
+func TestPushListTestPushList(t *testing.T) {
+	type expected struct {
+		keys    []string
+		records []storage.Record
+		err     error
+	}
+
+	tt := []struct {
+		name       string
+		records    []storage.Record
+		storageErr error
+		expected   expected
+	}{
+		{
+			name: "Should push metrics",
+			records: []storage.Record{
+				{Name: "PollCount", Value: metrics.Counter(10)},
+				{Name: "Alloc", Value: metrics.Gauge(10.123)},
+			},
+			expected: expected{
+				keys: []string{"PollCount_counter", "Alloc_gauge"},
+				records: []storage.Record{
+					{Name: "PollCount", Value: metrics.Counter(11)},
+					{Name: "Alloc", Value: metrics.Gauge(10.123)},
+				},
+			},
+		},
+		{
+			name: "Should compress duplicated metrics",
+			records: []storage.Record{
+				{Name: "PollCount", Value: metrics.Counter(10)},
+				{Name: "Alloc", Value: metrics.Gauge(10.123)},
+				{Name: "PollCount", Value: metrics.Counter(12)},
+				{Name: "Alloc", Value: metrics.Gauge(14.321)},
+			},
+			expected: expected{
+				keys: []string{"PollCount_counter", "Alloc_gauge"},
+				records: []storage.Record{
+					{Name: "PollCount", Value: metrics.Counter(23)},
+					{Name: "Alloc", Value: metrics.Gauge(14.321)},
+				},
+			},
+		},
+		{
+			name:    "Should not fail on empty list",
+			records: make([]storage.Record, 0),
+			expected: expected{
+				keys:    make([]string, 0),
+				records: make([]storage.Record, 0),
+			},
+		},
+		{
+			name: "Should fail on broken storage",
+			records: []storage.Record{
+				{Name: "PollCount", Value: metrics.Counter(10)},
+			},
+			storageErr: entity.ErrUnexpected,
+			expected: expected{
+				keys:    make([]string, 0),
+				records: make([]storage.Record, 0),
+				err:     entity.ErrUnexpected,
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			m := new(storage.Mock)
+			m.On("Get", mock.Anything, "PollCount_counter").
+				Return(storage.Record{Name: "PollCount", Value: metrics.Counter(1)}, tc.storageErr)
+			m.On("Get", mock.Anything, mock.AnythingOfType("string")).
+				Return(storage.Record{}, entity.ErrMetricNotFound)
+			m.On("PushList", mock.Anything, tc.expected.keys, tc.expected.records).
+				Return(tc.storageErr)
+
+			r := services.NewMetricsRecorder(m)
+			err := r.PushList(context.Background(), tc.records)
+
+			assert.ErrorIs(t, err, tc.expected.err)
+		})
+	}
 }
 
 func TestGetUnknownMetric(t *testing.T) {
@@ -175,10 +250,10 @@ func TestGetUnknownMetric(t *testing.T) {
 			ctx := context.Background()
 
 			store := new(storage.Mock)
-			store.On("Get", ctx, mock.AnythingOfType("string")).Return(nil, entity.ErrMetricNotFound)
+			store.On("Get", ctx, mock.AnythingOfType("string")).Return(storage.Record{}, entity.ErrMetricNotFound)
 			r := services.NewMetricsRecorder(store)
 
-			_, err := r.GetRecord(ctx, tc.kind, tc.metric)
+			_, err := r.Get(ctx, tc.kind, tc.metric)
 			assert.ErrorIs(t, err, tc.expected)
 			store.AssertExpectations(t)
 		})
@@ -186,18 +261,23 @@ func TestGetUnknownMetric(t *testing.T) {
 }
 
 func TestListMetrics(t *testing.T) {
-	require := require.New(t)
-	r := services.NewMetricsRecorder(storage.NewMemStorage())
-
-	pushCounter(t, r, "PollCount", 10, 10)
-	pushGauge(t, r, "Alloc", 11.123, 11.123)
+	stored := []storage.Record{
+		{Name: "PollCount", Value: metrics.Counter(10)},
+		{Name: "Alloc", Value: metrics.Gauge(11.123)},
+	}
 
 	expected := []storage.Record{
 		{Name: "Alloc", Value: metrics.Gauge(11.123)},
 		{Name: "PollCount", Value: metrics.Counter(10)},
 	}
 
-	data, err := r.ListRecords(context.Background())
+	m := new(storage.Mock)
+	m.On("GetAll", mock.Anything).Return(stored, nil)
+
+	require := require.New(t)
+	r := services.NewMetricsRecorder(m)
+
+	data, err := r.List(context.Background())
 
 	require.NoError(err)
 	require.Equal(2, len(data))
@@ -209,7 +289,7 @@ func TestListMetricsOnBrokenStorage(t *testing.T) {
 	store.On("GetAll", mock.Anything).Return(nil, entity.ErrUnexpected)
 
 	r := services.NewMetricsRecorder(store)
-	_, err := r.ListRecords(context.Background())
+	_, err := r.List(context.Background())
 
 	require.ErrorIs(t, entity.ErrUnexpected, err)
 

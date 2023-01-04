@@ -10,7 +10,8 @@ import (
 
 type Storage interface {
 	Push(ctx context.Context, key string, record Record) error
-	Get(ctx context.Context, key string) (*Record, error)
+	PushList(ctx context.Context, keys []string, records []Record) error
+	Get(ctx context.Context, key string) (Record, error)
 	GetAll(ctx context.Context) ([]Record, error)
 	Close() error
 }

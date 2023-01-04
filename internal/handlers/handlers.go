@@ -17,6 +17,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
+	"github.com/alkurbatov/metrics-collector/internal/storage"
 )
 
 type metricsResource struct {
@@ -25,32 +26,28 @@ type metricsResource struct {
 	signer   *security.Signer
 }
 
-func parse(r *http.Request, signer *security.Signer) (*schema.MetricReq, error) {
-	req := new(schema.MetricReq)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+func parseUpdateMetricReqList(r *http.Request, signer *security.Signer) ([]storage.Record, error) {
+	req := make([]schema.MetricReq, 0)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
 
-	if err := schema.ValidateMetricName(req.ID, req.MType); err != nil {
-		return nil, err
+	rv := make([]storage.Record, 0)
+
+	for i := range req {
+		record, err := toRecord(&req[i], signer)
+		if err != nil {
+			return nil, err
+		}
+
+		rv = append(rv, record)
 	}
 
-	if signer == nil {
-		return req, nil
+	if len(rv) == 0 {
+		return nil, entity.ErrIncompleteRequest
 	}
 
-	valid, err := signer.VerifySignature(req)
-	if err != nil {
-		// NB (alkurbatov): We don't want to give any hints to potential attacker,
-		// but still want to debug implementation errors. Thus, the error is only logged.
-		logging.Log.Error(err)
-	}
-
-	if err != nil || !valid {
-		return nil, entity.ErrInvalidSignature
-	}
-
-	return req, nil
+	return rv, nil
 }
 
 func writeErrorResponse(w http.ResponseWriter, code int, err error) {
@@ -66,33 +63,21 @@ func newMetricsResource(viewsPath string, recorder services.Recorder, signer *se
 }
 
 func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
-	kind := chi.URLParam(r, "kind")
-	name := chi.URLParam(r, "name")
+	req := schema.MetricReq{
+		ID:    chi.URLParam(r, "name"),
+		MType: chi.URLParam(r, "kind"),
+	}
 	rawValue := chi.URLParam(r, "value")
 
-	if err := schema.ValidateMetricName(name, kind); err != nil {
-		writeErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	switch kind {
+	switch req.MType {
 	case entity.Counter:
-		value, err := metrics.ToCounter(rawValue)
+		delta, err := metrics.ToCounter(rawValue)
 		if err != nil {
 			writeErrorResponse(w, http.StatusBadRequest, err)
 			return
 		}
 
-		newDelta, err := h.recorder.PushCounter(r.Context(), name, value)
-		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		if _, err = io.WriteString(w, newDelta.String()); err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
+		req.Delta = &delta
 
 	case entity.Gauge:
 		value, err := metrics.ToGauge(rawValue)
@@ -101,19 +86,29 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		newValue, err := h.recorder.PushGauge(r.Context(), name, value)
-		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err)
+		req.Value = &value
+	}
+
+	record, err := toRecord(&req, nil)
+	if err != nil {
+		if errors.Is(err, entity.ErrMetricNotImplemented) {
+			writeErrorResponse(w, http.StatusNotImplemented, err)
 			return
 		}
 
-		if _, err = io.WriteString(w, newValue.String()); err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
+		writeErrorResponse(w, http.StatusBadRequest, err)
 
-	default:
-		writeErrorResponse(w, http.StatusNotImplemented, &entity.MetricNotImplementedError{Kind: kind})
+		return
+	}
+
+	recorded, err := h.recorder.Push(r.Context(), record)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if _, err = io.WriteString(w, recorded.Value.String()); err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -121,38 +116,34 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
-	data, err := parse(r, h.signer)
-	if err != nil {
+	req := new(schema.MetricReq)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		writeErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	switch data.MType {
-	case entity.Counter:
-		newDelta, err := h.recorder.PushCounter(r.Context(), data.ID, *data.Delta)
-		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err)
+	record, err := toRecord(req, h.signer)
+	if err != nil {
+		if errors.Is(err, entity.ErrMetricNotImplemented) {
+			writeErrorResponse(w, http.StatusNotImplemented, err)
 			return
 		}
 
-		data.Delta = &newDelta
+		writeErrorResponse(w, http.StatusBadRequest, err)
 
-	case entity.Gauge:
-		newValue, err := h.recorder.PushGauge(r.Context(), data.ID, *data.Value)
-		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		data.Value = &newValue
-
-	default:
-		writeErrorResponse(w, http.StatusNotImplemented, &entity.MetricNotImplementedError{Kind: data.MType})
 		return
 	}
 
+	recorded, err := h.recorder.Push(r.Context(), record)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	resp := toMetricReq(recorded)
+
 	if h.signer != nil {
-		if err := h.signer.SignRequest(data); err != nil {
+		if err := h.signer.SignRequest(&resp); err != nil {
 			writeErrorResponse(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -160,7 +151,28 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(data); err != nil {
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	logging.Log.Info(OK())
+}
+
+func (h metricsResource) BatchUpdateJSON(w http.ResponseWriter, r *http.Request) {
+	req, err := parseUpdateMetricReqList(r, h.signer)
+	if err != nil {
+		if errors.Is(err, entity.ErrMetricNotImplemented) {
+			writeErrorResponse(w, http.StatusNotImplemented, err)
+			return
+		}
+
+		writeErrorResponse(w, http.StatusBadRequest, err)
+
+		return
+	}
+
+	if err := h.recorder.PushList(r.Context(), req); err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -177,27 +189,25 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch kind {
-	case entity.Counter, entity.Gauge:
-		record, err := h.recorder.GetRecord(r.Context(), kind, name)
-		if err != nil {
-			if errors.Is(err, entity.ErrMetricNotFound) {
-				writeErrorResponse(w, http.StatusNotFound, err)
-				return
-			}
+	if err := schema.ValidateMetricKind(kind); err != nil {
+		writeErrorResponse(w, http.StatusNotImplemented, err)
+		return
+	}
 
-			writeErrorResponse(w, http.StatusInternalServerError, err)
-
+	record, err := h.recorder.Get(r.Context(), kind, name)
+	if err != nil {
+		if errors.Is(err, entity.ErrMetricNotFound) {
+			writeErrorResponse(w, http.StatusNotFound, err)
 			return
 		}
 
-		if _, err := io.WriteString(w, record.Value.String()); err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
+		writeErrorResponse(w, http.StatusInternalServerError, err)
 
-	default:
-		writeErrorResponse(w, http.StatusNotImplemented, &entity.MetricNotImplementedError{Kind: kind})
+		return
+	}
+
+	if _, err := io.WriteString(w, record.Value.String()); err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -205,62 +215,38 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
-	data, err := parse(r, nil)
-	if err != nil {
+	req := new(schema.MetricReq)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		writeErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	switch data.MType {
-	case entity.Counter:
-		record, err := h.recorder.GetRecord(r.Context(), data.MType, data.ID)
-		if err != nil {
-			if errors.Is(err, entity.ErrMetricNotFound) {
-				writeErrorResponse(w, http.StatusNotFound, err)
-				return
-			}
-
-			writeErrorResponse(w, http.StatusInternalServerError, err)
-
-			return
-		}
-
-		delta, ok := record.Value.(metrics.Counter)
-		if !ok {
-			writeErrorResponse(w, http.StatusNotFound, entity.ErrRecordKindDontMatch)
-			return
-		}
-
-		data.Delta = &delta
-
-	case entity.Gauge:
-		record, err := h.recorder.GetRecord(r.Context(), data.MType, data.ID)
-		if err != nil {
-			if errors.Is(err, entity.ErrMetricNotFound) {
-				writeErrorResponse(w, http.StatusNotFound, err)
-				return
-			}
-
-			writeErrorResponse(w, http.StatusInternalServerError, err)
-
-			return
-		}
-
-		value, ok := record.Value.(metrics.Gauge)
-		if !ok {
-			writeErrorResponse(w, http.StatusNotFound, entity.ErrRecordKindDontMatch)
-			return
-		}
-
-		data.Value = &value
-
-	default:
-		writeErrorResponse(w, http.StatusNotImplemented, &entity.MetricNotImplementedError{Kind: data.MType})
+	if err := schema.ValidateMetricName(req.ID, req.MType); err != nil {
+		writeErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
+	if err := schema.ValidateMetricKind(req.MType); err != nil {
+		writeErrorResponse(w, http.StatusNotImplemented, err)
+		return
+	}
+
+	record, err := h.recorder.Get(r.Context(), req.MType, req.ID)
+	if err != nil {
+		if errors.Is(err, entity.ErrMetricNotFound) {
+			writeErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
+
+		writeErrorResponse(w, http.StatusInternalServerError, err)
+
+		return
+	}
+
+	resp := toMetricReq(record)
+
 	if h.signer != nil {
-		if err := h.signer.SignRequest(data); err != nil {
+		if err := h.signer.SignRequest(&resp); err != nil {
 			writeErrorResponse(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -268,7 +254,7 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := json.NewEncoder(w).Encode(data); err != nil {
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -279,7 +265,7 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 func (h metricsResource) List(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	records, err := h.recorder.ListRecords(r.Context())
+	records, err := h.recorder.List(r.Context())
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err)
 		return

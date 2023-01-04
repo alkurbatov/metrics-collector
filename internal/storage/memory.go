@@ -27,16 +27,27 @@ func (m *MemStorage) Push(ctx context.Context, key string, record Record) error 
 	return nil
 }
 
-func (m *MemStorage) Get(ctx context.Context, key string) (*Record, error) {
+func (m *MemStorage) PushList(ctx context.Context, keys []string, records []Record) error {
+	m.Lock()
+	defer m.Unlock()
+
+	for i := range records {
+		m.Data[keys[i]] = records[i]
+	}
+
+	return nil
+}
+
+func (m *MemStorage) Get(ctx context.Context, key string) (Record, error) {
 	m.RLock()
 	defer m.RUnlock()
 
 	record, ok := m.Data[key]
 	if !ok {
-		return nil, entity.ErrMetricNotFound
+		return Record{}, entity.ErrMetricNotFound
 	}
 
-	return &record, nil
+	return record, nil
 }
 
 func (m *MemStorage) GetAll(ctx context.Context) ([]Record, error) {
