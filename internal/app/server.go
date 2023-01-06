@@ -17,6 +17,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/caarlos0/env/v6"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog/log"
 
 	flag "github.com/spf13/pflag"
 )
@@ -28,6 +29,7 @@ type ServerConfig struct {
 	RestoreOnStart bool                 `env:"RESTORE"`
 	Secret         security.Secret      `env:"KEY"`
 	DatabaseURL    security.DatabaseURL `env:"DATABASE_DSN"`
+	Debug          bool                 `env:"DEBUG"`
 }
 
 func NewServerConfig() (*ServerConfig, error) {
@@ -72,6 +74,13 @@ func NewServerConfig() (*ServerConfig, error) {
 		"full database connection URL",
 	)
 
+	debug := flag.BoolP(
+		"debug",
+		"g",
+		false,
+		"enable verbose logging",
+	)
+
 	flag.Parse()
 
 	cfg := &ServerConfig{
@@ -81,6 +90,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		RestoreOnStart: *restoreOnStart,
 		Secret:         secret,
 		DatabaseURL:    security.DatabaseURL(*databaseURL),
+		Debug:          *debug,
 	}
 
 	err := env.Parse(cfg)
@@ -113,6 +123,8 @@ func (c ServerConfig) String() string {
 		sb.WriteString(fmt.Sprintf("\t\tDatabase URL: %s\n", c.DatabaseURL))
 	}
 
+	sb.WriteString(fmt.Sprintf("\t\tDebug: %t", c.Debug))
+
 	return sb.String()
 }
 
@@ -125,21 +137,22 @@ type Server struct {
 func NewServer() *Server {
 	cfg, err := NewServerConfig()
 	if err != nil {
-		logging.Log.Fatal(err)
+		log.Fatal().Err(err).Msg("")
 	}
 
-	logging.Log.Info(cfg)
+	logging.Setup(cfg.Debug)
+	log.Info().Msg(cfg.String())
 
 	var pool *pgxpool.Pool
 
 	if len(cfg.DatabaseURL) > 0 {
 		if err = runMigrations(cfg.DatabaseURL); err != nil {
-			logging.Log.Fatal(err)
+			log.Fatal().Err(err).Msg("")
 		}
 
 		pool, err = pgxpool.New(context.Background(), string(cfg.DatabaseURL))
 		if err != nil {
-			logging.Log.Fatal(err)
+			log.Fatal().Err(err).Msg("")
 		}
 	}
 
@@ -175,18 +188,18 @@ func NewServer() *Server {
 func (app *Server) restoreStorage() {
 	fileStore, ok := app.Storage.(*storage.FileBackedStorage)
 	if !ok {
-		logging.Log.Warning("Metrics storage backend doesn't support restoring from disk!")
+		log.Warn().Msg("Metrics storage backend doesn't support restoring from disk!")
 		return
 	}
 
 	if err := fileStore.Restore(); err != nil {
-		logging.Log.Fatal(err)
+		log.Fatal().Err(err).Msg("")
 	}
 }
 
 func (app *Server) dumpStorage(ctx context.Context) {
 	if _, ok := app.Storage.(*storage.FileBackedStorage); !ok {
-		logging.Log.Warning("Metrics storage backend doesn't support saving to disk!")
+		log.Warn().Msg("Metrics storage backend doesn't support saving to disk!")
 		return
 	}
 
@@ -199,13 +212,13 @@ func (app *Server) dumpStorage(ctx context.Context) {
 			func() {
 				defer tryRecover()
 
-				if err := app.Storage.(*storage.FileBackedStorage).Dump(); err != nil {
-					logging.Log.Error(err)
+				if err := app.Storage.(*storage.FileBackedStorage).Dump(ctx); err != nil {
+					log.Error().Err(err).Msg("")
 				}
 			}()
 
 		case <-ctx.Done():
-			logging.Log.Info("Shutdown storage dumping")
+			log.Info().Msg("Shutdown storage dumping")
 			return
 		}
 	}
@@ -223,20 +236,20 @@ func (app *Server) Serve(ctx context.Context) {
 	}
 
 	if err := app.HTTPServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		logging.Log.Fatal(err)
+		log.Fatal().Err(err).Msg("")
 	}
 }
 
 func (app *Server) Shutdown(signal os.Signal) {
-	logging.Log.Info(fmt.Sprintf("Signal '%s' received, shutting down...", signal))
+	log.Info().Msg(fmt.Sprintf("Signal '%s' received, shutting down...", signal))
 
 	if err := app.HTTPServer.Shutdown(context.Background()); err != nil {
-		logging.Log.Error(err)
+		log.Error().Err(err).Msg("")
 	}
 
 	if err := app.Storage.Close(); err != nil {
-		logging.Log.Error(err)
+		log.Error().Err(err).Msg("")
 	}
 
-	logging.Log.Info("Successfully shutdown the service")
+	log.Info().Msg("Successfully shutdown the service")
 }

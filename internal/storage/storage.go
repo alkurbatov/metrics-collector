@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog/log"
 )
 
 type Storage interface {
@@ -22,16 +22,16 @@ type Storage interface {
 // - otherwise store data in memory.
 func NewDataStore(pool *pgxpool.Pool, filePath string, storeInterval time.Duration) Storage {
 	if pool != nil {
-		logging.Log.Info("Attached database storage")
+		log.Info().Msg("Attached database storage")
 		return NewDatabaseStorage(pool)
 	}
 
 	if len(filePath) == 0 {
-		logging.Log.Info("Attached in-memory storage")
+		log.Info().Msg("Attached in-memory storage")
 		return NewMemStorage()
 	}
 
-	logging.Log.Info("Attached file-backed storage")
+	log.Info().Msg("Attached file-backed storage")
 
 	return NewFileBackedStorage(filePath, storeInterval == 0)
 }

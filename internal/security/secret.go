@@ -4,14 +4,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
 type Secret string
 
 func (s *Secret) Set(src string) error {
 	if len([]byte(src)) < 32 {
-		logging.Log.Warning("Insecure signature: secret key is shorter than 32 bytes!")
+		log.Warn().Msg("Insecure signature: secret key is shorter than 32 bytes!")
 	}
 
 	*s = Secret(src)

@@ -7,6 +7,7 @@ import (
 
 var (
 	ErrBadAddressFormat        = errors.New("expected address in host:port form")
+	ErrEncodingNotSupported    = errors.New("encoding type not supported")
 	ErrHTTP                    = errors.New("HTTP request failed")
 	ErrHealthCheckNotSupported = errors.New("storage doesn't support healthcheck")
 	ErrIncompleteRequest       = errors.New("metrics value not set")
@@ -27,4 +28,8 @@ func MetricNotImplementedError(kind string) error {
 
 func HTTPError(code int, reason []byte) error {
 	return fmt.Errorf("%w (%d): %s", ErrHTTP, code, reason)
+}
+
+func EncodingNotSupportedError(name string) error {
+	return fmt.Errorf("%w (%s)", ErrEncodingNotSupported, name)
 }

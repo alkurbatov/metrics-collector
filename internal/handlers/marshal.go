@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
@@ -9,7 +11,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 )
 
-func toRecord(req *schema.MetricReq, signer *security.Signer) (storage.Record, error) {
+func toRecord(ctx context.Context, req *schema.MetricReq, signer *security.Signer) (storage.Record, error) {
 	if err := schema.ValidateMetricName(req.ID, req.MType); err != nil {
 		return storage.Record{}, err
 	}
@@ -19,7 +21,7 @@ func toRecord(req *schema.MetricReq, signer *security.Signer) (storage.Record, e
 		if err != nil {
 			// NB (alkurbatov): We don't want to give any hints to potential attacker,
 			// but still want to debug implementation errors. Thus, the error is only logged.
-			logging.Log.Error(err)
+			logging.GetLogger(ctx).Error().Err(err).Msg("")
 		}
 
 		if err != nil || !valid {

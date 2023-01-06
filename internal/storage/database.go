@@ -50,7 +50,7 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 	defer conn.Release()
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			logging.Log.Error(pushError(err))
+			logging.GetLogger(ctx).Error().Err(pushError(err)).Msg("")
 		}
 	}()
 
@@ -98,7 +98,7 @@ func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []
 	batchResp := conn.SendBatch(ctx, batch)
 	defer func() {
 		if err := batchResp.Close(); err != nil {
-			logging.Log.Error(pushListError(err))
+			logging.GetLogger(ctx).Error().Err(pushListError(err)).Msg("")
 		}
 	}()
 

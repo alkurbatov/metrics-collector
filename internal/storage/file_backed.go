@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
 func dumpError(reason error) error {
@@ -43,7 +44,7 @@ func (f *FileBackedStorage) Push(ctx context.Context, key string, record Record)
 	}
 
 	if f.syncMode {
-		return f.Dump()
+		return f.Dump(ctx)
 	}
 
 	return nil
@@ -55,26 +56,26 @@ func (f *FileBackedStorage) PushList(ctx context.Context, keys []string, records
 	}
 
 	if f.syncMode {
-		return f.Dump()
+		return f.Dump(ctx)
 	}
 
 	return nil
 }
 
 func (f *FileBackedStorage) Close() error {
-	return f.Dump()
+	return f.Dump(context.Background())
 }
 
 func (f *FileBackedStorage) Restore() error {
 	f.Lock()
 	defer f.Unlock()
 
-	logging.Log.Info("Restoring storage data from " + f.storePath)
+	log.Info().Msg("Restoring storage data from " + f.storePath)
 
 	file, err := os.Open(f.storePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logging.Log.Warning("No storage dump found, data restoration is not possible")
+			log.Warn().Msg("No storage dump found, data restoration is not possible")
 			return nil
 		}
 
@@ -88,16 +89,16 @@ func (f *FileBackedStorage) Restore() error {
 		return restoreError(err)
 	}
 
-	logging.Log.Info("Storage data was successfully restored")
+	log.Info().Msg("Storage data was successfully restored")
 
 	return nil
 }
 
-func (f *FileBackedStorage) Dump() error {
+func (f *FileBackedStorage) Dump(ctx context.Context) error {
 	f.Lock()
 	defer f.Unlock()
 
-	logging.Log.Info("Pushing storage data to " + f.storePath)
+	logging.GetLogger(ctx).Info().Msg("Pushing storage data to " + f.storePath)
 
 	file, err := os.OpenFile(f.storePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {

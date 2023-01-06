@@ -1,16 +1,15 @@
 package app
 
 import (
-	"runtime/debug"
+	"fmt"
 
-	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
 // Log if panic occurres but try to avoid program termination.
 func tryRecover() {
 	if p := recover(); p != nil {
-		l := logging.Log.WithField("event", "panic")
-		l.Error(p)
-		l.Debug(string(debug.Stack()))
+		log.Error().Err(fmt.Errorf("%v", p)).Msg("") //nolint: goerr113
+		log.Debug().Stack()
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/caarlos0/env/v6"
+	"github.com/rs/zerolog/log"
 	flag "github.com/spf13/pflag"
 )
 
@@ -19,6 +20,7 @@ type AgentConfig struct {
 	ReportInterval   time.Duration   `env:"REPORT_INTERVAL"`
 	CollectorAddress NetAddress      `env:"ADDRESS"`
 	Secret           security.Secret `env:"KEY"`
+	Debug            bool            `env:"DEBUG"`
 }
 
 func NewAgentConfig() AgentConfig {
@@ -51,6 +53,13 @@ func NewAgentConfig() AgentConfig {
 		"secret key for signature generation",
 	)
 
+	debug := flag.BoolP(
+		"debug",
+		"g",
+		false,
+		"enable verbose logging",
+	)
+
 	flag.Parse()
 
 	cfg := AgentConfig{
@@ -58,11 +67,12 @@ func NewAgentConfig() AgentConfig {
 		ReportInterval:   *reportInterval,
 		PollInterval:     *pollInterval,
 		Secret:           secret,
+		Debug:            *debug,
 	}
 
 	err := env.Parse(&cfg)
 	if err != nil {
-		logging.Log.Fatal(err)
+		log.Fatal().Err(err).Msg("")
 	}
 
 	return cfg
@@ -80,6 +90,8 @@ func (c AgentConfig) String() string {
 		sb.WriteString(fmt.Sprintf("\t\tSecret key: %s\n", c.Secret))
 	}
 
+	sb.WriteString(fmt.Sprintf("\t\tDebug: %t", c.Debug))
+
 	return sb.String()
 }
 
@@ -88,7 +100,12 @@ type Agent struct {
 }
 
 func NewAgent() *Agent {
-	return &Agent{Config: NewAgentConfig()}
+	cfg := NewAgentConfig()
+
+	logging.Setup(cfg.Debug)
+	log.Info().Msg(cfg.String())
+
+	return &Agent{Config: cfg}
 }
 
 func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
@@ -101,12 +118,12 @@ func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
 			func() {
 				defer tryRecover()
 
-				logging.Log.Info("Gathering application metrics")
+				log.Info().Msg("Gathering application metrics")
 				stats.Poll()
 			}()
 
 		case <-ctx.Done():
-			logging.Log.Info("Shutdown metrics gathering")
+			log.Info().Msg("Shutdown metrics gathering")
 			return
 		}
 	}
@@ -122,18 +139,18 @@ func (app *Agent) Report(ctx context.Context, stats *metrics.Metrics) {
 			func() {
 				defer tryRecover()
 
-				logging.Log.Info("Sending application metrics")
+				log.Info().Msg("Sending application metrics")
 
 				err := exporter.SendMetrics(app.Config.CollectorAddress.String(), app.Config.Secret, *stats)
 				if err == nil {
-					logging.Log.Info("Metrics successfully sent")
+					log.Info().Msg("Metrics successfully sent")
 				} else {
-					logging.Log.Error(err)
+					log.Error().Err(err).Msg("")
 				}
 			}()
 
 		case <-ctx.Done():
-			logging.Log.Info("Shutdown metrics sending")
+			log.Info().Msg("Shutdown metrics sending")
 			return
 		}
 	}
