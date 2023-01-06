@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	ErrBadAddressFormat        = errors.New("expected address in host:port form")
 	ErrHTTP                    = errors.New("HTTP request failed")
 	ErrHealthCheckNotSupported = errors.New("storage doesn't support healthcheck")
 	ErrIncompleteRequest       = errors.New("metrics value not set")

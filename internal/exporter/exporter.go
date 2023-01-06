@@ -71,6 +71,10 @@ func (h *BatchExporter) Add(req schema.MetricReq) *BatchExporter {
 }
 
 func (h *BatchExporter) Error() error {
+	if h.err == nil {
+		return nil
+	}
+
 	return fmt.Errorf("metrics export failed: %w", h.err)
 }
 

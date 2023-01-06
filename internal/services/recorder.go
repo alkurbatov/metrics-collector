@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
@@ -12,6 +13,14 @@ import (
 
 func calculateID(name, kind string) string {
 	return name + "_" + kind
+}
+
+func pushError(reason error) error {
+	return fmt.Errorf("failed to push record: %w", reason)
+}
+
+func pushListError(reason error) error {
+	return fmt.Errorf("failed to push records list: %w", reason)
 }
 
 type MetricsRecorder struct {
@@ -42,7 +51,7 @@ func (r MetricsRecorder) calculateNewValue(
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, err //nolint: wrapcheck
 	}
 
 	return storedRecord.Value.(metrics.Counter) + newRecord.Value.(metrics.Counter), nil
@@ -53,12 +62,12 @@ func (r MetricsRecorder) Push(ctx context.Context, record storage.Record) (stora
 
 	value, err := r.calculateNewValue(ctx, id, nil, record)
 	if err != nil {
-		return storage.Record{}, err
+		return storage.Record{}, pushError(err)
 	}
 
 	record.Value = value
 	if err := r.storage.Push(ctx, id, record); err != nil {
-		return storage.Record{}, err
+		return storage.Record{}, pushError(err)
 	}
 
 	return record, nil
@@ -76,7 +85,7 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 		if pos, ok := seen[id]; ok {
 			value, err := r.calculateNewValue(ctx, id, &data[pos], record)
 			if err != nil {
-				return err
+				return pushListError(err)
 			}
 
 			data[pos].Value = value
@@ -86,7 +95,7 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 
 		value, err := r.calculateNewValue(ctx, id, nil, record)
 		if err != nil {
-			return err
+			return pushListError(err)
 		}
 
 		record.Value = value
@@ -96,19 +105,28 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 		data = append(data, record)
 	}
 
-	return r.storage.PushList(ctx, keys, data)
+	if err := r.storage.PushList(ctx, keys, data); err != nil {
+		return pushListError(err)
+	}
+
+	return nil
 }
 
 func (r MetricsRecorder) Get(ctx context.Context, kind, name string) (storage.Record, error) {
 	id := calculateID(name, kind)
 
-	return r.storage.Get(ctx, id)
+	record, err := r.storage.Get(ctx, id)
+	if err != nil {
+		return storage.Record{}, fmt.Errorf("failed to get record: %w", err)
+	}
+
+	return record, nil
 }
 
 func (r MetricsRecorder) List(ctx context.Context) ([]storage.Record, error) {
 	rv, err := r.storage.GetAll(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list records: %w", err)
 	}
 
 	sort.Slice(rv, func(i, j int) bool {

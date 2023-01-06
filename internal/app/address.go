@@ -1,21 +1,27 @@
 package app
 
 import (
-	"errors"
+	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 )
 
 type NetAddress string
 
+func setAddressError(reason error) error {
+	return fmt.Errorf("set address failed: %w", reason)
+}
+
 func (a *NetAddress) Set(src string) error {
 	chunks := strings.Split(src, ":")
 	if len(chunks) != 2 {
-		return errors.New("expected address in a host:port form, got " + src)
+		return setAddressError(entity.ErrBadAddressFormat)
 	}
 
 	if _, err := strconv.Atoi(chunks[1]); err != nil {
-		return err
+		return setAddressError(err)
 	}
 
 	*a = NetAddress(src)

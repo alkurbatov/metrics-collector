@@ -2,10 +2,15 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 )
+
+func unmarshalError(reason error) error {
+	return fmt.Errorf("record unmarshaling failed: %w", reason)
+}
 
 type Record struct {
 	Name  string
@@ -13,17 +18,23 @@ type Record struct {
 }
 
 func (r Record) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{
+	rv, err := json.Marshal(map[string]string{
 		"name":  r.Name,
 		"kind":  r.Value.Kind(),
 		"value": r.Value.String(),
 	})
+
+	if err != nil {
+		return nil, fmt.Errorf("record marshaling failed: %w", err)
+	}
+
+	return rv, nil
 }
 
 func (r *Record) UnmarshalJSON(src []byte) error {
 	var data map[string]string
 	if err := json.Unmarshal(src, &data); err != nil {
-		return err
+		return unmarshalError(err)
 	}
 
 	r.Name = data["name"]
@@ -32,7 +43,7 @@ func (r *Record) UnmarshalJSON(src []byte) error {
 	case entity.Counter:
 		value, err := metrics.ToCounter(data["value"])
 		if err != nil {
-			return err
+			return unmarshalError(err)
 		}
 
 		r.Value = value
@@ -40,13 +51,13 @@ func (r *Record) UnmarshalJSON(src []byte) error {
 	case entity.Gauge:
 		value, err := metrics.ToGauge(data["value"])
 		if err != nil {
-			return err
+			return unmarshalError(err)
 		}
 
 		r.Value = value
 
 	default:
-		return entity.MetricNotImplementedError(data["kind"])
+		return unmarshalError(entity.MetricNotImplementedError(data["kind"]))
 	}
 
 	return nil

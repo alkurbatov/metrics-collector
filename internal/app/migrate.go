@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/logging"
@@ -33,7 +34,7 @@ func runMigrations(url security.DatabaseURL) error {
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("DB migration failed: %w", err)
 	}
 
 	err = migrator.Up()
@@ -49,5 +50,5 @@ func runMigrations(url security.DatabaseURL) error {
 		return nil
 	}
 
-	return err
+	return fmt.Errorf("DB migration failed: %w", err)
 }

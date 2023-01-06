@@ -36,6 +36,24 @@ linters:
     # implementation of graceful shutdown in agent.
     - noctx
 
-    # FIXME (alkurbatov): Enable it back om iter13
-    - wrapcheck
-    - goerr113
+issues:
+  exclude-rules:
+    - path: '(.+)_mock\.go'
+      linters:
+        - wrapcheck
+
+    - path: 'internal/compression/.*.go'
+      linters:
+        - wrapcheck
+
+    - path: 'internal/exporter/exporter.go'
+      linters:
+        - wrapcheck
+
+    - path: 'internal/handlers/marshal.go'
+      linters:
+        - wrapcheck
+
+    - path: 'internal/schema/.*.go'
+      linters:
+        - wrapcheck

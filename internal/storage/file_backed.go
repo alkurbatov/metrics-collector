@@ -3,11 +3,20 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 )
+
+func dumpError(reason error) error {
+	return fmt.Errorf("data dump failed: %w", reason)
+}
+
+func restoreError(reason error) error {
+	return fmt.Errorf("data restore failed: %w", reason)
+}
 
 type FileBackedStorage struct {
 	*MemStorage
@@ -69,14 +78,14 @@ func (f *FileBackedStorage) Restore() error {
 			return nil
 		}
 
-		return err
+		return restoreError(err)
 	}
 
 	defer file.Close()
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(f.MemStorage); err != nil {
-		return err
+		return restoreError(err)
 	}
 
 	logging.Log.Info("Storage data was successfully restored")
@@ -92,7 +101,7 @@ func (f *FileBackedStorage) Dump() error {
 
 	file, err := os.OpenFile(f.storePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return err
+		return dumpError(err)
 	}
 
 	defer file.Close()
@@ -101,7 +110,7 @@ func (f *FileBackedStorage) Dump() error {
 	snapshot := f.MemStorage.Snapshot()
 
 	if err := encoder.Encode(snapshot); err != nil {
-		return err
+		return dumpError(err)
 	}
 
 	return nil

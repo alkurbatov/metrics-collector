@@ -34,7 +34,7 @@ func TestCheckStorage(t *testing.T) {
 			probe := services.NewHealthCheck(store)
 
 			err := probe.CheckStorage(context.Background())
-			assert.ErrorIs(t, tc.err, err)
+			assert.ErrorIs(t, err, tc.err)
 		})
 	}
 }

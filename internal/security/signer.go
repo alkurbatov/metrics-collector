@@ -10,6 +10,14 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 )
 
+func signError(reason error) error {
+	return fmt.Errorf("failed to sign request: %w", reason)
+}
+
+func verifyError(reason error) error {
+	return fmt.Errorf("failed to verify request signature: %w", reason)
+}
+
 type Signer struct {
 	secret []byte
 }
@@ -39,7 +47,7 @@ func (s *Signer) calculateSignature(req *schema.MetricReq) ([]byte, error) {
 		msg = fmt.Sprintf("%s:%s:%f", req.ID, req.MType, *req.Value)
 
 	default:
-		return nil, entity.MetricNotImplementedError(req.MType)
+		return nil, entity.MetricNotImplementedError(req.MType) //nolint: wrapcheck
 	}
 
 	mac.Write([]byte(msg))
@@ -50,7 +58,7 @@ func (s *Signer) calculateSignature(req *schema.MetricReq) ([]byte, error) {
 func (s *Signer) SignRequest(req *schema.MetricReq) error {
 	digest, err := s.calculateSignature(req)
 	if err != nil {
-		return err
+		return signError(err)
 	}
 
 	req.Hash = hex.EncodeToString(digest)
@@ -60,17 +68,17 @@ func (s *Signer) SignRequest(req *schema.MetricReq) error {
 
 func (s *Signer) VerifySignature(req *schema.MetricReq) (bool, error) {
 	if len(req.Hash) == 0 {
-		return false, entity.ErrNotSigned
+		return false, verifyError(entity.ErrNotSigned)
 	}
 
 	expected, err := hex.DecodeString(req.Hash)
 	if err != nil {
-		return false, err
+		return false, verifyError(err)
 	}
 
 	digest, err := s.calculateSignature(req)
 	if err != nil {
-		return false, err
+		return false, verifyError(err)
 	}
 
 	return hmac.Equal(digest, expected), nil

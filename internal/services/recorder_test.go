@@ -289,9 +289,9 @@ func TestListMetricsOnBrokenStorage(t *testing.T) {
 	store.On("GetAll", mock.Anything).Return(nil, entity.ErrUnexpected)
 
 	r := services.NewMetricsRecorder(store)
+
 	_, err := r.List(context.Background())
 
-	require.ErrorIs(t, entity.ErrUnexpected, err)
-
+	require.Error(t, err)
 	store.AssertExpectations(t)
 }

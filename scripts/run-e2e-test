@@ -125,4 +125,8 @@ ADDRESS="localhost:${PORT}" ${E2E_TEST} \
        -database-dsn="${PG_URL}" \
        -key=${TEMP_FILE}
 
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration13$ \
+    -source-path=.
+
 docker compose down

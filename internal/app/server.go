@@ -85,7 +85,7 @@ func NewServerConfig() (*ServerConfig, error) {
 
 	err := env.Parse(cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse server config: %w", err)
 	}
 
 	if len(cfg.StorePath) == 0 && cfg.RestoreOnStart {

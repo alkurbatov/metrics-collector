@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
@@ -10,10 +11,20 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func rollback(ctx context.Context, tx pgx.Tx) {
-	if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-		logging.Log.Error(err)
-	}
+func pushError(reason error) error {
+	return fmt.Errorf("failed to push record to DB: %w", reason)
+}
+
+func pushListError(reason error) error {
+	return fmt.Errorf("failed to push records list to DB: %w", reason)
+}
+
+func getError(reason error) error {
+	return fmt.Errorf("failed to get record from DB: %w", reason)
+}
+
+func getListError(reason error) error {
+	return fmt.Errorf("failed to get records list from DB: %w", reason)
 }
 
 type DatabaseStorage struct {
@@ -27,17 +38,21 @@ func NewDatabaseStorage(pool DBConnPool) DatabaseStorage {
 func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) error {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
-		return err
+		return pushError(err)
 	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		conn.Release()
-		return err
+		return pushError(err)
 	}
 
 	defer conn.Release()
-	defer rollback(ctx, tx)
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			logging.Log.Error(pushError(err))
+		}
+	}()
 
 	if _, err = tx.Exec(
 		ctx,
@@ -47,16 +62,20 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 		record.Value.Kind(),
 		record.Value.String(),
 	); err != nil {
-		return err
+		return pushError(err)
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return pushError(err)
+	}
+
+	return nil
 }
 
 func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []Record) error {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
-		return err
+		return pushListError(err)
 	}
 
 	defer conn.Release()
@@ -79,13 +98,13 @@ func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []
 	batchResp := conn.SendBatch(ctx, batch)
 	defer func() {
 		if err := batchResp.Close(); err != nil {
-			logging.Log.Error(err)
+			logging.Log.Error(pushListError(err))
 		}
 	}()
 
 	for i := 0; i < len(records); i++ {
 		if _, err := batchResp.Exec(); err != nil {
-			return err
+			return pushListError(err)
 		}
 	}
 
@@ -95,7 +114,7 @@ func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []
 func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
-		return Record{}, err
+		return Record{}, getError(err)
 	}
 
 	defer conn.Release()
@@ -109,10 +128,10 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 	err = conn.QueryRow(ctx, "SELECT name, kind, value FROM metrics WHERE id=$1", key).Scan(&name, &kind, &value)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Record{}, entity.ErrMetricNotFound
+			return Record{}, getError(entity.ErrMetricNotFound)
 		}
 
-		return Record{}, err
+		return Record{}, getError(err)
 	}
 
 	switch kind {
@@ -123,21 +142,21 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 		return Record{Name: name, Value: metrics.Gauge(value)}, nil
 
 	default:
-		return Record{}, entity.MetricNotImplementedError(kind)
+		return Record{}, getError(entity.MetricNotImplementedError(kind))
 	}
 }
 
 func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
-		return nil, err
+		return nil, getListError(err)
 	}
 
 	defer conn.Release()
 
 	rows, err := conn.Query(ctx, "SELECT name, kind, value FROM metrics")
 	if err != nil {
-		return nil, err
+		return nil, getListError(err)
 	}
 	defer rows.Close()
 
@@ -159,15 +178,19 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 			return nil
 
 		default:
-			return entity.MetricNotImplementedError(kind)
+			return entity.MetricNotImplementedError(kind) //nolint: wrapcheck
 		}
 	})
 
-	return rv, err
+	if err != nil {
+		return nil, getListError(err)
+	}
+
+	return rv, nil
 }
 
 func (d DatabaseStorage) Ping(ctx context.Context) error {
-	return d.pool.Ping(ctx)
+	return d.pool.Ping(ctx) //nolint: wrapcheck
 }
 
 func (d DatabaseStorage) Close() error {
