@@ -141,43 +141,52 @@ func (h *BatchExporter) Send() *BatchExporter {
 	return h
 }
 
-func SendMetrics(collectorAddress string, secret security.Secret, stats metrics.Metrics) error {
+func SendMetrics(collectorAddress string, secret security.Secret, stats *metrics.Metrics) error {
+	// NB (alkurbatov): Take snapshot to avoid possible races.
+	snapshot := *stats
+
 	batch := NewBatchExporter(collectorAddress, secret)
 
 	batch.
-		Add(schema.NewUpdateGaugeReq("Alloc", stats.Memory.Alloc)).
-		Add(schema.NewUpdateGaugeReq("BuckHashSys", stats.Memory.BuckHashSys)).
-		Add(schema.NewUpdateGaugeReq("Frees", stats.Memory.Frees)).
-		Add(schema.NewUpdateGaugeReq("GCCPUFraction", stats.Memory.GCCPUFraction)).
-		Add(schema.NewUpdateGaugeReq("GCSys", stats.Memory.GCSys)).
-		Add(schema.NewUpdateGaugeReq("HeapAlloc", stats.Memory.HeapAlloc)).
-		Add(schema.NewUpdateGaugeReq("HeapIdle", stats.Memory.HeapIdle)).
-		Add(schema.NewUpdateGaugeReq("HeapInuse", stats.Memory.HeapInuse)).
-		Add(schema.NewUpdateGaugeReq("HeapObjects", stats.Memory.HeapObjects)).
-		Add(schema.NewUpdateGaugeReq("HeapReleased", stats.Memory.HeapReleased)).
-		Add(schema.NewUpdateGaugeReq("HeapSys", stats.Memory.HeapSys)).
-		Add(schema.NewUpdateGaugeReq("LastGC", stats.Memory.LastGC)).
-		Add(schema.NewUpdateGaugeReq("Lookups", stats.Memory.Lookups)).
-		Add(schema.NewUpdateGaugeReq("MCacheInuse", stats.Memory.MCacheInuse)).
-		Add(schema.NewUpdateGaugeReq("MCacheSys", stats.Memory.MCacheSys)).
-		Add(schema.NewUpdateGaugeReq("MSpanInuse", stats.Memory.MSpanInuse)).
-		Add(schema.NewUpdateGaugeReq("MSpanSys", stats.Memory.MSpanSys)).
-		Add(schema.NewUpdateGaugeReq("Mallocs", stats.Memory.Mallocs)).
-		Add(schema.NewUpdateGaugeReq("NextGC", stats.Memory.NextGC)).
-		Add(schema.NewUpdateGaugeReq("NumForcedGC", stats.Memory.NumForcedGC)).
-		Add(schema.NewUpdateGaugeReq("NumGC", stats.Memory.NumGC)).
-		Add(schema.NewUpdateGaugeReq("OtherSys", stats.Memory.OtherSys)).
-		Add(schema.NewUpdateGaugeReq("PauseTotalNs", stats.Memory.PauseTotalNs)).
-		Add(schema.NewUpdateGaugeReq("StackInuse", stats.Memory.StackInuse)).
-		Add(schema.NewUpdateGaugeReq("StackSys", stats.Memory.StackSys)).
-		Add(schema.NewUpdateGaugeReq("Sys", stats.Memory.Sys)).
-		Add(schema.NewUpdateGaugeReq("TotalAlloc", stats.Memory.TotalAlloc))
+		Add(schema.NewUpdateGaugeReq("Alloc", snapshot.Memory.Alloc)).
+		Add(schema.NewUpdateGaugeReq("BuckHashSys", snapshot.Memory.BuckHashSys)).
+		Add(schema.NewUpdateGaugeReq("Frees", snapshot.Memory.Frees)).
+		Add(schema.NewUpdateGaugeReq("GCCPUFraction", snapshot.Memory.GCCPUFraction)).
+		Add(schema.NewUpdateGaugeReq("GCSys", snapshot.Memory.GCSys)).
+		Add(schema.NewUpdateGaugeReq("HeapAlloc", snapshot.Memory.HeapAlloc)).
+		Add(schema.NewUpdateGaugeReq("HeapIdle", snapshot.Memory.HeapIdle)).
+		Add(schema.NewUpdateGaugeReq("HeapInuse", snapshot.Memory.HeapInuse)).
+		Add(schema.NewUpdateGaugeReq("HeapObjects", snapshot.Memory.HeapObjects)).
+		Add(schema.NewUpdateGaugeReq("HeapReleased", snapshot.Memory.HeapReleased)).
+		Add(schema.NewUpdateGaugeReq("HeapSys", snapshot.Memory.HeapSys)).
+		Add(schema.NewUpdateGaugeReq("LastGC", snapshot.Memory.LastGC)).
+		Add(schema.NewUpdateGaugeReq("Lookups", snapshot.Memory.Lookups)).
+		Add(schema.NewUpdateGaugeReq("MCacheInuse", snapshot.Memory.MCacheInuse)).
+		Add(schema.NewUpdateGaugeReq("MCacheSys", snapshot.Memory.MCacheSys)).
+		Add(schema.NewUpdateGaugeReq("MSpanInuse", snapshot.Memory.MSpanInuse)).
+		Add(schema.NewUpdateGaugeReq("MSpanSys", snapshot.Memory.MSpanSys)).
+		Add(schema.NewUpdateGaugeReq("Mallocs", snapshot.Memory.Mallocs)).
+		Add(schema.NewUpdateGaugeReq("NextGC", snapshot.Memory.NextGC)).
+		Add(schema.NewUpdateGaugeReq("NumForcedGC", snapshot.Memory.NumForcedGC)).
+		Add(schema.NewUpdateGaugeReq("NumGC", snapshot.Memory.NumGC)).
+		Add(schema.NewUpdateGaugeReq("OtherSys", snapshot.Memory.OtherSys)).
+		Add(schema.NewUpdateGaugeReq("PauseTotalNs", snapshot.Memory.PauseTotalNs)).
+		Add(schema.NewUpdateGaugeReq("StackInuse", snapshot.Memory.StackInuse)).
+		Add(schema.NewUpdateGaugeReq("StackSys", snapshot.Memory.StackSys)).
+		Add(schema.NewUpdateGaugeReq("Sys", snapshot.Memory.Sys)).
+		Add(schema.NewUpdateGaugeReq("TotalAlloc", snapshot.Memory.TotalAlloc))
 
 	batch.
-		Add(schema.NewUpdateGaugeReq("RandomValue", stats.RandomValue))
+		Add(schema.NewUpdateGaugeReq("RandomValue", snapshot.RandomValue))
 
 	batch.
-		Add(schema.NewUpdateCounterReq("PollCount", stats.PollCount))
+		Add(schema.NewUpdateCounterReq("PollCount", snapshot.PollCount))
 
-	return batch.Send().Error()
+	if err := batch.Send().Error(); err != nil {
+		return err
+	}
+
+	stats.PollCount -= snapshot.PollCount
+
+	return nil
 }

@@ -141,7 +141,7 @@ func (app *Agent) Report(ctx context.Context, stats *metrics.Metrics) {
 
 				log.Info().Msg("Sending application metrics")
 
-				err := exporter.SendMetrics(app.Config.CollectorAddress.String(), app.Config.Secret, *stats)
+				err := exporter.SendMetrics(app.Config.CollectorAddress.String(), app.Config.Secret, stats)
 				if err == nil {
 					log.Info().Msg("Metrics successfully sent")
 				} else {
