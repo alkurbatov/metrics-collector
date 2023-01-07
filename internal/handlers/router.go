@@ -7,6 +7,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -22,19 +23,17 @@ func Router(
 	r := chi.NewRouter()
 
 	r.Use(logging.RequestsLogger)
+	r.Use(middleware.StripSlashes)
 	r.Use(compression.DecompressRequest)
 	r.Use(compression.CompressResponse)
 
 	r.Get("/", metrics.List)
 
 	r.Post("/value", metrics.GetJSON)
-	r.Post("/value/", metrics.GetJSON)
 	r.Get("/value/{kind}/{name}", metrics.Get)
 
 	r.Post("/update", metrics.UpdateJSON)
-	r.Post("/update/", metrics.UpdateJSON)
 	r.Post("/updates", metrics.BatchUpdateJSON)
-	r.Post("/updates/", metrics.BatchUpdateJSON)
 	r.Post("/update/{kind}/{name}/{value}", metrics.Update)
 
 	r.Get("/ping", probe.Ping)
