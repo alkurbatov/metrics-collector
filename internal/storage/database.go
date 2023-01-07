@@ -41,7 +41,7 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 		return pushError(err)
 	}
 
-	tx, err := conn.Begin(ctx)
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
 		conn.Release()
 		return pushError(err)
