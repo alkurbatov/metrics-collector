@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"strconv"
+
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 )
 
 type Metric interface {
@@ -12,7 +14,7 @@ type Metric interface {
 type Counter int64
 
 func (c Counter) Kind() string {
-	return "counter"
+	return entity.Counter
 }
 
 func (c Counter) String() string {
@@ -22,7 +24,7 @@ func (c Counter) String() string {
 type Gauge float64
 
 func (g Gauge) Kind() string {
-	return "gauge"
+	return entity.Gauge
 }
 
 func (g Gauge) String() string {

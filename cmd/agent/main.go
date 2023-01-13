@@ -4,20 +4,18 @@ import (
 	"context"
 
 	"github.com/alkurbatov/metrics-collector/internal/app"
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
 	app := app.NewAgent()
 	ctx := context.Background()
 
-	logging.Log.Info(app.Config)
-
 	stats := &metrics.Metrics{}
 	go app.Poll(ctx, stats)
 	go app.Report(ctx, stats)
 
-	logging.Log.Info("Agent has started")
+	log.Info().Msg("Agent has started")
 	select {}
 }

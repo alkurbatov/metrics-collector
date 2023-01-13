@@ -1,51 +1,37 @@
 package services
 
 import (
-	"errors"
+	"context"
 
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/stretchr/testify/mock"
 )
 
 type RecorderMock struct {
+	mock.Mock
 }
 
-func (m RecorderMock) PushCounter(name string, value metrics.Counter) (metrics.Counter, error) {
-	if name == "fail" {
-		return 0, errors.New("failure")
-	}
-
-	return value, nil
+func (m *RecorderMock) Push(ctx context.Context, record storage.Record) (storage.Record, error) {
+	args := m.Called(ctx, record)
+	return args.Get(0).(storage.Record), args.Error(1)
 }
 
-func (m RecorderMock) PushGauge(name string, value metrics.Gauge) (metrics.Gauge, error) {
-	if name == "fail" {
-		return 0, errors.New("failure")
-	}
-
-	return value, nil
+func (m *RecorderMock) PushList(ctx context.Context, records []storage.Record) error {
+	args := m.Called(ctx, records)
+	return args.Error(0)
 }
 
-func (m RecorderMock) GetRecord(kind, name string) (storage.Record, bool) {
-	if name == "unknown" {
-		return storage.Record{}, false
-	}
-
-	switch kind {
-	case "counter":
-		return storage.Record{Name: name, Value: metrics.Counter(10)}, true
-	case "gauge":
-		return storage.Record{Name: name, Value: metrics.Gauge(11.345)}, true
-	default:
-		return storage.Record{}, false
-	}
+func (m *RecorderMock) Get(ctx context.Context, kind, name string) (storage.Record, error) {
+	args := m.Called(ctx, kind, name)
+	return args.Get(0).(storage.Record), args.Error(1)
 }
 
-func (m RecorderMock) ListRecords() []storage.Record {
-	rv := []storage.Record{
-		{Name: "A", Value: metrics.Counter(10)},
-		{Name: "B", Value: metrics.Gauge(11.345)},
+func (m *RecorderMock) List(ctx context.Context) ([]storage.Record, error) {
+	args := m.Called(ctx)
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
 
-	return rv
+	return args.Get(0).([]storage.Record), args.Error(1)
 }

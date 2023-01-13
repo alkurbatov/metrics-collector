@@ -1,12 +1,23 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 
 	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/rs/zerolog/log"
 )
+
+func dumpError(reason error) error {
+	return fmt.Errorf("data dump failed: %w", reason)
+}
+
+func restoreError(reason error) error {
+	return fmt.Errorf("data restore failed: %w", reason)
+}
 
 type FileBackedStorage struct {
 	*MemStorage
@@ -27,67 +38,81 @@ func NewFileBackedStorage(storePath string, syncMode bool) *FileBackedStorage {
 	}
 }
 
-func (f *FileBackedStorage) Push(key string, record Record) error {
-	if err := f.MemStorage.Push(key, record); err != nil {
+func (f *FileBackedStorage) Push(ctx context.Context, key string, record Record) error {
+	if err := f.MemStorage.Push(ctx, key, record); err != nil {
 		return err
 	}
 
 	if f.syncMode {
-		return f.Dump()
+		return f.Dump(ctx)
 	}
 
 	return nil
+}
+
+func (f *FileBackedStorage) PushList(ctx context.Context, keys []string, records []Record) error {
+	if err := f.MemStorage.PushList(ctx, keys, records); err != nil {
+		return err
+	}
+
+	if f.syncMode {
+		return f.Dump(ctx)
+	}
+
+	return nil
+}
+
+func (f *FileBackedStorage) Close() error {
+	return f.Dump(context.Background())
 }
 
 func (f *FileBackedStorage) Restore() error {
 	f.Lock()
 	defer f.Unlock()
 
-	logging.Log.Info("Restoring storage data from " + f.storePath)
+	log.Info().Msg("Restoring storage data from " + f.storePath)
 
 	file, err := os.Open(f.storePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logging.Log.Warning("No storage dump found, data restoration is not possible")
+			log.Warn().Msg("No storage dump found, data restoration is not possible")
 			return nil
 		}
 
-		return err
+		return restoreError(err)
 	}
 
 	defer file.Close()
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(f.MemStorage); err != nil {
-		return err
+		return restoreError(err)
 	}
 
-	logging.Log.Info("Storage data was successfully restored")
+	log.Info().Msg("Storage data was successfully restored")
+
 	return nil
 }
 
-func (f *FileBackedStorage) Dump() error {
+func (f *FileBackedStorage) Dump(ctx context.Context) error {
 	f.Lock()
 	defer f.Unlock()
 
-	logging.Log.Info("Pushing storage data to " + f.storePath)
+	logging.GetLogger(ctx).Info().Msg("Pushing storage data to " + f.storePath)
 
 	file, err := os.OpenFile(f.storePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return err
+		return dumpError(err)
 	}
 
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	snapshot := f.MemStorage.Snapshot()
+
 	if err := encoder.Encode(snapshot); err != nil {
-		return err
+		return dumpError(err)
 	}
 
 	return nil
-}
-
-func (f *FileBackedStorage) String() string {
-	return "file storage backed by " + f.storePath
 }

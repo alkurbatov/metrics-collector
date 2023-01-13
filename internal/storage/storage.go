@@ -1,20 +1,43 @@
 package storage
 
 import (
+	"context"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog/log"
 )
 
 type Storage interface {
-	Push(key string, record Record) error
-	Get(key string) (Record, bool)
-	GetAll() []Record
-	String() string
+	Push(ctx context.Context, key string, record Record) error
+	PushList(ctx context.Context, keys []string, records []Record) error
+	Get(ctx context.Context, key string) (Record, error)
+	GetAll(ctx context.Context) ([]Record, error)
+	Close() error
 }
 
-func NewDataStore(path string, storeInterval time.Duration) Storage {
-	if len(path) == 0 {
+// New storage is picked according to the following priority:
+// - if DB connection was initialized, use database storage;
+// - if filePath is set, use file backed storage;
+// - otherwise store data in memory.
+func NewDataStore(pool *pgxpool.Pool, filePath string, storeInterval time.Duration) Storage {
+	if pool != nil {
+		log.Info().Msg("Attached database storage")
+		return NewDatabaseStorage(pool)
+	}
+
+	if len(filePath) == 0 {
+		log.Info().Msg("Attached in-memory storage")
 		return NewMemStorage()
 	}
 
-	return NewFileBackedStorage(path, storeInterval == 0)
+	log.Info().Msg("Attached file-backed storage")
+
+	return NewFileBackedStorage(filePath, storeInterval == 0)
+}
+
+type DBConnPool interface {
+	Acquire(ctx context.Context) (*pgxpool.Conn, error)
+	Ping(ctx context.Context) error
+	Close()
 }

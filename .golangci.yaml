@@ -1,0 +1,59 @@
+---
+linters:
+  enable-all: true
+  disable:
+    - cyclop
+    - deadcode
+    - exhaustivestruct
+    - exhaustruct
+    - forcetypeassert
+    - funlen
+    - gci
+    - gochecknoglobals
+    - gochecknoinits
+    - gofumpt
+    - golint
+    - gomnd
+    - ifshort
+    - interfacer
+    - ireturn
+    - maligned
+    - nlreturn
+    - nosnakecase
+    - rowserrcheck
+    - rowserrcheck
+    - scopelint
+    - sqlclosecheck
+    - structcheck
+    - varcheck
+    - varnamelen
+    - wastedassign
+
+    # FIXME (alkurbatov): Enable when we add parallelism to the tests.
+    - paralleltest
+
+    # FIXME (alkurbatov): Enable after transition to grequests and
+    # implementation of graceful shutdown in agent.
+    - noctx
+
+issues:
+  exclude-rules:
+    - path: '(.+)_mock\.go'
+      linters:
+        - wrapcheck
+
+    - path: 'internal/compression/.*.go'
+      linters:
+        - wrapcheck
+
+    - path: 'internal/exporter/exporter.go'
+      linters:
+        - wrapcheck
+
+    - path: 'internal/handlers/marshal.go'
+      linters:
+        - wrapcheck
+
+    - path: 'internal/schema/.*.go'
+      linters:
+        - wrapcheck

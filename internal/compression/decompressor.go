@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"net/http"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 )
 
@@ -15,18 +16,20 @@ func DecompressRequest(next http.Handler) http.Handler {
 			return
 		}
 
-		logging.Log.Debug("Got request compressed with " + encoding)
+		logger := logging.GetLogger(r.Context())
+		logger.Debug().Msg("Got request compressed with " + encoding)
 
 		if !isGzipEncoded(encoding) {
-			err := "compression type " + encoding + " not supported"
+			err := entity.EncodingNotSupportedError(encoding)
 
-			logging.Log.Error(err)
-			http.Error(w, err, http.StatusBadRequest)
+			logger.Error().Err(err).Msg("")
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		reader, err := gzip.NewReader(r.Body)
 		if err != nil {
+			logger.Error().Err(err).Msg("")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

@@ -1,25 +1,26 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"net/http"
 
 	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
-func buildResponse(code int, msg string) string {
-	return fmt.Sprintf("%d %s", code, msg)
-}
+func writeErrorResponse(ctx context.Context, w http.ResponseWriter, code int, err error) {
+	logging.GetLogger(ctx).Error().Err(err).Msg("")
 
-func codeToResponse(code int) string {
-	return buildResponse(code, http.StatusText(code))
+	resp := fmt.Sprintf("%d %v", code, err)
+	http.Error(w, resp, code)
 }
 
 func loadViewTemplate(src string) *template.Template {
 	view, err := template.ParseFiles(src)
 	if err != nil {
-		logging.Log.Panic(err)
+		log.Panic().Err(err).Msg("")
 	}
 
 	return view

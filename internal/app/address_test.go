@@ -1,8 +1,9 @@
-package app
+package app_test
 
 import (
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/app"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -73,7 +74,7 @@ func TestNetAddressParsing(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
-			addr := new(NetAddress)
+			addr := new(app.NetAddress)
 
 			err := addr.Set(tc.src)
 
@@ -89,7 +90,7 @@ func TestNetAddressParsing(t *testing.T) {
 }
 
 func TestNetAddressTypeMatchesString(t *testing.T) {
-	addr := NetAddress("0.0.0.0:8080")
+	addr := app.NetAddress("0.0.0.0:8080")
 
 	require.Equal(t, "string", addr.Type())
 }

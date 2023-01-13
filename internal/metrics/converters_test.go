@@ -1,8 +1,9 @@
-package metrics
+package metrics_test
 
 import (
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -11,7 +12,7 @@ func TestToCounter(t *testing.T) {
 		name     string
 		value    string
 		valid    bool
-		expected Counter
+		expected metrics.Counter
 	}{
 		{
 			name:     "Positive integer",
@@ -48,10 +49,11 @@ func TestToCounter(t *testing.T) {
 		},
 	}
 
-	assert := assert.New(t)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metric, err := ToCounter(tc.value)
+			assert := assert.New(t)
+
+			metric, err := metrics.ToCounter(tc.value)
 			if tc.valid {
 				assert.NoError(err)
 				assert.Equal(tc.expected, metric)
@@ -67,7 +69,7 @@ func TestToGauge(t *testing.T) {
 		name     string
 		value    string
 		valid    bool
-		expected Gauge
+		expected metrics.Gauge
 	}{
 		{
 			name:     "Positive integer",
@@ -123,10 +125,11 @@ func TestToGauge(t *testing.T) {
 		},
 	}
 
-	assert := assert.New(t)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			metric, err := ToGauge(tc.value)
+			assert := assert.New(t)
+
+			metric, err := metrics.ToGauge(tc.value)
 			if tc.valid {
 				assert.NoError(err)
 				assert.Equal(tc.expected, metric)

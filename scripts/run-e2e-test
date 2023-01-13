@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+E2E_TEST=./test/devopstest
+AGENT_PATH=./cmd/agent/agent
+SERVER_PATH=./cmd/server/server
+
+PG_URL="postgres://postgres:postgres@127.0.0.1:5432/praktikum?sslmode=disable"
+
+function get_random_port() {
+    awk 'BEGIN{srand(); print int(rand() * (63000-2000)) + 2000 }'
+}
+
+# NB (alkurbatov): Cleanup artifacts from previous tests.
+# The test leaves environment dirty on failure for investigation.
+docker compose down || true
+rm -f /tmp/test_store*.json
+
+docker-compose up -d
+
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration1$ \
+    -agent-binary-path=${AGENT_PATH}
+
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration2[b]*$ \
+    -source-path=. \
+    -binary-path=${SERVER_PATH}
+
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration3[b]*$ \
+    -source-path=. \
+    -binary-path=${SERVER_PATH}
+
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration4$ \
+    -source-path=. \
+    -binary-path=${SERVER_PATH} \
+    -agent-binary-path=${AGENT_PATH}
+
+PORT="$(get_random_port)"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration5$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}"
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store6.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration6$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -database-dsn="${PG_URL}" \
+       -file-storage-path=${TEMP_FILE}
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store7.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration7$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -database-dsn="${PG_URL}" \
+       -file-storage-path=${TEMP_FILE}
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store8.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration8$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -database-dsn="${PG_URL}" \
+       -file-storage-path=${TEMP_FILE}
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store9.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration9$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -file-storage-path=$TEMP_FILE \
+       -database-dsn="${PG_URL}" \
+       -key=${TEMP_FILE}
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store10.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration10[b]*$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -database-dsn="${PG_URL}" \
+       -key=${TEMP_FILE}
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store11.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration11$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -database-dsn="${PG_URL}" \
+       -key=${TEMP_FILE}
+
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store12.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration12$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -database-dsn="${PG_URL}" \
+       -key=${TEMP_FILE}
+
+${E2E_TEST} \
+    -test.v -test.run=^TestIteration13$ \
+    -source-path=.
+
+docker compose down

@@ -1,4 +1,4 @@
-package handlers
+package handlers_test
 
 import (
 	"bytes"
@@ -8,14 +8,31 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
+	"github.com/alkurbatov/metrics-collector/internal/handlers"
+	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
+	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func sendTestRequest(t *testing.T, method, path string, payload []byte) *http.Response {
-	srv := httptest.NewServer(Router("../../web/views", services.RecorderMock{}))
+func newRouter(key security.Secret, recorder services.Recorder, healthcheck services.HealthCheck) http.Handler {
+	var signer *security.Signer
+	if len(key) > 0 {
+		signer = security.NewSigner(key)
+	}
+
+	return handlers.Router("../../web/views", recorder, healthcheck, signer)
+}
+
+func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) *http.Response {
+	t.Helper()
+
+	srv := httptest.NewServer(router)
 	defer srv.Close()
 
 	body := bytes.NewReader(payload)
@@ -36,72 +53,69 @@ func TestUpdateMetric(t *testing.T) {
 	}
 
 	tt := []struct {
-		name     string
-		path     string
-		expected result
+		name        string
+		path        string
+		recorderRV  storage.Record
+		recorderErr error
+		expected    result
 	}{
 		{
-			name: "Push counter",
-			path: "/update/counter/PollCount/10",
+			name:       "Should push counter",
+			path:       "/update/counter/PollCount/10",
+			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(20)},
 			expected: result{
 				code: http.StatusOK,
-				body: "10",
+				body: "20",
 			},
 		},
 		{
-			name: "Push gauge",
-			path: "/update/gauge/Alloc/13.123",
+			name:       "Should push gauge",
+			path:       "/update/gauge/Alloc/13.123",
+			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(13.123)},
 			expected: result{
 				code: http.StatusOK,
 				body: "13.123",
 			},
 		},
 		{
-			name: "Push unknown metric kind",
+			name: "Should fail on unknown metric kind",
 			path: "/update/unknown/Alloc/12.123",
 			expected: result{
 				code: http.StatusNotImplemented,
 			},
 		},
 		{
-			name: "Push counter with invalid name",
+			name: "Should fail on counter with invalid name",
 			path: "/update/counter/X)/10",
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "Push gauge with invalid name",
+			name: "Should fail on gauge with invalid name",
 			path: "/update/gauge/X;/10.234",
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "Push counter with invalid value",
+			name: "Should fail on counter with invalid value",
 			path: "/update/counter/PollCount/10\\.0",
-
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "Push gauge with invalid value",
+			name: "Should fail gauge with invalid value",
 			path: "/update/gauge/Alloc/15.234;",
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "Push counter when recorder fails",
-			path: "/update/counter/fail/10",
-			expected: result{
-				code: http.StatusInternalServerError,
-			},
-		},
-		{
-			name: "Push gauge when recorder fails",
-			path: "/update/gauge/fail/10.234",
+			name:        "Should fail on broken recorder",
+			path:        "/update/counter/fail/10",
+			recorderErr: entity.ErrUnexpected,
 			expected: result{
 				code: http.StatusInternalServerError,
 			},
@@ -112,7 +126,11 @@ func TestUpdateMetric(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			resp := sendTestRequest(t, http.MethodPost, tc.path, nil)
+			m := new(services.RecorderMock)
+			m.On("Push", mock.Anything, mock.AnythingOfType("Record")).Return(tc.recorderRV, tc.recorderErr)
+
+			router := newRouter("", m, nil)
+			resp := sendTestRequest(t, router, http.MethodPost, tc.path, nil)
 
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
@@ -133,26 +151,70 @@ func TestUpdateJSONMetric(t *testing.T) {
 	}
 
 	tt := []struct {
-		name     string
-		req      schema.MetricReq
-		expected result
+		name        string
+		req         schema.MetricReq
+		clientKey   security.Secret
+		serverKey   security.Secret
+		recorderRV  storage.Record
+		recorderErr error
+		expected    result
 	}{
 		{
-			name: "Push counter",
-			req:  schema.NewUpdateCounterReq("PollCount", 10),
+			name:       "Should push counter",
+			req:        schema.NewUpdateCounterReq("PollCount", 10),
+			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected: result{
 				code: http.StatusOK,
 			},
 		},
 		{
-			name: "Push gauge",
-			req:  schema.NewUpdateGaugeReq("Alloc", 13.123),
+			name:       "Should push gauge",
+			req:        schema.NewUpdateGaugeReq("Alloc", 13.123),
+			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(13.123)},
 			expected: result{
 				code: http.StatusOK,
 			},
 		},
 		{
-			name: "Push unknown metric kind",
+			name:       "Should push counter with signature",
+			req:        schema.NewUpdateCounterReq("PollCount", 10),
+			clientKey:  "abc",
+			serverKey:  "abc",
+			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
+			expected: result{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name:       "Should push gauge with signature",
+			req:        schema.NewUpdateGaugeReq("Alloc", 13.123),
+			clientKey:  "abc",
+			serverKey:  "abc",
+			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(13.123)},
+			expected: result{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name:      "Should fail if counter signature doesn't match",
+			req:       schema.NewUpdateCounterReq("PollCount", 10),
+			clientKey: "abc",
+			serverKey: "xxx",
+			expected: result{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:      "Should fail if gauge signature doesn't match",
+			req:       schema.NewUpdateGaugeReq("Alloc", 13.123),
+			clientKey: "abc",
+			serverKey: "xxx",
+			expected: result{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "Should fail on unknown metric kind",
 			req: schema.MetricReq{
 				ID:    "X",
 				MType: "unknown",
@@ -162,29 +224,23 @@ func TestUpdateJSONMetric(t *testing.T) {
 			},
 		},
 		{
-			name: "Push counter with invalid name",
+			name: "Should fail on counter with invalid name",
 			req:  schema.NewUpdateCounterReq("X)", 10),
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "Push gauge with invalid name",
+			name: "Should fail on gauge with invalid name",
 			req:  schema.NewUpdateGaugeReq("X;", 13.123),
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "Push counter  when recorder fails",
-			req:  schema.NewUpdateCounterReq("fail", 13),
-			expected: result{
-				code: http.StatusInternalServerError,
-			},
-		},
-		{
-			name: "Push gauge when recorder fails",
-			req:  schema.NewUpdateGaugeReq("fail", 13.123),
+			name:        "Should fail on broken recorder",
+			req:         schema.NewUpdateCounterReq("fail", 13),
+			recorderErr: entity.ErrUnexpected,
 			expected: result{
 				code: http.StatusInternalServerError,
 			},
@@ -196,10 +252,21 @@ func TestUpdateJSONMetric(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 
+			m := new(services.RecorderMock)
+			m.On("Push", mock.Anything, mock.AnythingOfType("Record")).Return(tc.recorderRV, tc.recorderErr)
+
+			router := newRouter(tc.serverKey, m, nil)
+
+			if len(tc.clientKey) > 0 {
+				signer := security.NewSigner(tc.clientKey)
+				err := signer.SignRequest(&tc.req)
+				require.NoError(err)
+			}
+
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
 
-			resp := sendTestRequest(t, http.MethodPost, "/update", payload)
+			resp := sendTestRequest(t, router, http.MethodPost, "/update", payload)
 
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
@@ -220,6 +287,100 @@ func TestUpdateJSONMetric(t *testing.T) {
 	}
 }
 
+func TestBatchUpdate(t *testing.T) {
+	type result struct {
+		code int
+	}
+
+	batchReq := []schema.MetricReq{
+		schema.NewUpdateCounterReq("PollCount", 10),
+		schema.NewUpdateGaugeReq("Alloc", 11.23),
+	}
+
+	tt := []struct {
+		name        string
+		req         []schema.MetricReq
+		clientKey   security.Secret
+		serverKey   security.Secret
+		recorderErr error
+		expected    result
+	}{
+		{
+			name:      "Should handle signed list of different metrics",
+			req:       batchReq,
+			clientKey: "abc",
+			serverKey: "abc",
+			expected:  result{code: http.StatusOK},
+		},
+		{
+			name:     "Should handle unsigned list of different metrics",
+			req:      batchReq,
+			expected: result{code: http.StatusOK},
+		},
+		{
+			name:     "Should fail on empty list",
+			req:      make([]schema.MetricReq, 0),
+			expected: result{code: http.StatusBadRequest},
+		},
+		{
+			name:      "Should fail on wrong signature",
+			req:       batchReq,
+			clientKey: "abc",
+			serverKey: "xxx",
+			expected:  result{code: http.StatusBadRequest},
+		},
+		{
+			name:     "Should fail if counter value is missing",
+			req:      []schema.MetricReq{{ID: "xxx", MType: "counter"}},
+			expected: result{code: http.StatusBadRequest},
+		},
+		{
+			name:     "Should fail if gauge value missing",
+			req:      []schema.MetricReq{{ID: "xxx", MType: "gauge"}},
+			expected: result{code: http.StatusBadRequest},
+		},
+		{
+			name:     "Should fail in unknown metric kind found in list",
+			req:      []schema.MetricReq{{ID: "xxx", MType: "unknown"}},
+			expected: result{code: http.StatusNotImplemented},
+		},
+		{
+			name:        "Should fail if recorder is broken",
+			req:         batchReq,
+			recorderErr: entity.ErrUnexpected,
+			expected:    result{code: http.StatusInternalServerError},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			require := require.New(t)
+
+			m := new(services.RecorderMock)
+			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderErr)
+
+			router := newRouter(tc.serverKey, m, nil)
+
+			if len(tc.clientKey) > 0 {
+				signer := security.NewSigner(tc.clientKey)
+
+				for i := range tc.req {
+					err := signer.SignRequest(&tc.req[i])
+					require.NoError(err)
+				}
+			}
+
+			payload, err := json.Marshal(tc.req)
+			require.NoError(err)
+
+			resp := sendTestRequest(t, router, http.MethodPost, "/updates/", payload)
+			defer resp.Body.Close()
+
+			require.Equal(tc.expected.code, resp.StatusCode)
+		})
+	}
+}
+
 func TestGetMetric(t *testing.T) {
 	type result struct {
 		code int
@@ -227,59 +388,73 @@ func TestGetMetric(t *testing.T) {
 	}
 
 	tt := []struct {
-		name     string
-		path     string
-		expected result
+		name        string
+		path        string
+		recorderRV  storage.Record
+		recorderErr error
+		expected    result
 	}{
 		{
-			name: "Get counter",
-			path: "/value/counter/PollCount",
+			name:       "Should get counter",
+			path:       "/value/counter/PollCount",
+			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected: result{
 				code: http.StatusOK,
 				body: "10",
 			},
 		},
 		{
-			name: "Get gauge",
-			path: "/value/gauge/Alloc",
+			name:       "Should get gauge",
+			path:       "/value/gauge/Alloc",
+			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(11.345)},
 			expected: result{
 				code: http.StatusOK,
 				body: "11.345",
 			},
 		},
 		{
-			name: "Get unknown metric kind",
+			name: "Should fail if metric kind unknown",
 			path: "/value/unknown/Alloc",
 			expected: result{
 				code: http.StatusNotImplemented,
 			},
 		},
 		{
-			name: "Get unknown counter",
-			path: "/value/counter/unknown",
+			name:        "Should fail on unknown counter",
+			path:        "/value/counter/unknown",
+			recorderErr: entity.ErrMetricNotFound,
 			expected: result{
 				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "Get unknown gauge",
-			path: "/value/gauge/unknown",
+			name:        "Should fail on unknown gauge",
+			path:        "/value/gauge/unknown",
+			recorderErr: entity.ErrMetricNotFound,
 			expected: result{
 				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "Get counter with invalid name",
+			name: "Should fail on counter with invalid name",
 			path: "/value/counter/X)",
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "Get gauge with invalid name",
+			name: "Should fail on gauge with invalid name",
 			path: "/value/gauge/X;",
 			expected: result{
 				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:        "Should fail on broken recorder",
+			path:        "/value/gauge/Alloc",
+			recorderErr: entity.ErrUnexpected,
+			expected: result{
+				code: http.StatusInternalServerError,
 			},
 		},
 	}
@@ -288,8 +463,13 @@ func TestGetMetric(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			resp := sendTestRequest(t, http.MethodGet, tc.path, nil)
+			m := new(services.RecorderMock)
+			m.On("Get", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+				Return(tc.recorderRV, tc.recorderErr)
 
+			router := newRouter("", m, nil)
+
+			resp := sendTestRequest(t, router, http.MethodGet, tc.path, nil)
 			assert.Equal(tc.expected.code, resp.StatusCode)
 			assert.Equal("text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
 
@@ -308,62 +488,100 @@ func TestGetJSONMetric(t *testing.T) {
 	type result struct {
 		code int
 		body schema.MetricReq
+		hash string
 	}
 
 	tt := []struct {
-		name     string
-		req      schema.MetricReq
-		expected result
+		name        string
+		req         schema.MetricReq
+		serverKey   security.Secret
+		recorderRV  storage.Record
+		recorderErr error
+		expected    result
 	}{
 		{
-			name: "Get counter",
-			req:  schema.NewGetCounterReq("PollCount"),
+			name:       "Should get counter",
+			req:        schema.NewGetCounterReq("PollCount"),
+			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected: result{
 				code: http.StatusOK,
 				body: schema.NewUpdateCounterReq("PollCount", 10),
 			},
 		},
 		{
-			name: "Get gauge",
-			req:  schema.NewGetGaugeReq("Alloc"),
+			name:       "Should get gauge",
+			req:        schema.NewGetGaugeReq("Alloc"),
+			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(11.345)},
 			expected: result{
 				code: http.StatusOK,
 				body: schema.NewUpdateGaugeReq("Alloc", 11.345),
 			},
 		},
 		{
-			name: "Get unknown metric kind",
+			name:       "Should get signed counter",
+			req:        schema.NewGetCounterReq("PollCount"),
+			serverKey:  "abc",
+			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
+			expected: result{
+				code: http.StatusOK,
+				body: schema.NewUpdateCounterReq("PollCount", 10),
+				hash: "0833001195f2e062140968e0c00dd44f00eb9a0b309aedc464817f904b244c8a",
+			},
+		},
+		{
+			name:       "Should get signed gauge",
+			req:        schema.NewGetGaugeReq("Alloc"),
+			serverKey:  "abc",
+			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(11.345)},
+			expected: result{
+				code: http.StatusOK,
+				body: schema.NewUpdateGaugeReq("Alloc", 11.345),
+				hash: "2d32037265fd3547d65d4f51d69d8ea53490bef6e924fa2cfe2e4045ad50527d",
+			},
+		},
+		{
+			name: "Should fail on unknown metric kind",
 			req:  schema.MetricReq{ID: "Alloc", MType: "unknown"},
 			expected: result{
 				code: http.StatusNotImplemented,
 			},
 		},
 		{
-			name: "Get unknown counter",
-			req:  schema.NewGetCounterReq("unknown"),
+			name:        "Should fail on unknown counter",
+			req:         schema.NewGetCounterReq("unknown"),
+			recorderErr: entity.ErrMetricNotFound,
 			expected: result{
 				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "Get unknown gauge",
-			req:  schema.NewGetGaugeReq("unknown"),
+			name:        "Should fail on unknown gauge",
+			req:         schema.NewGetGaugeReq("unknown"),
+			recorderErr: entity.ErrMetricNotFound,
 			expected: result{
 				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "Get counter with invalid name",
+			name: "Should fail on counter with invalid name",
 			req:  schema.NewGetCounterReq("X)"),
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "Get gauge with invalid name",
+			name: "Should fail on gauge with invalid name",
 			req:  schema.NewGetGaugeReq("X;"),
 			expected: result{
 				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:        "Should fail on broken recorder",
+			req:         schema.NewGetGaugeReq("X"),
+			recorderErr: entity.ErrUnexpected,
+			expected: result{
+				code: http.StatusInternalServerError,
 			},
 		},
 	}
@@ -373,11 +591,16 @@ func TestGetJSONMetric(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 
+			m := new(services.RecorderMock)
+			m.On("Get", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+				Return(tc.recorderRV, tc.recorderErr)
+
+			router := newRouter(tc.serverKey, m, nil)
+
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
 
-			resp := sendTestRequest(t, http.MethodPost, "/value", payload)
-
+			resp := sendTestRequest(t, router, http.MethodPost, "/value", payload)
 			assert.Equal(tc.expected.code, resp.StatusCode)
 
 			if tc.expected.code == http.StatusOK {
@@ -391,6 +614,7 @@ func TestGetJSONMetric(t *testing.T) {
 				err = json.Unmarshal(respBody, &resp)
 				require.NoError(err)
 
+				tc.expected.body.Hash = tc.expected.hash
 				assert.Equal(tc.expected.body, resp)
 			}
 		})
@@ -398,16 +622,110 @@ func TestGetJSONMetric(t *testing.T) {
 }
 
 func TestListMetrics(t *testing.T) {
-	require := require.New(t)
+	stored := []storage.Record{
+		{Name: "A", Value: metrics.Counter(10)},
+		{Name: "B", Value: metrics.Gauge(11.345)}}
 
-	resp := sendTestRequest(t, http.MethodGet, "/", nil)
+	type result struct {
+		code int
+	}
 
-	require.Equal(http.StatusOK, resp.StatusCode)
-	require.Equal("text/html; charset=utf-8", resp.Header.Get("Content-Type"))
+	tt := []struct {
+		name        string
+		recorderRV  []storage.Record
+		recorderErr error
+		expected    result
+	}{
+		{
+			name:       "Should provide HTML page with all metrics",
+			recorderRV: stored,
+			expected:   result{code: http.StatusOK},
+		},
+		{
+			name:        "Should fail on broken recorder",
+			recorderErr: entity.ErrUnexpected,
+			expected:    result{code: http.StatusInternalServerError},
+		},
+	}
 
-	respBody, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			m := new(services.RecorderMock)
+			m.On("List", mock.Anything).Return(tc.recorderRV, tc.recorderErr)
 
-	require.NoError(err)
-	require.NotZero(len(respBody))
+			router := newRouter("", m, nil)
+			require := require.New(t)
+
+			resp := sendTestRequest(t, router, http.MethodGet, "/", nil)
+			require.Equal(tc.expected.code, resp.StatusCode)
+
+			if tc.expected.code == http.StatusOK {
+				require.Equal("text/html; charset=utf-8", resp.Header.Get("Content-Type"))
+			}
+
+			respBody, err := io.ReadAll(resp.Body)
+			defer resp.Body.Close()
+
+			require.NoError(err)
+			require.NotZero(len(respBody))
+		})
+	}
+}
+
+func TestPing(t *testing.T) {
+	type result struct {
+		code int
+	}
+
+	tt := []struct {
+		name      string
+		checkResp error
+		expected  result
+	}{
+		{
+			name:      "Should return OK, if storage online",
+			checkResp: nil,
+			expected: result{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name:      "Should return not implemented, if storage doesn't support health check",
+			checkResp: entity.ErrHealthCheckNotSupported,
+			expected: result{
+				code: http.StatusNotImplemented,
+			},
+		},
+		{
+			name:      "Should return internal error, if storage offline",
+			checkResp: entity.ErrUnexpected,
+			expected: result{
+				code: http.StatusInternalServerError,
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			require := require.New(t)
+
+			m := new(services.HealthCheckMock)
+			m.On("CheckStorage", mock.Anything).Return(tc.checkResp)
+
+			router := newRouter("", nil, m)
+
+			resp := sendTestRequest(t, router, http.MethodGet, "/ping", nil)
+			require.Equal(tc.expected.code, resp.StatusCode)
+
+			respBody, err := io.ReadAll(resp.Body)
+			require.NoError(err)
+			defer resp.Body.Close()
+
+			if tc.expected.code == http.StatusOK {
+				require.Zero(len(respBody))
+			} else {
+				require.NotZero(len(respBody))
+			}
+		})
+	}
 }

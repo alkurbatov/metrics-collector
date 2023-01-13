@@ -2,19 +2,55 @@
 Репозиторий для практического трека «Go в DevOps»: реализация сбора (агент) и хранения (сервер) метрик.
 
 ## Задания
-1. [Инкремент 1 (агент)](./docs/tasks/increment1.md)
-2. [Инкремент 2 (сервер)](./docs/tasks/increment2.md)
-3. [Инкремент 3 (web framework)](./docs/tasks/increment3.md)
-4. [Инкремент 4 (JSON API)](./docs/tasks/increment4.md)
-5. [Инкремент 5 (переменные окружения)](./docs/tasks/increment5.md)
-6. [Инкремент 6 (сохранение данных на диск)](./docs/tasks/increment6.md)
-7. [Инкремент 7 (флаги командной строки)](./docs/tasks/increment7.md)
-8. [Инкремент 8 (поддержка сжатия)](./docs/tasks/increment8.md)
+1.  [Инкремент 1 (агент)](./docs/tasks/increment1.md)
+2.  [Инкремент 2 (сервер)](./docs/tasks/increment2.md)
+3.  [Инкремент 3 (web framework)](./docs/tasks/increment3.md)
+4.  [Инкремент 4 (JSON API)](./docs/tasks/increment4.md)
+5.  [Инкремент 5 (переменные окружения)](./docs/tasks/increment5.md)
+6.  [Инкремент 6 (сохранение данных на диск)](./docs/tasks/increment6.md)
+7.  [Инкремент 7 (флаги командной строки)](./docs/tasks/increment7.md)
+8.  [Инкремент 8 (поддержка сжатия)](./docs/tasks/increment8.md)
+9.  [Инкремент 9 (подписывание передаваемых данных)](./docs/tasks/increment9.md)
+10. [Инкремент 10 (проверка соединения с базой)](./docs/tasks/increment10.md)
+11. [Инкремент 11 (сохранение данных в базе)](./docs/tasks/increment11.md)
+12. [Инкремент 12 (отправка метрик списком)](./docs/tasks/increment12.md)
+13. [Инкремент 13 (ошибки и логирование)](./docs/tasks/increment13.md)
 
 ## Разработка и тестирование
-Для получения списка доступных команд выполните:
+Для получения полного списка доступных команд выполните:
 ```bash
 make help
+```
+
+### golangci-lint
+В проекте используется `golangci-lint` для локальной разработки. Для установки линтера воспользуйтесь [официальной инструкцией](https://golangci-lint.run/usage/install/).
+
+### pre-commit
+В проекте используется `pre-commit` для запуска линтеров перед коммитом. Для установки утилиты воспользуйтесь [официальной инструкцией](https://pre-commit.com/#install), затем выполните команду:
+```bash
+make install-tools
+```
+
+### migrate
+Для работы с миграциями БД необходимо установить утилиту [golang-migrate](https://github.com/golang-migrate/migrate):
+```bash
+go install -tags "postgres" github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+### Команды
+Для добавления новой миграции выполните:
+```bash
+migrate create -ext sql -dir ./migrations -seq имя_миграции
+```
+
+Для применения миграций выполните команду:
+```bash
+migrate -database ${DATABASE_DSN} -path ./migrations up
+```
+
+Для возврата базы данных в первоначальное состояние выполните команду:
+```bash
+migrate -database ${DATABASE_DSN} -path ./migrations down -all
 ```
 
 ## Запуск сервера
@@ -47,6 +83,17 @@ export STORE_FILE="/tmp/devops-metrics-db.json"
 
 # Загружать или нет сохраненные значения метрик из файла при старте сервера:
 export RESTORE=true
+
+# Секретный ключ для генерации подписи (по умолчанию не задан):
+export KEY=
+
+# Полный URL для установления соединения с базой (по умолчанию не задан).
+# Сервер автоматически запустит все необходимые миграции после установления соединения с базой.
+# (!) Поддерживается только Postgres.
+export DATABASE_DSN=
+
+# Включить вывод отладочной информации.
+export DEBUG=false
 ```
 
 ## Запуск агента
@@ -74,6 +121,12 @@ export POLL_INTERVAL=2s
 
 # Интервал отправки метрик (в секундах):
 export REPORT_INTERVAL=10s
+
+# Секретный ключ для генерации подписи (по умолчанию не задан):
+export KEY=
+
+# Включить вывод отладочной информации.
+export DEBUG=false
 ```
 
 ## Обновление шаблона

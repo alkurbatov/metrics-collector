@@ -2,122 +2,191 @@ package exporter
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 )
 
-type httpExporter struct {
+type BatchExporter struct {
+	// Fully qualified HTTP URL of metrics collector.
 	baseURL string
-	client  *http.Client
-	err     error
+
+	client *http.Client
+
+	// Entity to sign requests.
+	// If set to nil, requests will not be signed.
+	signer *security.Signer
+
+	// Internal buffer to store requests.
+	buffer []schema.MetricReq
+
+	// Error happened during one of previous method calls.
+	// If at least one error occurred, further calls are noop.
+	err error
 }
 
-func NewExporter(collectorAddress string) httpExporter {
-	baseURL := fmt.Sprintf("http://%s", collectorAddress)
+func NewBatchExporter(collectorAddress string, secret security.Secret) *BatchExporter {
+	baseURL := "http://" + collectorAddress
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+	}
 
-	client := &http.Client{Timeout: 2 * time.Second}
+	var signer *security.Signer
+	if len(secret) > 0 {
+		signer = security.NewSigner(secret)
+	}
 
-	return httpExporter{baseURL: baseURL, client: client, err: nil}
+	return &BatchExporter{
+		baseURL: baseURL,
+		client:  client,
+		signer:  signer,
+		buffer:  make([]schema.MetricReq, 0),
+		err:     nil,
+	}
 }
 
-func (h *httpExporter) doExport(req string, payload []byte) *httpExporter {
-	logging.Log.Info(req)
-
-	resp, err := h.client.Post(req, "Content-Type: application/json", bytes.NewReader(payload))
-	if err != nil {
-		h.err = err
+func (h *BatchExporter) Add(req schema.MetricReq) *BatchExporter {
+	if h.err != nil {
 		return h
 	}
 
-	defer resp.Body.Close()
-	_, err = io.ReadAll(resp.Body)
-	if err != nil {
-		h.err = err
-		return h
+	if h.signer != nil {
+		if err := h.signer.SignRequest(&req); err != nil {
+			h.err = err
+			return h
+		}
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		h.err = fmt.Errorf("metrics export failed: (%d)", resp.StatusCode)
-		return h
-	}
+	h.buffer = append(h.buffer, req)
 
 	return h
 }
 
-func (h *httpExporter) exportGauge(name string, value metrics.Gauge) *httpExporter {
+func (h *BatchExporter) Error() error {
+	if h.err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("metrics export failed: %w", h.err)
+}
+
+func (h *BatchExporter) doSend() error {
+	payload, err := json.Marshal(h.buffer)
+	if err != nil {
+		return err
+	}
+
+	var compressedReq bytes.Buffer
+
+	compressor, err := gzip.NewWriterLevel(&compressedReq, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+
+	if _, err = compressor.Write(payload); err != nil {
+		return err
+	}
+
+	if err = compressor.Close(); err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, h.baseURL+"/updates", &compressedReq)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return entity.HTTPError(resp.StatusCode, respBody)
+	}
+
+	return nil
+}
+
+func (h *BatchExporter) Send() *BatchExporter {
 	if h.err != nil {
 		return h
 	}
 
-	req := schema.NewUpdateGaugeReq(name, value)
-	payload, err := json.Marshal(req)
-	if err != nil {
-		h.err = err
+	if len(h.buffer) == 0 {
+		h.err = entity.ErrIncompleteRequest
 		return h
 	}
 
-	return h.doExport(h.baseURL+"/update", payload)
+	h.err = h.doSend()
+
+	return h
 }
 
-func (h *httpExporter) exportCounter(name string, value metrics.Counter) *httpExporter {
-	if h.err != nil {
-		return h
+func SendMetrics(collectorAddress string, secret security.Secret, stats *metrics.Metrics) error {
+	// NB (alkurbatov): Take snapshot to avoid possible races.
+	snapshot := *stats
+
+	batch := NewBatchExporter(collectorAddress, secret)
+
+	batch.
+		Add(schema.NewUpdateGaugeReq("Alloc", snapshot.Memory.Alloc)).
+		Add(schema.NewUpdateGaugeReq("BuckHashSys", snapshot.Memory.BuckHashSys)).
+		Add(schema.NewUpdateGaugeReq("Frees", snapshot.Memory.Frees)).
+		Add(schema.NewUpdateGaugeReq("GCCPUFraction", snapshot.Memory.GCCPUFraction)).
+		Add(schema.NewUpdateGaugeReq("GCSys", snapshot.Memory.GCSys)).
+		Add(schema.NewUpdateGaugeReq("HeapAlloc", snapshot.Memory.HeapAlloc)).
+		Add(schema.NewUpdateGaugeReq("HeapIdle", snapshot.Memory.HeapIdle)).
+		Add(schema.NewUpdateGaugeReq("HeapInuse", snapshot.Memory.HeapInuse)).
+		Add(schema.NewUpdateGaugeReq("HeapObjects", snapshot.Memory.HeapObjects)).
+		Add(schema.NewUpdateGaugeReq("HeapReleased", snapshot.Memory.HeapReleased)).
+		Add(schema.NewUpdateGaugeReq("HeapSys", snapshot.Memory.HeapSys)).
+		Add(schema.NewUpdateGaugeReq("LastGC", snapshot.Memory.LastGC)).
+		Add(schema.NewUpdateGaugeReq("Lookups", snapshot.Memory.Lookups)).
+		Add(schema.NewUpdateGaugeReq("MCacheInuse", snapshot.Memory.MCacheInuse)).
+		Add(schema.NewUpdateGaugeReq("MCacheSys", snapshot.Memory.MCacheSys)).
+		Add(schema.NewUpdateGaugeReq("MSpanInuse", snapshot.Memory.MSpanInuse)).
+		Add(schema.NewUpdateGaugeReq("MSpanSys", snapshot.Memory.MSpanSys)).
+		Add(schema.NewUpdateGaugeReq("Mallocs", snapshot.Memory.Mallocs)).
+		Add(schema.NewUpdateGaugeReq("NextGC", snapshot.Memory.NextGC)).
+		Add(schema.NewUpdateGaugeReq("NumForcedGC", snapshot.Memory.NumForcedGC)).
+		Add(schema.NewUpdateGaugeReq("NumGC", snapshot.Memory.NumGC)).
+		Add(schema.NewUpdateGaugeReq("OtherSys", snapshot.Memory.OtherSys)).
+		Add(schema.NewUpdateGaugeReq("PauseTotalNs", snapshot.Memory.PauseTotalNs)).
+		Add(schema.NewUpdateGaugeReq("StackInuse", snapshot.Memory.StackInuse)).
+		Add(schema.NewUpdateGaugeReq("StackSys", snapshot.Memory.StackSys)).
+		Add(schema.NewUpdateGaugeReq("Sys", snapshot.Memory.Sys)).
+		Add(schema.NewUpdateGaugeReq("TotalAlloc", snapshot.Memory.TotalAlloc))
+
+	batch.
+		Add(schema.NewUpdateGaugeReq("RandomValue", snapshot.RandomValue))
+
+	batch.
+		Add(schema.NewUpdateCounterReq("PollCount", snapshot.PollCount))
+
+	if err := batch.Send().Error(); err != nil {
+		return err
 	}
 
-	req := schema.NewUpdateCounterReq(name, value)
-	payload, err := json.Marshal(req)
-	if err != nil {
-		h.err = err
-		return h
-	}
+	stats.PollCount -= snapshot.PollCount
 
-	return h.doExport(h.baseURL+"/update", payload)
-}
-
-func SendMetrics(collectorAddress string, stats metrics.Metrics) error {
-	exporter := NewExporter(collectorAddress)
-
-	exporter.
-		exportGauge("Alloc", stats.Memory.Alloc).
-		exportGauge("BuckHashSys", stats.Memory.BuckHashSys).
-		exportGauge("Frees", stats.Memory.Frees).
-		exportGauge("GCCPUFraction", stats.Memory.GCCPUFraction).
-		exportGauge("GCSys", stats.Memory.GCSys).
-		exportGauge("HeapAlloc", stats.Memory.HeapAlloc).
-		exportGauge("HeapIdle", stats.Memory.HeapIdle).
-		exportGauge("HeapInuse", stats.Memory.HeapInuse).
-		exportGauge("HeapObjects", stats.Memory.HeapObjects).
-		exportGauge("HeapReleased", stats.Memory.HeapReleased).
-		exportGauge("HeapSys", stats.Memory.HeapSys).
-		exportGauge("LastGC", stats.Memory.LastGC).
-		exportGauge("Lookups", stats.Memory.Lookups).
-		exportGauge("MCacheInuse", stats.Memory.MCacheInuse).
-		exportGauge("MCacheSys", stats.Memory.MCacheSys).
-		exportGauge("MSpanInuse", stats.Memory.MSpanInuse).
-		exportGauge("MSpanSys", stats.Memory.MSpanSys).
-		exportGauge("Mallocs", stats.Memory.Mallocs).
-		exportGauge("NextGC", stats.Memory.NextGC).
-		exportGauge("NumForcedGC", stats.Memory.NumForcedGC).
-		exportGauge("NumGC", stats.Memory.NumGC).
-		exportGauge("OtherSys", stats.Memory.OtherSys).
-		exportGauge("PauseTotalNs", stats.Memory.PauseTotalNs).
-		exportGauge("StackInuse", stats.Memory.StackInuse).
-		exportGauge("StackSys", stats.Memory.StackSys).
-		exportGauge("Sys", stats.Memory.Sys).
-		exportGauge("TotalAlloc", stats.Memory.TotalAlloc)
-
-	exporter.
-		exportGauge("RandomValue", stats.RandomValue)
-
-	exporter.
-		exportCounter("PollCount", stats.PollCount)
-
-	return exporter.err
+	return nil
 }
