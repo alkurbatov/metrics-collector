@@ -139,3 +139,8 @@ git remote add -m main template https://github.com/yandex-praktikum/go-musthave-
 ```
 git fetch template && git checkout template/main .github
 ```
+
+## Лицензия
+Copyright (c) 2022-2023 Alexander Kurbatov
+
+Лицензировано по [GPLv3](LICENSE).
