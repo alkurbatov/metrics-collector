@@ -11,7 +11,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 )
 
-func calculateID(name, kind string) string {
+func CalculateID(name, kind string) string {
 	return name + "_" + kind
 }
 
@@ -58,7 +58,7 @@ func (r MetricsRecorder) calculateNewValue(
 }
 
 func (r MetricsRecorder) Push(ctx context.Context, record storage.Record) (storage.Record, error) {
-	id := calculateID(record.Name, record.Value.Kind())
+	id := CalculateID(record.Name, record.Value.Kind())
 
 	value, err := r.calculateNewValue(ctx, id, nil, record)
 	if err != nil {
@@ -79,7 +79,7 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 	seen := make(map[string]int)
 
 	for _, record := range records {
-		id := calculateID(record.Name, record.Value.Kind())
+		id := CalculateID(record.Name, record.Value.Kind())
 
 		// NB (alkurbatov): Compress requests to metrics with same names.
 		if pos, ok := seen[id]; ok {
@@ -113,7 +113,7 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 }
 
 func (r MetricsRecorder) Get(ctx context.Context, kind, name string) (storage.Record, error) {
-	id := calculateID(name, kind)
+	id := CalculateID(name, kind)
 
 	record, err := r.storage.Get(ctx, id)
 	if err != nil {

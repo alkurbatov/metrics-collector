@@ -4,12 +4,13 @@ import (
 	"regexp"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
+	"github.com/alkurbatov/metrics-collector/internal/services"
 )
 
 var metricName = regexp.MustCompile(`^[A-Za-z\d]+$`)
 
 func ValidateMetricName(name, kind string) error {
-	if len(name)+len(kind)+1 > 255 {
+	if len(services.CalculateID(name, kind)) > 255 {
 		return entity.ErrMetricLongName
 	}
 
