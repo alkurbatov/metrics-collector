@@ -34,7 +34,7 @@ lint: ## Run linters on the source code
 .PHONY: lint
 
 unit-tests: ## Run unit tests
-	@go test -v ./... -coverprofile=coverage.out.tmp -covermode count
+	@go test -v -race ./... -coverprofile=coverage.out.tmp -covermode atomic
 	@cat coverage.out.tmp | grep -v "_mock.go" > coverage.out
 	@go tool cover -html=coverage.out -o coverage.html
 	@go tool cover -func=coverage.out
