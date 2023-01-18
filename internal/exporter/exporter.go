@@ -148,33 +148,38 @@ func SendMetrics(collectorAddress string, secret security.Secret, stats *metrics
 	batch := NewBatchExporter(collectorAddress, secret)
 
 	batch.
-		Add(schema.NewUpdateGaugeReq("Alloc", snapshot.Memory.Alloc)).
-		Add(schema.NewUpdateGaugeReq("BuckHashSys", snapshot.Memory.BuckHashSys)).
-		Add(schema.NewUpdateGaugeReq("Frees", snapshot.Memory.Frees)).
-		Add(schema.NewUpdateGaugeReq("GCCPUFraction", snapshot.Memory.GCCPUFraction)).
-		Add(schema.NewUpdateGaugeReq("GCSys", snapshot.Memory.GCSys)).
-		Add(schema.NewUpdateGaugeReq("HeapAlloc", snapshot.Memory.HeapAlloc)).
-		Add(schema.NewUpdateGaugeReq("HeapIdle", snapshot.Memory.HeapIdle)).
-		Add(schema.NewUpdateGaugeReq("HeapInuse", snapshot.Memory.HeapInuse)).
-		Add(schema.NewUpdateGaugeReq("HeapObjects", snapshot.Memory.HeapObjects)).
-		Add(schema.NewUpdateGaugeReq("HeapReleased", snapshot.Memory.HeapReleased)).
-		Add(schema.NewUpdateGaugeReq("HeapSys", snapshot.Memory.HeapSys)).
-		Add(schema.NewUpdateGaugeReq("LastGC", snapshot.Memory.LastGC)).
-		Add(schema.NewUpdateGaugeReq("Lookups", snapshot.Memory.Lookups)).
-		Add(schema.NewUpdateGaugeReq("MCacheInuse", snapshot.Memory.MCacheInuse)).
-		Add(schema.NewUpdateGaugeReq("MCacheSys", snapshot.Memory.MCacheSys)).
-		Add(schema.NewUpdateGaugeReq("MSpanInuse", snapshot.Memory.MSpanInuse)).
-		Add(schema.NewUpdateGaugeReq("MSpanSys", snapshot.Memory.MSpanSys)).
-		Add(schema.NewUpdateGaugeReq("Mallocs", snapshot.Memory.Mallocs)).
-		Add(schema.NewUpdateGaugeReq("NextGC", snapshot.Memory.NextGC)).
-		Add(schema.NewUpdateGaugeReq("NumForcedGC", snapshot.Memory.NumForcedGC)).
-		Add(schema.NewUpdateGaugeReq("NumGC", snapshot.Memory.NumGC)).
-		Add(schema.NewUpdateGaugeReq("OtherSys", snapshot.Memory.OtherSys)).
-		Add(schema.NewUpdateGaugeReq("PauseTotalNs", snapshot.Memory.PauseTotalNs)).
-		Add(schema.NewUpdateGaugeReq("StackInuse", snapshot.Memory.StackInuse)).
-		Add(schema.NewUpdateGaugeReq("StackSys", snapshot.Memory.StackSys)).
-		Add(schema.NewUpdateGaugeReq("Sys", snapshot.Memory.Sys)).
-		Add(schema.NewUpdateGaugeReq("TotalAlloc", snapshot.Memory.TotalAlloc))
+		Add(schema.NewUpdateGaugeReq("CPUutilization1", snapshot.Process.CPUutilization1)).
+		Add(schema.NewUpdateGaugeReq("TotalMemory", snapshot.Process.TotalMemory)).
+		Add(schema.NewUpdateGaugeReq("FreeMemory", snapshot.Process.FreeMemory))
+
+	batch.
+		Add(schema.NewUpdateGaugeReq("Alloc", snapshot.Runtime.Alloc)).
+		Add(schema.NewUpdateGaugeReq("BuckHashSys", snapshot.Runtime.BuckHashSys)).
+		Add(schema.NewUpdateGaugeReq("Frees", snapshot.Runtime.Frees)).
+		Add(schema.NewUpdateGaugeReq("GCCPUFraction", snapshot.Runtime.GCCPUFraction)).
+		Add(schema.NewUpdateGaugeReq("GCSys", snapshot.Runtime.GCSys)).
+		Add(schema.NewUpdateGaugeReq("HeapAlloc", snapshot.Runtime.HeapAlloc)).
+		Add(schema.NewUpdateGaugeReq("HeapIdle", snapshot.Runtime.HeapIdle)).
+		Add(schema.NewUpdateGaugeReq("HeapInuse", snapshot.Runtime.HeapInuse)).
+		Add(schema.NewUpdateGaugeReq("HeapObjects", snapshot.Runtime.HeapObjects)).
+		Add(schema.NewUpdateGaugeReq("HeapReleased", snapshot.Runtime.HeapReleased)).
+		Add(schema.NewUpdateGaugeReq("HeapSys", snapshot.Runtime.HeapSys)).
+		Add(schema.NewUpdateGaugeReq("LastGC", snapshot.Runtime.LastGC)).
+		Add(schema.NewUpdateGaugeReq("Lookups", snapshot.Runtime.Lookups)).
+		Add(schema.NewUpdateGaugeReq("MCacheInuse", snapshot.Runtime.MCacheInuse)).
+		Add(schema.NewUpdateGaugeReq("MCacheSys", snapshot.Runtime.MCacheSys)).
+		Add(schema.NewUpdateGaugeReq("MSpanInuse", snapshot.Runtime.MSpanInuse)).
+		Add(schema.NewUpdateGaugeReq("MSpanSys", snapshot.Runtime.MSpanSys)).
+		Add(schema.NewUpdateGaugeReq("Mallocs", snapshot.Runtime.Mallocs)).
+		Add(schema.NewUpdateGaugeReq("NextGC", snapshot.Runtime.NextGC)).
+		Add(schema.NewUpdateGaugeReq("NumForcedGC", snapshot.Runtime.NumForcedGC)).
+		Add(schema.NewUpdateGaugeReq("NumGC", snapshot.Runtime.NumGC)).
+		Add(schema.NewUpdateGaugeReq("OtherSys", snapshot.Runtime.OtherSys)).
+		Add(schema.NewUpdateGaugeReq("PauseTotalNs", snapshot.Runtime.PauseTotalNs)).
+		Add(schema.NewUpdateGaugeReq("StackInuse", snapshot.Runtime.StackInuse)).
+		Add(schema.NewUpdateGaugeReq("StackSys", snapshot.Runtime.StackSys)).
+		Add(schema.NewUpdateGaugeReq("Sys", snapshot.Runtime.Sys)).
+		Add(schema.NewUpdateGaugeReq("TotalAlloc", snapshot.Runtime.TotalAlloc))
 
 	batch.
 		Add(schema.NewUpdateGaugeReq("RandomValue", snapshot.RandomValue))

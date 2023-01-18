@@ -129,4 +129,16 @@ ${E2E_TEST} \
     -test.v -test.run=^TestIteration13$ \
     -source-path=.
 
+PORT="$(get_random_port)"
+TEMP_FILE="/tmp/test_store14.json"
+ADDRESS="localhost:${PORT}" ${E2E_TEST} \
+       -test.v -test.run=^TestIteration14$ \
+       -source-path=. \
+       -agent-binary-path=${AGENT_PATH} \
+       -binary-path=${SERVER_PATH} \
+       -server-port="${PORT}" \
+       -file-storage-path=$TEMP_FILE \
+       -database-dsn="${PG_URL}" \
+       -key=${TEMP_FILE}
+
 docker compose down

@@ -119,7 +119,10 @@ func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
 				defer tryRecover()
 
 				log.Info().Msg("Gathering application metrics")
-				stats.Poll()
+
+				if err := stats.Poll(ctx); err != nil {
+					log.Error().Err(err).Msg("")
+				}
 			}()
 
 		case <-ctx.Done():
