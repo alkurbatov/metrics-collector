@@ -3,6 +3,7 @@ package exporter
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -78,7 +79,7 @@ func (h *BatchExporter) Error() error {
 	return fmt.Errorf("metrics export failed: %w", h.err)
 }
 
-func (h *BatchExporter) doSend() error {
+func (h *BatchExporter) doSend(ctx context.Context) error {
 	payload, err := json.Marshal(h.buffer)
 	if err != nil {
 		return err
@@ -104,6 +105,7 @@ func (h *BatchExporter) doSend() error {
 		return err
 	}
 
+	req = req.WithContext(ctx)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 
@@ -126,7 +128,7 @@ func (h *BatchExporter) doSend() error {
 	return nil
 }
 
-func (h *BatchExporter) Send() *BatchExporter {
+func (h *BatchExporter) Send(ctx context.Context) *BatchExporter {
 	if h.err != nil {
 		return h
 	}
@@ -136,12 +138,12 @@ func (h *BatchExporter) Send() *BatchExporter {
 		return h
 	}
 
-	h.err = h.doSend()
+	h.err = h.doSend(ctx)
 
 	return h
 }
 
-func SendMetrics(collectorAddress string, secret security.Secret, stats *metrics.Metrics) error {
+func SendMetrics(ctx context.Context, collectorAddress string, secret security.Secret, stats *metrics.Metrics) error {
 	// NB (alkurbatov): Take snapshot to avoid possible races.
 	snapshot := *stats
 
@@ -187,7 +189,7 @@ func SendMetrics(collectorAddress string, secret security.Secret, stats *metrics
 	batch.
 		Add(schema.NewUpdateCounterReq("PollCount", snapshot.PollCount))
 
-	if err := batch.Send().Error(); err != nil {
+	if err := batch.Send(ctx).Error(); err != nil {
 		return err
 	}
 
