@@ -105,6 +105,7 @@ func (c AgentConfig) String() string {
 
 type Agent struct {
 	Config AgentConfig
+	stats  metrics.Metrics
 }
 
 func NewAgent() *Agent {
@@ -116,7 +117,7 @@ func NewAgent() *Agent {
 	return &Agent{Config: cfg}
 }
 
-func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
+func (app *Agent) poll(ctx context.Context, stats *metrics.Metrics) {
 	ticker := time.NewTicker(app.Config.PollInterval)
 	defer ticker.Stop()
 
@@ -153,7 +154,7 @@ func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
 	}
 }
 
-func (app *Agent) Report(ctx context.Context, stats *metrics.Metrics) {
+func (app *Agent) report(ctx context.Context, stats *metrics.Metrics) {
 	ticker := time.NewTicker(app.Config.ReportInterval)
 	defer ticker.Stop()
 
@@ -188,4 +189,9 @@ func (app *Agent) Report(ctx context.Context, stats *metrics.Metrics) {
 			return
 		}
 	}
+}
+
+func (app *Agent) Serve(ctx context.Context) {
+	go app.poll(ctx, &app.stats)
+	go app.report(ctx, &app.stats)
 }
