@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/rs/zerolog/log"
 )
 
 func DecompressRequest(next http.Handler) http.Handler {
@@ -16,7 +16,7 @@ func DecompressRequest(next http.Handler) http.Handler {
 			return
 		}
 
-		logger := logging.GetLogger(r.Context())
+		logger := log.Ctx(r.Context())
 		logger.Debug().Msg("Got request compressed with " + encoding)
 
 		if !isGzipEncoded(encoding) {

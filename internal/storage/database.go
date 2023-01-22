@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/jackc/pgx/v5"
+	"github.com/rs/zerolog/log"
 )
 
 func pushError(reason error) error {
@@ -50,7 +50,7 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 	defer conn.Release()
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			logging.GetLogger(ctx).Error().Err(pushError(err)).Msg("")
+			log.Ctx(ctx).Error().Err(pushError(err)).Msg("")
 		}
 	}()
 
@@ -91,7 +91,7 @@ func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []
 	batchResp := d.pool.SendBatch(ctx, batch)
 	defer func() {
 		if err := batchResp.Close(); err != nil {
-			logging.GetLogger(ctx).Error().Err(pushListError(err)).Msg("")
+			log.Ctx(ctx).Error().Err(pushListError(err)).Msg("")
 		}
 	}()
 

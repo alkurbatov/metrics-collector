@@ -4,8 +4,8 @@ import (
 	"compress/gzip"
 	"net/http"
 
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type Compressor struct {
@@ -62,7 +62,7 @@ func (c *Compressor) Close() {
 
 func CompressResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := logging.GetLogger(r.Context())
+		logger := log.Ctx(r.Context())
 
 		if !isGzipEncoded(r.Header.Get("Accept-Encoding")) {
 			logger.Debug().Msg("Compression not supported by client")
