@@ -15,7 +15,7 @@ install-tools: $(E2E_TEST) ## Install additional linters and test tools
 $(E2E_TEST):
 	@echo Installing $@
 	curl -sSfL \
-		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.8/devopstest-darwin-amd64 \
+		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.9/devopstest-darwin-amd64 \
 		-o $@
 	@chmod +x $(E2E_TEST)
 
@@ -34,7 +34,7 @@ lint: ## Run linters on the source code
 .PHONY: lint
 
 unit-tests: ## Run unit tests
-	@go test -v ./... -coverprofile=coverage.out.tmp -covermode count
+	@go test -v -race ./... -coverprofile=coverage.out.tmp -covermode atomic
 	@cat coverage.out.tmp | grep -v "_mock.go" > coverage.out
 	@go tool cover -html=coverage.out -o coverage.html
 	@go tool cover -func=coverage.out

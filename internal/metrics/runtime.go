@@ -4,7 +4,7 @@ import "runtime"
 
 // Regarding puurpose of each value see:
 // https://pkg.go.dev/runtime#MemStats
-type MemoryStats struct {
+type RuntimeStats struct {
 	Alloc         Gauge
 	BuckHashSys   Gauge
 	Frees         Gauge
@@ -34,7 +34,7 @@ type MemoryStats struct {
 	TotalAlloc    Gauge
 }
 
-func (m *MemoryStats) Poll() {
+func (m *RuntimeStats) Poll() {
 	stats := runtime.MemStats{}
 	runtime.ReadMemStats(&stats)
 

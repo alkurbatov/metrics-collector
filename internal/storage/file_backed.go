@@ -7,7 +7,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/rs/zerolog/log"
 )
 
@@ -98,7 +97,7 @@ func (f *FileBackedStorage) Dump(ctx context.Context) error {
 	f.Lock()
 	defer f.Unlock()
 
-	logging.GetLogger(ctx).Info().Msg("Pushing storage data to " + f.storePath)
+	log.Ctx(ctx).Info().Msg("Pushing storage data to " + f.storePath)
 
 	file, err := os.OpenFile(f.storePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {

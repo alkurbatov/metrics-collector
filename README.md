@@ -15,6 +15,7 @@
 11. [Инкремент 11 (сохранение данных в базе)](./docs/tasks/increment11.md)
 12. [Инкремент 12 (отправка метрик списком)](./docs/tasks/increment12.md)
 13. [Инкремент 13 (ошибки и логирование)](./docs/tasks/increment13.md)
+14. [Инкремент 14 (метрики CPU и добавление асинхронности в агент)](./docs/tasks/increment14.md)
 
 ## Разработка и тестирование
 Для получения полного списка доступных команд выполните:
@@ -139,3 +140,8 @@ git remote add -m main template https://github.com/yandex-praktikum/go-musthave-
 ```
 git fetch template && git checkout template/main .github
 ```
+
+## Лицензия
+Copyright (c) 2022-2023 Alexander Kurbatov
+
+Лицензировано по [GPLv3](LICENSE).

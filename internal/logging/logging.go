@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"time"
@@ -11,8 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 	uuid "github.com/satori/go.uuid"
 )
-
-type loggerKey string
 
 func Setup(debug bool) {
 	output := zerolog.ConsoleWriter{Out: os.Stdout}
@@ -38,7 +35,7 @@ func RequestsLogger(next http.Handler) http.Handler {
 		id := uuid.NewV4().String()
 
 		logger := log.With().Str("req-id", id).Logger()
-		ctx := context.WithValue(r.Context(), loggerKey("logger"), &logger)
+		ctx := logger.WithContext(r.Context())
 
 		logger.Info().
 			Str("method", r.Method).
@@ -51,12 +48,4 @@ func RequestsLogger(next http.Handler) http.Handler {
 			Int("status", ww.Status()).
 			Msg("")
 	})
-}
-
-func GetLogger(ctx context.Context) *zerolog.Logger {
-	if v := ctx.Value(loggerKey("logger")); v != nil {
-		return v.(*zerolog.Logger)
-	}
-
-	return &log.Logger
 }

@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/rs/zerolog/log"
 )
 
 func toRecord(ctx context.Context, req *schema.MetricReq, signer *security.Signer) (storage.Record, error) {
@@ -21,7 +21,7 @@ func toRecord(ctx context.Context, req *schema.MetricReq, signer *security.Signe
 		if err != nil {
 			// NB (alkurbatov): We don't want to give any hints to potential attacker,
 			// but still want to debug implementation errors. Thus, the error is only logged.
-			logging.GetLogger(ctx).Error().Err(err).Msg("")
+			log.Ctx(ctx).Error().Err(err).Msg("")
 		}
 
 		if err != nil || !valid {

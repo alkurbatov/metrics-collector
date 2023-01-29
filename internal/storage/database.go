@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/jackc/pgx/v5"
+	"github.com/rs/zerolog/log"
 )
 
 func pushError(reason error) error {
@@ -50,7 +50,7 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 	defer conn.Release()
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			logging.GetLogger(ctx).Error().Err(pushError(err)).Msg("")
+			log.Ctx(ctx).Error().Err(pushError(err)).Msg("")
 		}
 	}()
 
@@ -73,13 +73,6 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 }
 
 func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []Record) error {
-	conn, err := d.pool.Acquire(ctx)
-	if err != nil {
-		return pushListError(err)
-	}
-
-	defer conn.Release()
-
 	// NB (alkurbatov): Since batch queries are run in an implicit transaction
 	// (unless explicit transaction control statements are executed)
 	// we don't need to handle transactions manually.
@@ -95,10 +88,10 @@ func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []
 		)
 	}
 
-	batchResp := conn.SendBatch(ctx, batch)
+	batchResp := d.pool.SendBatch(ctx, batch)
 	defer func() {
 		if err := batchResp.Close(); err != nil {
-			logging.GetLogger(ctx).Error().Err(pushListError(err)).Msg("")
+			log.Ctx(ctx).Error().Err(pushListError(err)).Msg("")
 		}
 	}()
 
@@ -112,20 +105,16 @@ func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []
 }
 
 func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
-	conn, err := d.pool.Acquire(ctx)
-	if err != nil {
-		return Record{}, getError(err)
-	}
-
-	defer conn.Release()
-
 	var (
 		name  string
 		kind  string
 		value float64
 	)
 
-	err = conn.QueryRow(ctx, "SELECT name, kind, value FROM metrics WHERE id=$1", key).Scan(&name, &kind, &value)
+	err := d.pool.
+		QueryRow(ctx, "SELECT name, kind, value FROM metrics WHERE id=$1", key).
+		Scan(&name, &kind, &value)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Record{}, getError(entity.ErrMetricNotFound)
@@ -147,14 +136,7 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 }
 
 func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
-	conn, err := d.pool.Acquire(ctx)
-	if err != nil {
-		return nil, getListError(err)
-	}
-
-	defer conn.Release()
-
-	rows, err := conn.Query(ctx, "SELECT name, kind, value FROM metrics")
+	rows, err := d.pool.Query(ctx, "SELECT name, kind, value FROM metrics")
 	if err != nil {
 		return nil, getListError(err)
 	}

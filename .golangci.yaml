@@ -32,12 +32,12 @@ linters:
     # FIXME (alkurbatov): Enable when we add parallelism to the tests.
     - paralleltest
 
-    # FIXME (alkurbatov): Enable after transition to grequests and
-    # implementation of graceful shutdown in agent.
-    - noctx
-
 issues:
   exclude-rules:
+    - path: '(.+)_test\.go'
+      linters:
+        - noctx
+
     - path: '(.+)_mock\.go'
       linters:
         - wrapcheck

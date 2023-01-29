@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
 )
@@ -39,5 +40,8 @@ func NewDataStore(pool *pgxpool.Pool, filePath string, storeInterval time.Durati
 type DBConnPool interface {
 	Acquire(ctx context.Context) (*pgxpool.Conn, error)
 	Ping(ctx context.Context) error
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
 	Close()
 }

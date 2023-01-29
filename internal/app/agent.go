@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -20,7 +21,9 @@ type AgentConfig struct {
 	ReportInterval   time.Duration   `env:"REPORT_INTERVAL"`
 	CollectorAddress NetAddress      `env:"ADDRESS"`
 	Secret           security.Secret `env:"KEY"`
-	Debug            bool            `env:"DEBUG"`
+	PollTimeout      time.Duration
+	ExportTimeout    time.Duration
+	Debug            bool `env:"DEBUG"`
 }
 
 func NewAgentConfig() AgentConfig {
@@ -67,6 +70,8 @@ func NewAgentConfig() AgentConfig {
 		ReportInterval:   *reportInterval,
 		PollInterval:     *pollInterval,
 		Secret:           secret,
+		PollTimeout:      2 * time.Second,
+		ExportTimeout:    4 * time.Second,
 		Debug:            *debug,
 	}
 
@@ -90,6 +95,9 @@ func (c AgentConfig) String() string {
 		sb.WriteString(fmt.Sprintf("\t\tSecret key: %s\n", c.Secret))
 	}
 
+	sb.WriteString(fmt.Sprintf("\t\tPollTimeout: %fs\n", c.PollTimeout.Seconds()))
+	sb.WriteString(fmt.Sprintf("\t\tExportTimeout: %fs\n", c.ExportTimeout.Seconds()))
+
 	sb.WriteString(fmt.Sprintf("\t\tDebug: %t", c.Debug))
 
 	return sb.String()
@@ -97,6 +105,7 @@ func (c AgentConfig) String() string {
 
 type Agent struct {
 	Config AgentConfig
+	stats  metrics.Metrics
 }
 
 func NewAgent() *Agent {
@@ -108,7 +117,7 @@ func NewAgent() *Agent {
 	return &Agent{Config: cfg}
 }
 
-func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
+func (app *Agent) poll(ctx context.Context, stats *metrics.Metrics) {
 	ticker := time.NewTicker(app.Config.PollInterval)
 	defer ticker.Stop()
 
@@ -119,7 +128,23 @@ func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
 				defer tryRecover()
 
 				log.Info().Msg("Gathering application metrics")
-				stats.Poll()
+
+				taskCtx, cancel := context.WithTimeout(ctx, app.Config.PollTimeout)
+				defer cancel()
+
+				err := stats.Poll(taskCtx)
+
+				if errors.Is(taskCtx.Err(), context.DeadlineExceeded) {
+					log.Error().Dur("deadline", app.Config.PollTimeout).Msg("metrics polling exceeded deadline")
+					return
+				}
+
+				if err != nil {
+					log.Error().Err(err).Msg("")
+					return
+				}
+
+				log.Info().Msg("Metrics gathered")
 			}()
 
 		case <-ctx.Done():
@@ -129,7 +154,7 @@ func (app *Agent) Poll(ctx context.Context, stats *metrics.Metrics) {
 	}
 }
 
-func (app *Agent) Report(ctx context.Context, stats *metrics.Metrics) {
+func (app *Agent) report(ctx context.Context, stats *metrics.Metrics) {
 	ticker := time.NewTicker(app.Config.ReportInterval)
 	defer ticker.Stop()
 
@@ -141,12 +166,22 @@ func (app *Agent) Report(ctx context.Context, stats *metrics.Metrics) {
 
 				log.Info().Msg("Sending application metrics")
 
-				err := exporter.SendMetrics(app.Config.CollectorAddress.String(), app.Config.Secret, stats)
-				if err == nil {
-					log.Info().Msg("Metrics successfully sent")
-				} else {
-					log.Error().Err(err).Msg("")
+				taskCtx, cancel := context.WithTimeout(ctx, app.Config.ExportTimeout)
+				defer cancel()
+
+				err := exporter.SendMetrics(taskCtx, app.Config.CollectorAddress.String(), app.Config.Secret, stats)
+
+				if errors.Is(err, context.DeadlineExceeded) {
+					log.Error().Dur("deadline", app.Config.PollTimeout).Msg("metrics exporting exceeded deadline")
+					return
 				}
+
+				if err != nil {
+					log.Error().Err(err).Msg("")
+					return
+				}
+
+				log.Info().Msg("Metrics successfully sent")
 			}()
 
 		case <-ctx.Done():
@@ -154,4 +189,9 @@ func (app *Agent) Report(ctx context.Context, stats *metrics.Metrics) {
 			return
 		}
 	}
+}
+
+func (app *Agent) Serve(ctx context.Context) {
+	go app.poll(ctx, &app.stats)
+	go app.report(ctx, &app.stats)
 }
