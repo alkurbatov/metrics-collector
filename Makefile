@@ -12,7 +12,7 @@ install-tools: $(E2E_TEST) ## Install additional linters and test tools
 	pre-commit install
 .PHONY: install-tools
 
-$(E2E_TEST):
+$(E2E_TEST): build
 	@echo Installing $@
 	curl -sSfL \
 		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.12/devopstest-darwin-amd64 \
