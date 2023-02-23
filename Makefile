@@ -40,6 +40,6 @@ unit-tests: ## Run unit tests
 	@go tool cover -func=coverage.out
 .PHONY: unit-tests
 
-e2e-tests: $(E2E_TEST) ### Run e2e tests
+e2e-tests: $(E2E_TEST) build ### Run e2e tests
 	./scripts/run-e2e-test
 .PHONY: e2e-tests
