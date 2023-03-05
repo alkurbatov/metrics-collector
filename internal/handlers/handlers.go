@@ -31,7 +31,7 @@ func parseUpdateMetricReqList(r *http.Request, signer *security.Signer) ([]stora
 		return nil, err //nolint: wrapcheck
 	}
 
-	rv := make([]storage.Record, 0)
+	rv := make([]storage.Record, len(req))
 
 	for i := range req {
 		record, err := toRecord(r.Context(), &req[i], signer)
@@ -39,7 +39,7 @@ func parseUpdateMetricReqList(r *http.Request, signer *security.Signer) ([]stora
 			return nil, err
 		}
 
-		rv = append(rv, record)
+		rv[i] = record
 	}
 
 	if len(rv) == 0 {
