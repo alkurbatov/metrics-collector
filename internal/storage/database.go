@@ -72,16 +72,16 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 	return nil
 }
 
-func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []Record) error {
+func (d DatabaseStorage) PushBatch(ctx context.Context, data map[string]Record) error {
 	// NB (alkurbatov): Since batch queries are run in an implicit transaction
 	// (unless explicit transaction control statements are executed)
 	// we don't need to handle transactions manually.
 	// See: https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY
 	batch := new(pgx.Batch)
-	for i, record := range records {
+	for id, record := range data {
 		batch.Queue(
 			"INSERT INTO metrics(id, name, kind, value) values ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET value = $4",
-			keys[i],
+			id,
 			record.Name,
 			record.Value.Kind(),
 			record.Value.String(),
@@ -95,7 +95,7 @@ func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []
 		}
 	}()
 
-	for i := 0; i < len(records); i++ {
+	for i := 0; i < len(data); i++ {
 		if _, err := batchResp.Exec(); err != nil {
 			return pushListError(err)
 		}

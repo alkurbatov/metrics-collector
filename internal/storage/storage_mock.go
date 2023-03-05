@@ -15,8 +15,8 @@ func (m *Mock) Push(ctx context.Context, key string, record Record) error {
 	return args.Error(0)
 }
 
-func (m *Mock) PushList(ctx context.Context, keys []string, records []Record) error {
-	args := m.Called(ctx, keys, records)
+func (m *Mock) PushBatch(ctx context.Context, data map[string]Record) error {
+	args := m.Called(ctx, data)
 	return args.Error(0)
 }
 

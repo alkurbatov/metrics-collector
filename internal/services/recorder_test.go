@@ -143,9 +143,8 @@ func TestPushMetricsToBrokenStorage(t *testing.T) {
 
 func TestPushListTestPushList(t *testing.T) {
 	type expected struct {
-		keys    []string
-		records []storage.Record
-		err     error
+		data map[string]storage.Record
+		err  error
 	}
 
 	tt := []struct {
@@ -161,10 +160,9 @@ func TestPushListTestPushList(t *testing.T) {
 				{Name: "Alloc", Value: metrics.Gauge(10.123)},
 			},
 			expected: expected{
-				keys: []string{"PollCount_counter", "Alloc_gauge"},
-				records: []storage.Record{
-					{Name: "PollCount", Value: metrics.Counter(11)},
-					{Name: "Alloc", Value: metrics.Gauge(10.123)},
+				data: map[string]storage.Record{
+					"PollCount_counter": {Name: "PollCount", Value: metrics.Counter(11)},
+					"Alloc_gauge":       {Name: "Alloc", Value: metrics.Gauge(10.123)},
 				},
 			},
 		},
@@ -177,10 +175,9 @@ func TestPushListTestPushList(t *testing.T) {
 				{Name: "Alloc", Value: metrics.Gauge(14.321)},
 			},
 			expected: expected{
-				keys: []string{"PollCount_counter", "Alloc_gauge"},
-				records: []storage.Record{
-					{Name: "PollCount", Value: metrics.Counter(23)},
-					{Name: "Alloc", Value: metrics.Gauge(14.321)},
+				data: map[string]storage.Record{
+					"PollCount_counter": {Name: "PollCount", Value: metrics.Counter(23)},
+					"Alloc_gauge":       {Name: "Alloc", Value: metrics.Gauge(14.321)},
 				},
 			},
 		},
@@ -188,8 +185,7 @@ func TestPushListTestPushList(t *testing.T) {
 			name:    "Should not fail on empty list",
 			records: make([]storage.Record, 0),
 			expected: expected{
-				keys:    make([]string, 0),
-				records: make([]storage.Record, 0),
+				data: make(map[string]storage.Record, 0),
 			},
 		},
 		{
@@ -199,9 +195,8 @@ func TestPushListTestPushList(t *testing.T) {
 			},
 			storageErr: entity.ErrUnexpected,
 			expected: expected{
-				keys:    make([]string, 0),
-				records: make([]storage.Record, 0),
-				err:     entity.ErrUnexpected,
+				data: make(map[string]storage.Record, 0),
+				err:  entity.ErrUnexpected,
 			},
 		},
 	}
@@ -213,7 +208,7 @@ func TestPushListTestPushList(t *testing.T) {
 				Return(storage.Record{Name: "PollCount", Value: metrics.Counter(1)}, tc.storageErr)
 			m.On("Get", mock.Anything, mock.AnythingOfType("string")).
 				Return(storage.Record{}, entity.ErrMetricNotFound)
-			m.On("PushList", mock.Anything, tc.expected.keys, tc.expected.records).
+			m.On("PushBatch", mock.Anything, tc.expected.data).
 				Return(tc.storageErr)
 
 			r := services.NewMetricsRecorder(m)

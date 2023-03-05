@@ -27,12 +27,12 @@ func (m *MemStorage) Push(ctx context.Context, key string, record Record) error 
 	return nil
 }
 
-func (m *MemStorage) PushList(ctx context.Context, keys []string, records []Record) error {
+func (m *MemStorage) PushBatch(ctx context.Context, data map[string]Record) error {
 	m.Lock()
 	defer m.Unlock()
 
-	for i := range records {
-		m.Data[keys[i]] = records[i]
+	for id, record := range data {
+		m.Data[id] = record
 	}
 
 	return nil

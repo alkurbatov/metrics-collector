@@ -74,21 +74,20 @@ func (r MetricsRecorder) Push(ctx context.Context, record storage.Record) (stora
 }
 
 func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record) error {
-	keys := make([]string, 0)
-	data := make([]storage.Record, 0)
-	seen := make(map[string]int)
+	data := make(map[string]storage.Record)
 
 	for _, record := range records {
 		id := CalculateID(record.Name, record.Value.Kind())
 
-		// NB (alkurbatov): Compress requests to metrics with same names.
-		if pos, ok := seen[id]; ok {
-			value, err := r.calculateNewValue(ctx, id, &data[pos], record)
+		if prev, ok := data[id]; ok {
+			// NB (alkurbatov): Compress metrics with same names.
+			value, err := r.calculateNewValue(ctx, id, &prev, record)
 			if err != nil {
 				return pushListError(err)
 			}
 
-			data[pos].Value = value
+			prev.Value = value
+			data[id] = prev
 
 			continue
 		}
@@ -99,13 +98,10 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 		}
 
 		record.Value = value
-		seen[id] = len(data)
-
-		keys = append(keys, id)
-		data = append(data, record)
+		data[id] = record
 	}
 
-	if err := r.storage.PushList(ctx, keys, data); err != nil {
+	if err := r.storage.PushBatch(ctx, data); err != nil {
 		return pushListError(err)
 	}
 
