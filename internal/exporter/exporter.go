@@ -34,8 +34,8 @@ type BatchExporter struct {
 	err error
 }
 
-func NewBatchExporter(collectorAddress string, secret security.Secret) *BatchExporter {
-	baseURL := "http://" + collectorAddress
+func NewBatchExporter(collectorAddress entity.NetAddress, secret security.Secret) *BatchExporter {
+	baseURL := "http://" + collectorAddress.String()
 	client := &http.Client{
 		Timeout: 2 * time.Second,
 	}
@@ -143,7 +143,12 @@ func (h *BatchExporter) Send(ctx context.Context) *BatchExporter {
 	return h
 }
 
-func SendMetrics(ctx context.Context, collectorAddress string, secret security.Secret, stats *metrics.Metrics) error {
+func SendMetrics(
+	ctx context.Context,
+	collectorAddress entity.NetAddress,
+	secret security.Secret,
+	stats *metrics.Metrics,
+) error {
 	// NB (alkurbatov): Take snapshot to avoid possible races.
 	snapshot := *stats
 

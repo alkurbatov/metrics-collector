@@ -12,6 +12,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/handlers"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
+	"github.com/alkurbatov/metrics-collector/internal/prof"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
@@ -23,17 +24,22 @@ import (
 )
 
 type ServerConfig struct {
-	ListenAddress  NetAddress           `env:"ADDRESS"`
+	ListenAddress  entity.NetAddress    `env:"ADDRESS"`
 	StoreInterval  time.Duration        `env:"STORE_INTERVAL"`
 	StorePath      string               `env:"STORE_FILE"`
 	RestoreOnStart bool                 `env:"RESTORE"`
 	Secret         security.Secret      `env:"KEY"`
 	DatabaseURL    security.DatabaseURL `env:"DATABASE_DSN"`
+	PprofAddress   entity.NetAddress    `env:"PPROF_ADDRESS"`
 	Debug          bool                 `env:"DEBUG"`
 }
 
 func NewServerConfig() (*ServerConfig, error) {
-	listenAddress := NetAddress("0.0.0.0:8080")
+	var (
+		listenAddress entity.NetAddress = "0.0.0.0:8080"
+		pprofAddress  entity.NetAddress
+	)
+
 	flag.VarP(
 		&listenAddress,
 		"listen-address",
@@ -74,6 +80,13 @@ func NewServerConfig() (*ServerConfig, error) {
 		"full database connection URL",
 	)
 
+	flag.VarP(
+		&pprofAddress,
+		"pprof-address",
+		"p",
+		"enable pprof on specified address:port",
+	)
+
 	debug := flag.BoolP(
 		"debug",
 		"g",
@@ -91,6 +104,7 @@ func NewServerConfig() (*ServerConfig, error) {
 		Secret:         secret,
 		DatabaseURL:    security.DatabaseURL(*databaseURL),
 		Debug:          *debug,
+		PprofAddress:   pprofAddress,
 	}
 
 	err := env.Parse(cfg)
@@ -123,7 +137,11 @@ func (c ServerConfig) String() string {
 		sb.WriteString(fmt.Sprintf("\t\tDatabase URL: %s\n", c.DatabaseURL))
 	}
 
-	sb.WriteString(fmt.Sprintf("\t\tDebug: %t", c.Debug))
+	if len(c.PprofAddress) > 0 {
+		sb.WriteString(fmt.Sprintf("\t\tPprof address: %s\n", c.PprofAddress))
+	}
+
+	sb.WriteString(fmt.Sprintf("\t\tDebug: %t\n", c.Debug))
 
 	return sb.String()
 }
@@ -132,6 +150,7 @@ type Server struct {
 	Config     *ServerConfig
 	Storage    storage.Storage
 	HTTPServer *http.Server
+	Profiler   *prof.Profiler
 }
 
 func NewServer() *Server {
@@ -178,10 +197,16 @@ func NewServer() *Server {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
+	var profiler *prof.Profiler
+	if len(cfg.PprofAddress) > 0 {
+		profiler = prof.New(cfg.PprofAddress)
+	}
+
 	return &Server{
 		Config:     cfg,
 		Storage:    dataStore,
 		HTTPServer: srv,
+		Profiler:   profiler,
 	}
 }
 
@@ -235,6 +260,10 @@ func (app *Server) Serve(ctx context.Context) {
 		}
 	}
 
+	if app.Profiler != nil {
+		go app.Profiler.Start()
+	}
+
 	if err := app.HTTPServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal().Err(err).Msg("")
 	}
@@ -249,6 +278,12 @@ func (app *Server) Shutdown(signal os.Signal) {
 
 	if err := app.Storage.Close(); err != nil {
 		log.Error().Err(err).Msg("")
+	}
+
+	if app.Profiler != nil {
+		if err := app.Profiler.Shutdown(context.Background()); err != nil {
+			log.Error().Err(err).Msg("")
+		}
 	}
 
 	log.Info().Msg("Successfully shutdown the service")

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/exporter"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/metrics"
@@ -17,17 +18,17 @@ import (
 )
 
 type AgentConfig struct {
-	PollInterval     time.Duration   `env:"POLL_INTERVAL"`
-	ReportInterval   time.Duration   `env:"REPORT_INTERVAL"`
-	CollectorAddress NetAddress      `env:"ADDRESS"`
-	Secret           security.Secret `env:"KEY"`
+	PollInterval     time.Duration     `env:"POLL_INTERVAL"`
+	ReportInterval   time.Duration     `env:"REPORT_INTERVAL"`
+	CollectorAddress entity.NetAddress `env:"ADDRESS"`
+	Secret           security.Secret   `env:"KEY"`
 	PollTimeout      time.Duration
 	ExportTimeout    time.Duration
 	Debug            bool `env:"DEBUG"`
 }
 
 func NewAgentConfig() AgentConfig {
-	collectorAddress := NetAddress("0.0.0.0:8080")
+	collectorAddress := entity.NetAddress("0.0.0.0:8080")
 	flag.VarP(
 		&collectorAddress,
 		"collector-address",
@@ -169,7 +170,7 @@ func (app *Agent) report(ctx context.Context, stats *metrics.Metrics) {
 				taskCtx, cancel := context.WithTimeout(ctx, app.Config.ExportTimeout)
 				defer cancel()
 
-				err := exporter.SendMetrics(taskCtx, app.Config.CollectorAddress.String(), app.Config.Secret, stats)
+				err := exporter.SendMetrics(taskCtx, app.Config.CollectorAddress, app.Config.Secret, stats)
 
 				if errors.Is(err, context.DeadlineExceeded) {
 					log.Error().Dur("deadline", app.Config.PollTimeout).Msg("metrics exporting exceeded deadline")
