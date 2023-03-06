@@ -43,3 +43,9 @@ unit-tests: ## Run unit tests
 e2e-tests: $(E2E_TEST) build ### Run e2e tests
 	./scripts/run-e2e-test
 .PHONY: e2e-tests
+
+docs:
+	@echo "Project documentation is available at:"
+	@echo "http://127.0.0.1:3000/pkg/github.com/alkurbatov/metrics-collector/pkg/metrics/\n"
+	@godoc -http=:3000 -index -play
+.PHONY: docs
