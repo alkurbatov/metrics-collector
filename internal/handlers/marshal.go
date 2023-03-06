@@ -4,15 +4,14 @@ import (
 	"context"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
-	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/rs/zerolog/log"
 )
 
-func toRecord(ctx context.Context, req *schema.MetricReq, signer *security.Signer) (storage.Record, error) {
-	if err := schema.ValidateMetricName(req.ID, req.MType); err != nil {
+func toRecord(ctx context.Context, req *metrics.MetricReq, signer *security.Signer) (storage.Record, error) {
+	if err := ValidateMetricName(req.ID, req.MType); err != nil {
 		return storage.Record{}, err
 	}
 
@@ -49,15 +48,15 @@ func toRecord(ctx context.Context, req *schema.MetricReq, signer *security.Signe
 	}
 }
 
-func toMetricReq(record storage.Record) schema.MetricReq {
-	req := schema.MetricReq{ID: record.Name, MType: record.Value.Kind()}
+func toMetricReq(record storage.Record) metrics.MetricReq {
+	req := metrics.MetricReq{ID: record.Name, MType: record.Value.Kind()}
 
 	switch record.Value.Kind() {
-	case entity.Counter:
+	case metrics.KindCounter:
 		delta, _ := record.Value.(metrics.Counter)
 		req.Delta = &delta
 
-	case entity.Gauge:
+	case metrics.KindGauge:
 		value, _ := record.Value.(metrics.Gauge)
 		req.Value = &value
 	}

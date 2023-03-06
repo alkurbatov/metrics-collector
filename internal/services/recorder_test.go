@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -58,7 +58,7 @@ func TestUpdateCounter(t *testing.T) {
 
 		pushMetric(t, r, "PollCount", tc.value, tc.expected)
 
-		record, err := r.Get(ctx, entity.Counter, "PollCount")
+		record, err := r.Get(ctx, metrics.KindCounter, "PollCount")
 		require.NoError(err)
 		require.Equal(tc.expected, record.Value)
 	}
@@ -92,7 +92,7 @@ func TestUpdateGauge(t *testing.T) {
 
 		pushMetric(t, r, "Alloc", tc.value, tc.expected)
 
-		record, err := r.Get(ctx, entity.Gauge, "Alloc")
+		record, err := r.Get(ctx, metrics.KindGauge, "Alloc")
 		require.NoError(err)
 		require.Equal(tc.expected, record.Value)
 	}
@@ -109,11 +109,11 @@ func TestPushMetricsWithSimilarNamesButDifferentKinds(t *testing.T) {
 	value := metrics.Gauge(20.123)
 	pushMetric(t, r, "X", value, value)
 
-	first, err := r.Get(ctx, entity.Counter, "X")
+	first, err := r.Get(ctx, metrics.KindCounter, "X")
 	require.NoError(err)
 	require.Equal(metrics.Counter(10), first.Value)
 
-	second, err := r.Get(ctx, entity.Gauge, "X")
+	second, err := r.Get(ctx, metrics.KindGauge, "X")
 	require.NoError(err)
 	require.Equal(metrics.Gauge(20.123), second.Value)
 }
@@ -228,13 +228,13 @@ func TestGetUnknownMetric(t *testing.T) {
 	}{
 		{
 			name:     "Should return error on unknown counter",
-			kind:     entity.Counter,
+			kind:     metrics.KindCounter,
 			metric:   "unknown",
 			expected: entity.ErrMetricNotFound,
 		},
 		{
 			name:     "Should return error on unknown gauge",
-			kind:     entity.Gauge,
+			kind:     metrics.KindGauge,
 			metric:   "unknown",
 			expected: entity.ErrMetricNotFound,
 		},

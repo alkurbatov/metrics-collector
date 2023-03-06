@@ -1,10 +1,11 @@
-package metrics_test
+package monitoring_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/alkurbatov/metrics-collector/internal/monitoring"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,7 +13,7 @@ func TestPoll(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := new(metrics.Metrics)
+	m := new(monitoring.Metrics)
 	require.Zero(m.PollCount)
 	require.Zero(m.RandomValue)
 	require.Zero(m.Process.TotalMemory)

@@ -1,10 +1,11 @@
-package metrics
+package monitoring
 
 import (
 	"context"
 	"fmt"
 	"math/rand"
 
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -12,14 +13,14 @@ type Metrics struct {
 	Process ProcessStats
 	Runtime RuntimeStats
 
-	RandomValue Gauge
+	RandomValue metrics.Gauge
 
-	PollCount Counter
+	PollCount metrics.Counter
 }
 
 func (m *Metrics) Poll(ctx context.Context) error {
 	m.PollCount++
-	m.RandomValue = Gauge(rand.Float64()) //nolint: gosec
+	m.RandomValue = metrics.Gauge(rand.Float64()) //nolint: gosec
 
 	g, _ := errgroup.WithContext(ctx)
 

@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
-	"github.com/alkurbatov/metrics-collector/internal/schema"
+	"github.com/alkurbatov/metrics-collector/internal/monitoring"
 	"github.com/alkurbatov/metrics-collector/internal/security"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
 type BatchExporter struct {
@@ -27,7 +27,7 @@ type BatchExporter struct {
 	signer *security.Signer
 
 	// Internal buffer to store requests.
-	buffer []schema.MetricReq
+	buffer []metrics.MetricReq
 
 	// Error happened during one of previous method calls.
 	// If at least one error occurred, further calls are noop.
@@ -49,12 +49,12 @@ func NewBatchExporter(collectorAddress entity.NetAddress, secret security.Secret
 		baseURL: baseURL,
 		client:  client,
 		signer:  signer,
-		buffer:  make([]schema.MetricReq, 0),
+		buffer:  make([]metrics.MetricReq, 0),
 		err:     nil,
 	}
 }
 
-func (h *BatchExporter) Add(req schema.MetricReq) *BatchExporter {
+func (h *BatchExporter) Add(req metrics.MetricReq) *BatchExporter {
 	if h.err != nil {
 		return h
 	}
@@ -147,7 +147,7 @@ func SendMetrics(
 	ctx context.Context,
 	collectorAddress entity.NetAddress,
 	secret security.Secret,
-	stats *metrics.Metrics,
+	stats *monitoring.Metrics,
 ) error {
 	// NB (alkurbatov): Take snapshot to avoid possible races.
 	snapshot := *stats
@@ -155,44 +155,44 @@ func SendMetrics(
 	batch := NewBatchExporter(collectorAddress, secret)
 
 	batch.
-		Add(schema.NewUpdateGaugeReq("CPUutilization1", snapshot.Process.CPUutilization1)).
-		Add(schema.NewUpdateGaugeReq("TotalMemory", snapshot.Process.TotalMemory)).
-		Add(schema.NewUpdateGaugeReq("FreeMemory", snapshot.Process.FreeMemory))
+		Add(metrics.NewUpdateGaugeReq("CPUutilization1", snapshot.Process.CPUutilization1)).
+		Add(metrics.NewUpdateGaugeReq("TotalMemory", snapshot.Process.TotalMemory)).
+		Add(metrics.NewUpdateGaugeReq("FreeMemory", snapshot.Process.FreeMemory))
 
 	batch.
-		Add(schema.NewUpdateGaugeReq("Alloc", snapshot.Runtime.Alloc)).
-		Add(schema.NewUpdateGaugeReq("BuckHashSys", snapshot.Runtime.BuckHashSys)).
-		Add(schema.NewUpdateGaugeReq("Frees", snapshot.Runtime.Frees)).
-		Add(schema.NewUpdateGaugeReq("GCCPUFraction", snapshot.Runtime.GCCPUFraction)).
-		Add(schema.NewUpdateGaugeReq("GCSys", snapshot.Runtime.GCSys)).
-		Add(schema.NewUpdateGaugeReq("HeapAlloc", snapshot.Runtime.HeapAlloc)).
-		Add(schema.NewUpdateGaugeReq("HeapIdle", snapshot.Runtime.HeapIdle)).
-		Add(schema.NewUpdateGaugeReq("HeapInuse", snapshot.Runtime.HeapInuse)).
-		Add(schema.NewUpdateGaugeReq("HeapObjects", snapshot.Runtime.HeapObjects)).
-		Add(schema.NewUpdateGaugeReq("HeapReleased", snapshot.Runtime.HeapReleased)).
-		Add(schema.NewUpdateGaugeReq("HeapSys", snapshot.Runtime.HeapSys)).
-		Add(schema.NewUpdateGaugeReq("LastGC", snapshot.Runtime.LastGC)).
-		Add(schema.NewUpdateGaugeReq("Lookups", snapshot.Runtime.Lookups)).
-		Add(schema.NewUpdateGaugeReq("MCacheInuse", snapshot.Runtime.MCacheInuse)).
-		Add(schema.NewUpdateGaugeReq("MCacheSys", snapshot.Runtime.MCacheSys)).
-		Add(schema.NewUpdateGaugeReq("MSpanInuse", snapshot.Runtime.MSpanInuse)).
-		Add(schema.NewUpdateGaugeReq("MSpanSys", snapshot.Runtime.MSpanSys)).
-		Add(schema.NewUpdateGaugeReq("Mallocs", snapshot.Runtime.Mallocs)).
-		Add(schema.NewUpdateGaugeReq("NextGC", snapshot.Runtime.NextGC)).
-		Add(schema.NewUpdateGaugeReq("NumForcedGC", snapshot.Runtime.NumForcedGC)).
-		Add(schema.NewUpdateGaugeReq("NumGC", snapshot.Runtime.NumGC)).
-		Add(schema.NewUpdateGaugeReq("OtherSys", snapshot.Runtime.OtherSys)).
-		Add(schema.NewUpdateGaugeReq("PauseTotalNs", snapshot.Runtime.PauseTotalNs)).
-		Add(schema.NewUpdateGaugeReq("StackInuse", snapshot.Runtime.StackInuse)).
-		Add(schema.NewUpdateGaugeReq("StackSys", snapshot.Runtime.StackSys)).
-		Add(schema.NewUpdateGaugeReq("Sys", snapshot.Runtime.Sys)).
-		Add(schema.NewUpdateGaugeReq("TotalAlloc", snapshot.Runtime.TotalAlloc))
+		Add(metrics.NewUpdateGaugeReq("Alloc", snapshot.Runtime.Alloc)).
+		Add(metrics.NewUpdateGaugeReq("BuckHashSys", snapshot.Runtime.BuckHashSys)).
+		Add(metrics.NewUpdateGaugeReq("Frees", snapshot.Runtime.Frees)).
+		Add(metrics.NewUpdateGaugeReq("GCCPUFraction", snapshot.Runtime.GCCPUFraction)).
+		Add(metrics.NewUpdateGaugeReq("GCSys", snapshot.Runtime.GCSys)).
+		Add(metrics.NewUpdateGaugeReq("HeapAlloc", snapshot.Runtime.HeapAlloc)).
+		Add(metrics.NewUpdateGaugeReq("HeapIdle", snapshot.Runtime.HeapIdle)).
+		Add(metrics.NewUpdateGaugeReq("HeapInuse", snapshot.Runtime.HeapInuse)).
+		Add(metrics.NewUpdateGaugeReq("HeapObjects", snapshot.Runtime.HeapObjects)).
+		Add(metrics.NewUpdateGaugeReq("HeapReleased", snapshot.Runtime.HeapReleased)).
+		Add(metrics.NewUpdateGaugeReq("HeapSys", snapshot.Runtime.HeapSys)).
+		Add(metrics.NewUpdateGaugeReq("LastGC", snapshot.Runtime.LastGC)).
+		Add(metrics.NewUpdateGaugeReq("Lookups", snapshot.Runtime.Lookups)).
+		Add(metrics.NewUpdateGaugeReq("MCacheInuse", snapshot.Runtime.MCacheInuse)).
+		Add(metrics.NewUpdateGaugeReq("MCacheSys", snapshot.Runtime.MCacheSys)).
+		Add(metrics.NewUpdateGaugeReq("MSpanInuse", snapshot.Runtime.MSpanInuse)).
+		Add(metrics.NewUpdateGaugeReq("MSpanSys", snapshot.Runtime.MSpanSys)).
+		Add(metrics.NewUpdateGaugeReq("Mallocs", snapshot.Runtime.Mallocs)).
+		Add(metrics.NewUpdateGaugeReq("NextGC", snapshot.Runtime.NextGC)).
+		Add(metrics.NewUpdateGaugeReq("NumForcedGC", snapshot.Runtime.NumForcedGC)).
+		Add(metrics.NewUpdateGaugeReq("NumGC", snapshot.Runtime.NumGC)).
+		Add(metrics.NewUpdateGaugeReq("OtherSys", snapshot.Runtime.OtherSys)).
+		Add(metrics.NewUpdateGaugeReq("PauseTotalNs", snapshot.Runtime.PauseTotalNs)).
+		Add(metrics.NewUpdateGaugeReq("StackInuse", snapshot.Runtime.StackInuse)).
+		Add(metrics.NewUpdateGaugeReq("StackSys", snapshot.Runtime.StackSys)).
+		Add(metrics.NewUpdateGaugeReq("Sys", snapshot.Runtime.Sys)).
+		Add(metrics.NewUpdateGaugeReq("TotalAlloc", snapshot.Runtime.TotalAlloc))
 
 	batch.
-		Add(schema.NewUpdateGaugeReq("RandomValue", snapshot.RandomValue))
+		Add(metrics.NewUpdateGaugeReq("RandomValue", snapshot.RandomValue))
 
 	batch.
-		Add(schema.NewUpdateCounterReq("PollCount", snapshot.PollCount))
+		Add(metrics.NewUpdateCounterReq("PollCount", snapshot.PollCount))
 
 	if err := batch.Send(ctx).Error(); err != nil {
 		return err

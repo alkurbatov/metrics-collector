@@ -10,11 +10,10 @@ import (
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/handlers"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
-	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -152,7 +151,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 
 	tt := []struct {
 		name        string
-		req         schema.MetricReq
+		req         metrics.MetricReq
 		clientKey   security.Secret
 		serverKey   security.Secret
 		recorderRV  storage.Record
@@ -161,7 +160,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 	}{
 		{
 			name:       "Should push counter",
-			req:        schema.NewUpdateCounterReq("PollCount", 10),
+			req:        metrics.NewUpdateCounterReq("PollCount", 10),
 			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected: result{
 				code: http.StatusOK,
@@ -169,7 +168,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 		},
 		{
 			name:       "Should push gauge",
-			req:        schema.NewUpdateGaugeReq("Alloc", 13.123),
+			req:        metrics.NewUpdateGaugeReq("Alloc", 13.123),
 			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(13.123)},
 			expected: result{
 				code: http.StatusOK,
@@ -177,7 +176,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 		},
 		{
 			name:       "Should push counter with signature",
-			req:        schema.NewUpdateCounterReq("PollCount", 10),
+			req:        metrics.NewUpdateCounterReq("PollCount", 10),
 			clientKey:  "abc",
 			serverKey:  "abc",
 			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
@@ -187,7 +186,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 		},
 		{
 			name:       "Should push gauge with signature",
-			req:        schema.NewUpdateGaugeReq("Alloc", 13.123),
+			req:        metrics.NewUpdateGaugeReq("Alloc", 13.123),
 			clientKey:  "abc",
 			serverKey:  "abc",
 			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(13.123)},
@@ -197,7 +196,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 		},
 		{
 			name:      "Should fail if counter signature doesn't match",
-			req:       schema.NewUpdateCounterReq("PollCount", 10),
+			req:       metrics.NewUpdateCounterReq("PollCount", 10),
 			clientKey: "abc",
 			serverKey: "xxx",
 			expected: result{
@@ -206,7 +205,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 		},
 		{
 			name:      "Should fail if gauge signature doesn't match",
-			req:       schema.NewUpdateGaugeReq("Alloc", 13.123),
+			req:       metrics.NewUpdateGaugeReq("Alloc", 13.123),
 			clientKey: "abc",
 			serverKey: "xxx",
 			expected: result{
@@ -215,7 +214,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 		},
 		{
 			name: "Should fail on unknown metric kind",
-			req: schema.MetricReq{
+			req: metrics.MetricReq{
 				ID:    "X",
 				MType: "unknown",
 			},
@@ -225,21 +224,21 @@ func TestUpdateJSONMetric(t *testing.T) {
 		},
 		{
 			name: "Should fail on counter with invalid name",
-			req:  schema.NewUpdateCounterReq("X)", 10),
+			req:  metrics.NewUpdateCounterReq("X)", 10),
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
 			name: "Should fail on gauge with invalid name",
-			req:  schema.NewUpdateGaugeReq("X;", 13.123),
+			req:  metrics.NewUpdateGaugeReq("X;", 13.123),
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
 			name:        "Should fail on broken recorder",
-			req:         schema.NewUpdateCounterReq("fail", 13),
+			req:         metrics.NewUpdateCounterReq("fail", 13),
 			recorderErr: entity.ErrUnexpected,
 			expected: result{
 				code: http.StatusInternalServerError,
@@ -277,7 +276,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 				require.NoError(err)
 				defer resp.Body.Close()
 
-				var resp schema.MetricReq
+				var resp metrics.MetricReq
 				err = json.Unmarshal(respBody, &resp)
 				require.NoError(err)
 
@@ -292,14 +291,14 @@ func TestBatchUpdate(t *testing.T) {
 		code int
 	}
 
-	batchReq := []schema.MetricReq{
-		schema.NewUpdateCounterReq("PollCount", 10),
-		schema.NewUpdateGaugeReq("Alloc", 11.23),
+	batchReq := []metrics.MetricReq{
+		metrics.NewUpdateCounterReq("PollCount", 10),
+		metrics.NewUpdateGaugeReq("Alloc", 11.23),
 	}
 
 	tt := []struct {
 		name        string
-		req         []schema.MetricReq
+		req         []metrics.MetricReq
 		clientKey   security.Secret
 		serverKey   security.Secret
 		recorderErr error
@@ -319,7 +318,7 @@ func TestBatchUpdate(t *testing.T) {
 		},
 		{
 			name:     "Should fail on empty list",
-			req:      make([]schema.MetricReq, 0),
+			req:      make([]metrics.MetricReq, 0),
 			expected: result{code: http.StatusBadRequest},
 		},
 		{
@@ -331,17 +330,17 @@ func TestBatchUpdate(t *testing.T) {
 		},
 		{
 			name:     "Should fail if counter value is missing",
-			req:      []schema.MetricReq{{ID: "xxx", MType: "counter"}},
+			req:      []metrics.MetricReq{{ID: "xxx", MType: "counter"}},
 			expected: result{code: http.StatusBadRequest},
 		},
 		{
 			name:     "Should fail if gauge value missing",
-			req:      []schema.MetricReq{{ID: "xxx", MType: "gauge"}},
+			req:      []metrics.MetricReq{{ID: "xxx", MType: "gauge"}},
 			expected: result{code: http.StatusBadRequest},
 		},
 		{
 			name:     "Should fail in unknown metric kind found in list",
-			req:      []schema.MetricReq{{ID: "xxx", MType: "unknown"}},
+			req:      []metrics.MetricReq{{ID: "xxx", MType: "unknown"}},
 			expected: result{code: http.StatusNotImplemented},
 		},
 		{
@@ -487,13 +486,13 @@ func TestGetMetric(t *testing.T) {
 func TestGetJSONMetric(t *testing.T) {
 	type result struct {
 		code int
-		body schema.MetricReq
+		body metrics.MetricReq
 		hash string
 	}
 
 	tt := []struct {
 		name        string
-		req         schema.MetricReq
+		req         metrics.MetricReq
 		serverKey   security.Secret
 		recorderRV  storage.Record
 		recorderErr error
@@ -501,54 +500,54 @@ func TestGetJSONMetric(t *testing.T) {
 	}{
 		{
 			name:       "Should get counter",
-			req:        schema.NewGetCounterReq("PollCount"),
+			req:        metrics.NewGetCounterReq("PollCount"),
 			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected: result{
 				code: http.StatusOK,
-				body: schema.NewUpdateCounterReq("PollCount", 10),
+				body: metrics.NewUpdateCounterReq("PollCount", 10),
 			},
 		},
 		{
 			name:       "Should get gauge",
-			req:        schema.NewGetGaugeReq("Alloc"),
+			req:        metrics.NewGetGaugeReq("Alloc"),
 			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(11.345)},
 			expected: result{
 				code: http.StatusOK,
-				body: schema.NewUpdateGaugeReq("Alloc", 11.345),
+				body: metrics.NewUpdateGaugeReq("Alloc", 11.345),
 			},
 		},
 		{
 			name:       "Should get signed counter",
-			req:        schema.NewGetCounterReq("PollCount"),
+			req:        metrics.NewGetCounterReq("PollCount"),
 			serverKey:  "abc",
 			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected: result{
 				code: http.StatusOK,
-				body: schema.NewUpdateCounterReq("PollCount", 10),
+				body: metrics.NewUpdateCounterReq("PollCount", 10),
 				hash: "0833001195f2e062140968e0c00dd44f00eb9a0b309aedc464817f904b244c8a",
 			},
 		},
 		{
 			name:       "Should get signed gauge",
-			req:        schema.NewGetGaugeReq("Alloc"),
+			req:        metrics.NewGetGaugeReq("Alloc"),
 			serverKey:  "abc",
 			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(11.345)},
 			expected: result{
 				code: http.StatusOK,
-				body: schema.NewUpdateGaugeReq("Alloc", 11.345),
+				body: metrics.NewUpdateGaugeReq("Alloc", 11.345),
 				hash: "2d32037265fd3547d65d4f51d69d8ea53490bef6e924fa2cfe2e4045ad50527d",
 			},
 		},
 		{
 			name: "Should fail on unknown metric kind",
-			req:  schema.MetricReq{ID: "Alloc", MType: "unknown"},
+			req:  metrics.MetricReq{ID: "Alloc", MType: "unknown"},
 			expected: result{
 				code: http.StatusNotImplemented,
 			},
 		},
 		{
 			name:        "Should fail on unknown counter",
-			req:         schema.NewGetCounterReq("unknown"),
+			req:         metrics.NewGetCounterReq("unknown"),
 			recorderErr: entity.ErrMetricNotFound,
 			expected: result{
 				code: http.StatusNotFound,
@@ -556,7 +555,7 @@ func TestGetJSONMetric(t *testing.T) {
 		},
 		{
 			name:        "Should fail on unknown gauge",
-			req:         schema.NewGetGaugeReq("unknown"),
+			req:         metrics.NewGetGaugeReq("unknown"),
 			recorderErr: entity.ErrMetricNotFound,
 			expected: result{
 				code: http.StatusNotFound,
@@ -564,21 +563,21 @@ func TestGetJSONMetric(t *testing.T) {
 		},
 		{
 			name: "Should fail on counter with invalid name",
-			req:  schema.NewGetCounterReq("X)"),
+			req:  metrics.NewGetCounterReq("X)"),
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
 			name: "Should fail on gauge with invalid name",
-			req:  schema.NewGetGaugeReq("X;"),
+			req:  metrics.NewGetGaugeReq("X;"),
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
 			name:        "Should fail on broken recorder",
-			req:         schema.NewGetGaugeReq("X"),
+			req:         metrics.NewGetGaugeReq("X"),
 			recorderErr: entity.ErrUnexpected,
 			expected: result{
 				code: http.StatusInternalServerError,
@@ -610,7 +609,7 @@ func TestGetJSONMetric(t *testing.T) {
 				require.NoError(err)
 				defer resp.Body.Close()
 
-				var resp schema.MetricReq
+				var resp metrics.MetricReq
 				err = json.Unmarshal(respBody, &resp)
 				require.NoError(err)
 

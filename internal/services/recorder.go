@@ -7,8 +7,8 @@ import (
 	"sort"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
 func CalculateID(name, kind string) string {
@@ -37,7 +37,7 @@ func (r MetricsRecorder) calculateNewValue(
 	prevRecord *storage.Record,
 	newRecord storage.Record,
 ) (metrics.Metric, error) {
-	if newRecord.Value.Kind() != entity.Counter {
+	if newRecord.Value.Kind() != metrics.KindCounter {
 		return newRecord.Value, nil
 	}
 

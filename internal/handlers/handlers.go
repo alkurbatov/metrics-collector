@@ -12,11 +12,10 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
-	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
 type metricsResource struct {
@@ -26,7 +25,7 @@ type metricsResource struct {
 }
 
 func parseUpdateMetricReqList(r *http.Request, signer *security.Signer) ([]storage.Record, error) {
-	req := make([]schema.MetricReq, 0)
+	req := make([]metrics.MetricReq, 0)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err //nolint: wrapcheck
 	}
@@ -56,7 +55,7 @@ func newMetricsResource(viewsPath string, recorder services.Recorder, signer *se
 }
 
 func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
-	req := schema.MetricReq{
+	req := metrics.MetricReq{
 		ID:    chi.URLParam(r, "name"),
 		MType: chi.URLParam(r, "kind"),
 	}
@@ -64,7 +63,7 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	switch req.MType {
-	case entity.Counter:
+	case metrics.KindCounter:
 		delta, err := metrics.ToCounter(rawValue)
 		if err != nil {
 			writeErrorResponse(ctx, w, http.StatusBadRequest, err)
@@ -73,7 +72,7 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 
 		req.Delta = &delta
 
-	case entity.Gauge:
+	case metrics.KindGauge:
 		value, err := metrics.ToGauge(rawValue)
 		if err != nil {
 			writeErrorResponse(ctx, w, http.StatusBadRequest, err)
@@ -110,7 +109,7 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	req := new(schema.MetricReq)
+	req := new(metrics.MetricReq)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
@@ -178,12 +177,12 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 	kind := chi.URLParam(r, "kind")
 	name := chi.URLParam(r, "name")
 
-	if err := schema.ValidateMetricName(name, kind); err != nil {
+	if err := ValidateMetricName(name, kind); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := schema.ValidateMetricKind(kind); err != nil {
+	if err := ValidateMetricKind(kind); err != nil {
 		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
 		return
 	}
@@ -209,18 +208,18 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	req := new(schema.MetricReq)
+	req := new(metrics.MetricReq)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := schema.ValidateMetricName(req.ID, req.MType); err != nil {
+	if err := ValidateMetricName(req.ID, req.MType); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := schema.ValidateMetricKind(req.MType); err != nil {
+	if err := ValidateMetricKind(req.MType); err != nil {
 		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
 		return
 	}

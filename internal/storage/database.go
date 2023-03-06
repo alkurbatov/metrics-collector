@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 )
@@ -124,10 +124,10 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 	}
 
 	switch kind {
-	case entity.Counter:
+	case metrics.KindCounter:
 		return Record{Name: name, Value: metrics.Counter(value)}, nil
 
-	case entity.Gauge:
+	case metrics.KindGauge:
 		return Record{Name: name, Value: metrics.Gauge(value)}, nil
 
 	default:
@@ -151,11 +151,11 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 	rv := make([]Record, 0)
 	_, err = pgx.ForEachRow(rows, []any{&name, &kind, &value}, func() error {
 		switch kind {
-		case entity.Counter:
+		case metrics.KindCounter:
 			rv = append(rv, Record{Name: name, Value: metrics.Counter(value)})
 			return nil
 
-		case entity.Gauge:
+		case metrics.KindGauge:
 			rv = append(rv, Record{Name: name, Value: metrics.Gauge(value)})
 			return nil
 

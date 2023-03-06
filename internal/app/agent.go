@@ -10,7 +10,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/exporter"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/alkurbatov/metrics-collector/internal/monitoring"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/caarlos0/env/v6"
 	"github.com/rs/zerolog/log"
@@ -106,7 +106,7 @@ func (c AgentConfig) String() string {
 
 type Agent struct {
 	Config AgentConfig
-	stats  metrics.Metrics
+	stats  monitoring.Metrics
 }
 
 func NewAgent() *Agent {
@@ -118,7 +118,7 @@ func NewAgent() *Agent {
 	return &Agent{Config: cfg}
 }
 
-func (app *Agent) poll(ctx context.Context, stats *metrics.Metrics) {
+func (app *Agent) poll(ctx context.Context, stats *monitoring.Metrics) {
 	ticker := time.NewTicker(app.Config.PollInterval)
 	defer ticker.Stop()
 
@@ -155,7 +155,7 @@ func (app *Agent) poll(ctx context.Context, stats *metrics.Metrics) {
 	}
 }
 
-func (app *Agent) report(ctx context.Context, stats *metrics.Metrics) {
+func (app *Agent) report(ctx context.Context, stats *monitoring.Metrics) {
 	ticker := time.NewTicker(app.Config.ReportInterval)
 	defer ticker.Stop()
 
