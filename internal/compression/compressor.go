@@ -3,10 +3,21 @@ package compression
 import (
 	"compress/gzip"
 	"net/http"
+	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
+
+var gzipWritersPool = sync.Pool{
+	New: func() interface{} {
+		// NB (alkurbatov): It seems that NewWriterLevel only returns error
+		// on a bad level. We are guaranteeing that the level is valid
+		// so it is okay to ignore the returned error.
+		w, _ := gzip.NewWriterLevel(nil, gzip.BestSpeed)
+		return w
+	},
+}
 
 type Compressor struct {
 	http.ResponseWriter
@@ -40,11 +51,8 @@ func (c *Compressor) Write(resp []byte) (int, error) {
 	}
 
 	if c.encoder == nil {
-		encoder, err := gzip.NewWriterLevel(c.ResponseWriter, gzip.BestSpeed)
-		if err != nil {
-			c.logger.Error().Err(err).Msg("")
-			return 0, err
-		}
+		encoder := gzipWritersPool.Get().(*gzip.Writer)
+		encoder.Reset(c.ResponseWriter)
 
 		c.encoder = encoder
 	}
@@ -55,9 +63,15 @@ func (c *Compressor) Write(resp []byte) (int, error) {
 }
 
 func (c *Compressor) Close() {
-	if c.encoder != nil {
-		c.encoder.Close()
+	if c.encoder == nil {
+		return
 	}
+
+	if err := c.encoder.Close(); err != nil {
+		c.logger.Error().Err(err).Msg("Compressor - Close - c.encoder.Close")
+	}
+
+	gzipWritersPool.Put(c.encoder)
 }
 
 func CompressResponse(next http.Handler) http.Handler {
