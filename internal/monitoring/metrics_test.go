@@ -16,7 +16,7 @@ func TestPoll(t *testing.T) {
 	m := new(monitoring.Metrics)
 	require.Zero(m.PollCount)
 	require.Zero(m.RandomValue)
-	require.Zero(m.Process.TotalMemory)
+	require.Zero(m.System.TotalMemory)
 	require.Zero(m.Runtime.Alloc)
 
 	err := m.Poll(ctx)
@@ -24,7 +24,7 @@ func TestPoll(t *testing.T) {
 	require.NoError(err)
 	require.Equal(m.PollCount, metrics.Counter(1))
 	require.NotZero(m.RandomValue)
-	require.NotZero(m.Process.TotalMemory)
+	require.NotZero(m.System.TotalMemory)
 	require.NotZero(m.Runtime.Alloc)
 
 	old := *m

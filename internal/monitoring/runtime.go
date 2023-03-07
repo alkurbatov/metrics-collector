@@ -6,6 +6,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
+// Metrics of Go runtime.
 // Regarding puurpose of each value see:
 // https://pkg.go.dev/runtime#MemStats
 type RuntimeStats struct {
@@ -38,6 +39,7 @@ type RuntimeStats struct {
 	TotalAlloc    metrics.Gauge
 }
 
+// Poll refreshes values of runtime metrics.
 func (m *RuntimeStats) Poll() {
 	stats := runtime.MemStats{}
 	runtime.ReadMemStats(&stats)

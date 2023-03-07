@@ -11,6 +11,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
+// CalculateID generate new metric ID.
 func CalculateID(name, kind string) string {
 	return name + "_" + kind
 }
@@ -23,10 +24,12 @@ func pushListError(reason error) error {
 	return fmt.Errorf("failed to push records list: %w", reason)
 }
 
+// MetricsRecorder implements business logic for metrics writing and reading scenarios.
 type MetricsRecorder struct {
 	storage storage.Storage
 }
 
+// NewMetricsRecorder creatse new NewMetricsRecorder instance with attached storage.
 func NewMetricsRecorder(dataStore storage.Storage) MetricsRecorder {
 	return MetricsRecorder{storage: dataStore}
 }
@@ -57,6 +60,7 @@ func (r MetricsRecorder) calculateNewValue(
 	return storedRecord.Value.(metrics.Counter) + newRecord.Value.(metrics.Counter), nil
 }
 
+// Push records metric data.
 func (r MetricsRecorder) Push(ctx context.Context, record storage.Record) (storage.Record, error) {
 	id := CalculateID(record.Name, record.Value.Kind())
 
@@ -73,6 +77,7 @@ func (r MetricsRecorder) Push(ctx context.Context, record storage.Record) (stora
 	return record, nil
 }
 
+// PushList records list of metrics data.
 func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record) error {
 	data := make(map[string]storage.Record)
 
@@ -108,6 +113,7 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 	return nil
 }
 
+// Get returns stored metrics record.
 func (r MetricsRecorder) Get(ctx context.Context, kind, name string) (storage.Record, error) {
 	id := CalculateID(name, kind)
 
@@ -119,6 +125,7 @@ func (r MetricsRecorder) Get(ctx context.Context, kind, name string) (storage.Re
 	return record, nil
 }
 
+// List retrieves all stored metrics.
 func (r MetricsRecorder) List(ctx context.Context) ([]storage.Record, error) {
 	rv, err := r.storage.GetAll(ctx)
 	if err != nil {

@@ -12,6 +12,7 @@ func unmarshalError(reason error) error {
 	return fmt.Errorf("record unmarshaling failed: %w", reason)
 }
 
+// A Record is internal represenattion of metric data stored in any kind of storage.
 type Record struct {
 	Name  string
 	Value metrics.Metric

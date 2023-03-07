@@ -15,7 +15,7 @@ func ToCounter(value string) (Counter, error) {
 	return Counter(rawValue), nil
 }
 
-// ToCounter creates new Gauge metric object from string value.
+// ToGauge creates new Gauge metric object from string value.
 func ToGauge(value string) (Gauge, error) {
 	rawValue, err := strconv.ParseFloat(value, 64)
 	if err != nil {

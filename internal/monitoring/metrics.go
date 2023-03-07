@@ -9,15 +9,22 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Metrics represent set of metrics collected by the agent.
 type Metrics struct {
-	Process ProcessStats
+	// System metrics.
+	System SystemStats
+
+	// Metrics of Go runtime.
 	Runtime RuntimeStats
 
+	// Some random value required by Praktikum tasks.
 	RandomValue metrics.Gauge
 
+	// Count of metrics polling attempts.
 	PollCount metrics.Counter
 }
 
+// Poll refreshes values of metrics and increments PollCount.
 func (m *Metrics) Poll(ctx context.Context) error {
 	m.PollCount++
 	m.RandomValue = metrics.Gauge(rand.Float64()) //nolint: gosec
@@ -30,7 +37,7 @@ func (m *Metrics) Poll(ctx context.Context) error {
 	})
 
 	g.Go(func() error {
-		if err := m.Process.Poll(ctx); err != nil {
+		if err := m.System.Poll(ctx); err != nil {
 			return err
 		}
 

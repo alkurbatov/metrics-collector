@@ -27,14 +27,17 @@ func getListError(reason error) error {
 	return fmt.Errorf("failed to get records list from DB: %w", reason)
 }
 
+// DatabaseStorage implements database metrics storage.
 type DatabaseStorage struct {
 	pool DBConnPool
 }
 
+// NewDatabaseStorage creates new instance of DatabaseStorage.
 func NewDatabaseStorage(pool DBConnPool) DatabaseStorage {
 	return DatabaseStorage{pool: pool}
 }
 
+// Push records metric data.
 func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) error {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
@@ -72,6 +75,7 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 	return nil
 }
 
+// PushBatch records list of metrics data in single request to the database.
 func (d DatabaseStorage) PushBatch(ctx context.Context, data map[string]Record) error {
 	// NB (alkurbatov): Since batch queries are run in an implicit transaction
 	// (unless explicit transaction control statements are executed)
@@ -104,6 +108,7 @@ func (d DatabaseStorage) PushBatch(ctx context.Context, data map[string]Record) 
 	return nil
 }
 
+// Get returns stored metrics record.
 func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 	var (
 		name  string
@@ -135,6 +140,7 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 	}
 }
 
+// GetAll returns all stored metrics.
 func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 	rows, err := d.pool.Query(ctx, "SELECT name, kind, value FROM metrics")
 	if err != nil {
@@ -171,10 +177,12 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 	return rv, nil
 }
 
+// Ping verifies that connection to the database can be established.
 func (d DatabaseStorage) Ping(ctx context.Context) error {
 	return d.pool.Ping(ctx) //nolint: wrapcheck
 }
 
+// Close closes all open connection to the database.
 func (d DatabaseStorage) Close() error {
 	d.pool.Close()
 	return nil

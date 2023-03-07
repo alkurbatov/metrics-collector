@@ -18,10 +18,13 @@ func verifyError(reason error) error {
 	return fmt.Errorf("failed to verify request signature: %w", reason)
 }
 
+// A Signer provides signature generation and verification functionality.
 type Signer struct {
 	secret []byte
 }
 
+// NewSigner creates new Signer object with the given secret.
+// The secret is used to generate/verify payload signature.
 func NewSigner(secret Secret) *Signer {
 	return &Signer{secret: []byte(secret)}
 }
@@ -55,6 +58,7 @@ func (s *Signer) calculateSignature(req *metrics.MetricReq) ([]byte, error) {
 	return mac.Sum(nil), nil
 }
 
+// SignRequest generates signature for provided payload.
 func (s *Signer) SignRequest(req *metrics.MetricReq) error {
 	digest, err := s.calculateSignature(req)
 	if err != nil {
@@ -66,6 +70,7 @@ func (s *Signer) SignRequest(req *metrics.MetricReq) error {
 	return nil
 }
 
+// VerifySignature checks signature of provided payload.
 func (s *Signer) VerifySignature(req *metrics.MetricReq) (bool, error) {
 	if len(req.Hash) == 0 {
 		return false, verifyError(entity.ErrNotSigned)

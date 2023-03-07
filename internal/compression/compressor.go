@@ -19,6 +19,7 @@ var gzipWritersPool = sync.Pool{
 	},
 }
 
+// A compressor implements data compression using grip encoder.
 type Compressor struct {
 	http.ResponseWriter
 
@@ -31,6 +32,7 @@ type Compressor struct {
 	supportedContent map[string]struct{}
 }
 
+// NewCompressor creatse new Compressor instance.
 func NewCompressor(w http.ResponseWriter, logger *zerolog.Logger) *Compressor {
 	supportedContent := make(map[string]struct{}, 2)
 	supportedContent["application/json"] = struct{}{}
@@ -43,6 +45,8 @@ func NewCompressor(w http.ResponseWriter, logger *zerolog.Logger) *Compressor {
 	}
 }
 
+// Write compresses response content data in case of supported type.
+// The content type should be specified in the Content-Type header in advance.
 func (c *Compressor) Write(resp []byte) (int, error) {
 	contentType := c.Header().Get("Content-Type")
 	if _, ok := c.supportedContent[contentType]; !ok {
@@ -62,6 +66,8 @@ func (c *Compressor) Write(resp []byte) (int, error) {
 	return c.encoder.Write(resp)
 }
 
+// Close dumps internal buffers and finishes compression.
+// Must be called before end of response processing, otherwise part of data can be lost.
 func (c *Compressor) Close() {
 	if c.encoder == nil {
 		return
@@ -74,6 +80,8 @@ func (c *Compressor) Close() {
 	gzipWritersPool.Put(c.encoder)
 }
 
+// CompressResponse is net/http middleware executing gzip compression
+// is gzip is supported by client and response belongs to supported type.
 func CompressResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := log.Ctx(r.Context())

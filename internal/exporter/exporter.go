@@ -16,6 +16,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
+// BatchExporter sends collected metrics to metrics collector in single batch request.
 type BatchExporter struct {
 	// Fully qualified HTTP URL of metrics collector.
 	baseURL string
@@ -54,6 +55,7 @@ func NewBatchExporter(collectorAddress entity.NetAddress, secret security.Secret
 	}
 }
 
+// Add a metric to internal buffer.
 func (h *BatchExporter) Add(req metrics.MetricReq) *BatchExporter {
 	if h.err != nil {
 		return h
@@ -128,6 +130,7 @@ func (h *BatchExporter) doSend(ctx context.Context) error {
 	return nil
 }
 
+// Send metrics stored in internal buffer to metrics collector in single batch request.
 func (h *BatchExporter) Send(ctx context.Context) *BatchExporter {
 	if h.err != nil {
 		return h
@@ -143,6 +146,7 @@ func (h *BatchExporter) Send(ctx context.Context) *BatchExporter {
 	return h
 }
 
+// SendMetrics exports collected metrics in single batch request.
 func SendMetrics(
 	ctx context.Context,
 	collectorAddress entity.NetAddress,
@@ -155,9 +159,9 @@ func SendMetrics(
 	batch := NewBatchExporter(collectorAddress, secret)
 
 	batch.
-		Add(metrics.NewUpdateGaugeReq("CPUutilization1", snapshot.Process.CPUutilization1)).
-		Add(metrics.NewUpdateGaugeReq("TotalMemory", snapshot.Process.TotalMemory)).
-		Add(metrics.NewUpdateGaugeReq("FreeMemory", snapshot.Process.FreeMemory))
+		Add(metrics.NewUpdateGaugeReq("CPUutilization1", snapshot.System.CPUutilization1)).
+		Add(metrics.NewUpdateGaugeReq("TotalMemory", snapshot.System.TotalMemory)).
+		Add(metrics.NewUpdateGaugeReq("FreeMemory", snapshot.System.FreeMemory))
 
 	batch.
 		Add(metrics.NewUpdateGaugeReq("Alloc", snapshot.Runtime.Alloc)).
