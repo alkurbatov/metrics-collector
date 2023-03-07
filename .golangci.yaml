@@ -1,4 +1,8 @@
 ---
+linters-settings:
+  godot:
+    exclude: '^ @' # swag comments
+
 linters:
   enable-all: true
   disable:

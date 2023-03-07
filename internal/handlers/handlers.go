@@ -54,6 +54,19 @@ func newMetricsResource(viewsPath string, recorder services.Recorder, signer *se
 	return metricsResource{view: view, recorder: recorder, signer: signer}
 }
 
+// Update godoc
+// @Tags Metrics
+// @Router /update/{type}/{name}/{value} [post]
+// @Summary Push metric data.
+// @ID metrics_update
+// @Produce plain
+// @Param type path string true "Metrics type (e.g. `counter`, `gauge`)."
+// @Param name path string true "Metrics name."
+// @Param value path string true "Metrics value, must be convertable to `int64` or `float64`."
+// @Success 200 {string} string
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 	req := metrics.MetricReq{
 		ID:    chi.URLParam(r, "name"),
@@ -106,6 +119,17 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdateJSON godoc
+// @Tags Metrics
+// @Router /update [post]
+// @Summary Push metric data as JSON
+// @ID metrics_json_update
+// @Accept  json
+// @Param request body metrics.MetricReq true "Request parameters."
+// @Success 200 {object} metrics.MetricReq
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -150,6 +174,17 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// BatchUpdateJSON godoc
+// @Tags Metrics
+// @Router /updates [post]
+// @Summary Push list of metrics data as JSON
+// @ID metrics_json_update_list
+// @Accept  json
+// @Param request body []metrics.MetricReq true "List of metrics to update."
+// @Success 200
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) BatchUpdateJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -171,6 +206,19 @@ func (h metricsResource) BatchUpdateJSON(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// Get godoc
+// @Tags Metrics
+// @Router /value/{type}/{name} [get]
+// @Summary Get metrics value as string
+// @ID metrics_info
+// @Produce plain
+// @Param type path string true "Metrics type (e.g. `counter`, `gauge`)."
+// @Param name path string true "Metrics name."
+// @Success 200 {string} string
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 404 {string} string "Metric not found"
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -205,6 +253,19 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetJSON godoc
+// @Tags Metrics
+// @Router /value [post]
+// @Summary Get metrics value as JSON
+// @ID metrics_json_info
+// @Accept  json
+// @Produce json
+// @Param request body metrics.MetricReq true "Request parameters: `id` and `type` are required."
+// @Success 200 {object} metrics.MetricReq
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 404 {string} string "Metric not found"
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -253,6 +314,14 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// List godoc
+// @Tags Metrics
+// @Router / [get]
+// @Summary Get HTML page with full list of stored metrics
+// @ID metrics_list
+// @Produce html
+// @Success 200
+// @Failure 500 {string} string http.StatusInternalServerError
 func (h metricsResource) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -278,6 +347,14 @@ func newLivenessProbe(healthcheck services.HealthCheck) livenessProbe {
 	return livenessProbe{healthcheck: healthcheck}
 }
 
+// Ping godoc
+// @Tags Healthcheck
+// @Router /ping [get]
+// @Summary Verify connection to the database
+// @ID health_info
+// @Success 200
+// @Failure 500 {string} string "Connection is broken"
+// @Failure 501 {string} string "Server is not configured to use database"
 func (h livenessProbe) Ping(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()

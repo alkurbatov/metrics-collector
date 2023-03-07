@@ -184,7 +184,7 @@ func NewServer() *Server {
 		signer = security.NewSigner(cfg.Secret)
 	}
 
-	router := handlers.Router("./web/views", recorder, healthcheck, signer)
+	router := handlers.Router(cfg.ListenAddress, "./web/views", recorder, healthcheck, signer)
 	srv := &http.Server{
 		Addr:    cfg.ListenAddress.String(),
 		Handler: router,

@@ -1,0 +1,250 @@
+definitions:
+  metrics.MetricReq:
+    properties:
+      delta:
+        description: Metric value if type is counter, must not be set for other types.
+        type: integer
+      hash:
+        description: |-
+          Hash value of the data, may be omitted if signature validation is
+          disabled on server-side.
+        type: string
+      id:
+        description: Name of a metric.
+        type: string
+      type:
+        description: One of supported metric kinds (e.g. counter, gauge), see constants.
+        type: string
+      value:
+        description: Metric value if type is gauge, must not be set for other types.
+        type: number
+    type: object
+info:
+  contact:
+    email: sir.alkurbatov@yandex.ru
+    name: Alexander Kurbatov
+  description: Service for storing metrics data.
+  title: Metrics collector API
+  version: "1.0"
+paths:
+  /:
+    get:
+      operationId: metrics_list
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Get HTML page with full list of stored metrics
+      tags:
+      - Metrics
+  /ping:
+    get:
+      operationId: health_info
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Connection is broken
+          schema:
+            type: string
+        "501":
+          description: Server is not configured to use database
+          schema:
+            type: string
+      summary: Verify connection to the database
+      tags:
+      - Healthcheck
+  /update:
+    post:
+      consumes:
+      - application/json
+      operationId: metrics_json_update
+      parameters:
+      - description: Request parameters.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/metrics.MetricReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/metrics.MetricReq'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+        "501":
+          description: Metric type is not supported
+          schema:
+            type: string
+      summary: Push metric data as JSON
+      tags:
+      - Metrics
+  /update/{type}/{name}/{value}:
+    post:
+      operationId: metrics_update
+      parameters:
+      - description: Metrics type (e.g. `counter`, `gauge`).
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Metrics name.
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Metrics value, must be convertable to `int64` or `float64`.
+        in: path
+        name: value
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+        "501":
+          description: Metric type is not supported
+          schema:
+            type: string
+      summary: Push metric data.
+      tags:
+      - Metrics
+  /updates:
+    post:
+      consumes:
+      - application/json
+      operationId: metrics_json_update_list
+      parameters:
+      - description: List of metrics to update.
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/metrics.MetricReq'
+          type: array
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+        "501":
+          description: Metric type is not supported
+          schema:
+            type: string
+      summary: Push list of metrics data as JSON
+      tags:
+      - Metrics
+  /value:
+    post:
+      consumes:
+      - application/json
+      operationId: metrics_json_info
+      parameters:
+      - description: 'Request parameters: `id` and `type` are required.'
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/metrics.MetricReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/metrics.MetricReq'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Metric not found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+        "501":
+          description: Metric type is not supported
+          schema:
+            type: string
+      summary: Get metrics value as JSON
+      tags:
+      - Metrics
+  /value/{type}/{name}:
+    get:
+      operationId: metrics_info
+      parameters:
+      - description: Metrics type (e.g. `counter`, `gauge`).
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Metrics name.
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Metric not found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+        "501":
+          description: Metric type is not supported
+          schema:
+            type: string
+      summary: Get metrics value as string
+      tags:
+      - Metrics
+swagger: "2.0"
+tags:
+- description: '"Metrics API"'
+  name: Metrics
+- description: '"API to inspect service health state"'
+  name: Healthcheck

@@ -1,5 +1,6 @@
 COMPONENTS = agent server
 E2E_TEST = test/devopstest
+API_DOCS = docs/api
 CCFLAGS =
 
 DEFAULT_GOAL := help
@@ -19,14 +20,19 @@ $(E2E_TEST):
 		-o $@
 	@chmod +x $(E2E_TEST)
 
-build: $(COMPONENTS) ## Build whole project
+build: api-docs $(COMPONENTS) ## Build whole project
 .PHONY: build
 
 $(COMPONENTS):
 	go build $(CCFLAGS) -o cmd/$@/$@ cmd/$@/*.go
 
+api-docs:
+	rm -rf $(API_DOCS)
+	swag init -g ./internal/handlers/router.go --output $(API_DOCS)
+.PHONY: api-docs
+
 clean: ## Remove build artifacts and downloaded test tools
-	rm -f cmd/agent/agent cmd/server/server $(E2E_TEST)
+	rm -f cmd/agent/agent cmd/server/server $(E2E_TEST) $(API_DOCS)
 .PHONY: clean
 
 lint: ## Run linters on the source code
@@ -44,8 +50,8 @@ e2e-tests: $(E2E_TEST) build ### Run e2e tests
 	./scripts/run-e2e-test
 .PHONY: e2e-tests
 
-docs:
+godoc: ### Show public packages documentation using godoc
 	@echo "Project documentation is available at:"
 	@echo "http://127.0.0.1:3000/pkg/github.com/alkurbatov/metrics-collector/pkg/metrics/\n"
 	@godoc -http=:3000 -index -play
-.PHONY: docs
+.PHONY: godoc

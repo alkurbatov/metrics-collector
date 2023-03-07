@@ -25,7 +25,7 @@ func newRouter(key security.Secret, recorder services.Recorder, healthcheck serv
 		signer = security.NewSigner(key)
 	}
 
-	return handlers.Router("../../web/views", recorder, healthcheck, signer)
+	return handlers.Router("0.0.0.0:8080", "../../web/views", recorder, healthcheck, signer)
 }
 
 func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) *http.Response {

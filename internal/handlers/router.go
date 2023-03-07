@@ -1,17 +1,35 @@
 package handlers
 
+// @Title Metrics collector API
+// @Description Service for storing metrics data.
+// @Version 1.0
+
+// @Contact.name  Alexander Kurbatov
+// @Contact.email sir.alkurbatov@yandex.ru
+
+// @Tag.name Metrics
+// @Tag.description "Metrics API"
+
+// @Tag.name Healthcheck
+// @Tag.description "API to inspect service health state"
+
 import (
 	"net/http"
 
+	// Import pregenerated OpenAPI (Swagger) documentation.
+	_ "github.com/alkurbatov/metrics-collector/docs/api"
 	"github.com/alkurbatov/metrics-collector/internal/compression"
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func Router(
+	address entity.NetAddress,
 	viewsPath string,
 	recorder services.Recorder,
 	healthcheck services.HealthCheck,
@@ -37,6 +55,10 @@ func Router(
 	r.Post("/update/{kind}/{name}/{value}", metrics.Update)
 
 	r.Get("/ping", probe.Ping)
+
+	r.Get("/docs/*", httpSwagger.Handler(
+		httpSwagger.URL("http://"+address.String()+"/docs/doc.json"),
+	))
 
 	return r
 }

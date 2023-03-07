@@ -26,19 +26,27 @@
 make help
 ```
 
-### golangci-lint
+### Инструменты для разработки
+
+#### golangci-lint
 В проекте используется `golangci-lint` для локальной разработки. Для установки линтера воспользуйтесь [официальной инструкцией](https://golangci-lint.run/usage/install/).
 
-### pre-commit
+#### pre-commit
 В проекте используется `pre-commit` для запуска линтеров перед коммитом. Для установки утилиты воспользуйтесь [официальной инструкцией](https://pre-commit.com/#install), затем выполните команду:
 ```bash
 make install-tools
 ```
 
-### migrate
+#### migrate
 Для работы с миграциями БД необходимо установить утилиту [golang-migrate](https://github.com/golang-migrate/migrate):
 ```bash
 go install -tags "postgres" github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+#### swag
+Для генерации документации в формате OpenAPI (Swagger) необходимо установить `swag`:
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
 ```
 
 ### Команды
@@ -134,14 +142,6 @@ export KEY=
 
 # Включить вывод отладочной информации.
 export DEBUG=false
-```
-
-## Документация
-Документация для экспортируемых модулей доступна из godoc:
-```bash
-go install golang.org/x/tools/cmd/godoc@latest
-
-make docs
 ```
 
 ## Обновление шаблона
