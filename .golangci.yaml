@@ -29,6 +29,7 @@ linters:
     - scopelint
     - sqlclosecheck
     - structcheck
+    - testableexamples
     - varcheck
     - varnamelen
     - wastedassign
