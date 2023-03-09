@@ -3,11 +3,23 @@ package compression
 import (
 	"compress/gzip"
 	"net/http"
+	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
+var gzipWritersPool = sync.Pool{
+	New: func() interface{} {
+		// NB (alkurbatov): It seems that NewWriterLevel only returns error
+		// on a bad level. We are guaranteeing that the level is valid
+		// so it is okay to ignore the returned error.
+		w, _ := gzip.NewWriterLevel(nil, gzip.BestSpeed)
+		return w
+	},
+}
+
+// A compressor implements data compression using grip encoder.
 type Compressor struct {
 	http.ResponseWriter
 
@@ -20,6 +32,7 @@ type Compressor struct {
 	supportedContent map[string]struct{}
 }
 
+// NewCompressor creatse new Compressor instance.
 func NewCompressor(w http.ResponseWriter, logger *zerolog.Logger) *Compressor {
 	supportedContent := make(map[string]struct{}, 2)
 	supportedContent["application/json"] = struct{}{}
@@ -32,6 +45,8 @@ func NewCompressor(w http.ResponseWriter, logger *zerolog.Logger) *Compressor {
 	}
 }
 
+// Write compresses response content data in case of supported type.
+// The content type should be specified in the Content-Type header in advance.
 func (c *Compressor) Write(resp []byte) (int, error) {
 	contentType := c.Header().Get("Content-Type")
 	if _, ok := c.supportedContent[contentType]; !ok {
@@ -40,11 +55,8 @@ func (c *Compressor) Write(resp []byte) (int, error) {
 	}
 
 	if c.encoder == nil {
-		encoder, err := gzip.NewWriterLevel(c.ResponseWriter, gzip.BestSpeed)
-		if err != nil {
-			c.logger.Error().Err(err).Msg("")
-			return 0, err
-		}
+		encoder := gzipWritersPool.Get().(*gzip.Writer)
+		encoder.Reset(c.ResponseWriter)
 
 		c.encoder = encoder
 	}
@@ -54,12 +66,22 @@ func (c *Compressor) Write(resp []byte) (int, error) {
 	return c.encoder.Write(resp)
 }
 
+// Close dumps internal buffers and finishes compression.
+// Must be called before end of response processing, otherwise part of data can be lost.
 func (c *Compressor) Close() {
-	if c.encoder != nil {
-		c.encoder.Close()
+	if c.encoder == nil {
+		return
 	}
+
+	if err := c.encoder.Close(); err != nil {
+		c.logger.Error().Err(err).Msg("Compressor - Close - c.encoder.Close")
+	}
+
+	gzipWritersPool.Put(c.encoder)
 }
 
+// CompressResponse is net/http middleware executing gzip compression
+// is gzip is supported by client and response belongs to supported type.
 func CompressResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := log.Ctx(r.Context())

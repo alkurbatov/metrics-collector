@@ -3,7 +3,7 @@ package metrics_test
 import (
 	"testing"
 
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 )
 

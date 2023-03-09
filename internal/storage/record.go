@@ -5,13 +5,14 @@ import (
 	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
 func unmarshalError(reason error) error {
 	return fmt.Errorf("record unmarshaling failed: %w", reason)
 }
 
+// A Record is internal represenattion of metric data stored in any kind of storage.
 type Record struct {
 	Name  string
 	Value metrics.Metric
@@ -40,7 +41,7 @@ func (r *Record) UnmarshalJSON(src []byte) error {
 	r.Name = data["name"]
 
 	switch data["kind"] {
-	case entity.Counter:
+	case metrics.KindCounter:
 		value, err := metrics.ToCounter(data["value"])
 		if err != nil {
 			return unmarshalError(err)
@@ -48,7 +49,7 @@ func (r *Record) UnmarshalJSON(src []byte) error {
 
 		r.Value = value
 
-	case entity.Gauge:
+	case metrics.KindGauge:
 		value, err := metrics.ToGauge(data["value"])
 		if err != nil {
 			return unmarshalError(err)

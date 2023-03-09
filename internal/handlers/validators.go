@@ -1,14 +1,16 @@
-package schema
+package handlers
 
 import (
 	"regexp"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/services"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
 var metricName = regexp.MustCompile(`^[A-Za-z\d]+$`)
 
+// ValidateMetricName verifies that provided metric name is acceptable.
 func ValidateMetricName(name, kind string) error {
 	if len(services.CalculateID(name, kind)) > 255 {
 		return entity.ErrMetricLongName
@@ -21,12 +23,13 @@ func ValidateMetricName(name, kind string) error {
 	return nil
 }
 
+// ValidateMetricKind verifies that provided metric kind is known.
 func ValidateMetricKind(kind string) error {
 	switch kind {
-	case entity.Counter, entity.Gauge:
+	case metrics.KindCounter, metrics.KindGauge:
 		return nil
 
 	default:
-		return entity.MetricNotImplementedError(kind)
+		return entity.MetricNotImplementedError(kind) //nolint: wrapcheck
 	}
 }

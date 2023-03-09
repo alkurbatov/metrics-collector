@@ -16,6 +16,9 @@
 12. [Инкремент 12 (отправка метрик списком)](./docs/tasks/increment12.md)
 13. [Инкремент 13 (ошибки и логирование)](./docs/tasks/increment13.md)
 14. [Инкремент 14 (метрики CPU и добавление асинхронности в агент)](./docs/tasks/increment14.md)
+15. [Инкремент 15 (профилирование)](./docs/tasks/increment15.md)
+16. [Инкремент 16 (форматирование кода)](./docs/tasks/increment16.md)
+17. [Инкремент 17 (документирование)](./docs/tasks/increment17.md)
 
 ## Разработка и тестирование
 Для получения полного списка доступных команд выполните:
@@ -23,19 +26,27 @@
 make help
 ```
 
-### golangci-lint
+### Инструменты для разработки
+
+#### golangci-lint
 В проекте используется `golangci-lint` для локальной разработки. Для установки линтера воспользуйтесь [официальной инструкцией](https://golangci-lint.run/usage/install/).
 
-### pre-commit
+#### pre-commit
 В проекте используется `pre-commit` для запуска линтеров перед коммитом. Для установки утилиты воспользуйтесь [официальной инструкцией](https://pre-commit.com/#install), затем выполните команду:
 ```bash
 make install-tools
 ```
 
-### migrate
+#### migrate
 Для работы с миграциями БД необходимо установить утилиту [golang-migrate](https://github.com/golang-migrate/migrate):
 ```bash
 go install -tags "postgres" github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+#### swag
+Для генерации документации в формате OpenAPI (Swagger) необходимо установить `swag`:
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
 ```
 
 ### Команды
@@ -92,6 +103,9 @@ export KEY=
 # Сервер автоматически запустит все необходимые миграции после установления соединения с базой.
 # (!) Поддерживается только Postgres.
 export DATABASE_DSN=
+
+# Адрес и порт, по которым доступен инструмент pprof (по умолчанию выключен).
+export PPROF_ADDRESS=
 
 # Включить вывод отладочной информации.
 export DEBUG=false

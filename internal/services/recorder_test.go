@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -58,7 +58,7 @@ func TestUpdateCounter(t *testing.T) {
 
 		pushMetric(t, r, "PollCount", tc.value, tc.expected)
 
-		record, err := r.Get(ctx, entity.Counter, "PollCount")
+		record, err := r.Get(ctx, metrics.KindCounter, "PollCount")
 		require.NoError(err)
 		require.Equal(tc.expected, record.Value)
 	}
@@ -92,7 +92,7 @@ func TestUpdateGauge(t *testing.T) {
 
 		pushMetric(t, r, "Alloc", tc.value, tc.expected)
 
-		record, err := r.Get(ctx, entity.Gauge, "Alloc")
+		record, err := r.Get(ctx, metrics.KindGauge, "Alloc")
 		require.NoError(err)
 		require.Equal(tc.expected, record.Value)
 	}
@@ -109,11 +109,11 @@ func TestPushMetricsWithSimilarNamesButDifferentKinds(t *testing.T) {
 	value := metrics.Gauge(20.123)
 	pushMetric(t, r, "X", value, value)
 
-	first, err := r.Get(ctx, entity.Counter, "X")
+	first, err := r.Get(ctx, metrics.KindCounter, "X")
 	require.NoError(err)
 	require.Equal(metrics.Counter(10), first.Value)
 
-	second, err := r.Get(ctx, entity.Gauge, "X")
+	second, err := r.Get(ctx, metrics.KindGauge, "X")
 	require.NoError(err)
 	require.Equal(metrics.Gauge(20.123), second.Value)
 }
@@ -143,9 +143,8 @@ func TestPushMetricsToBrokenStorage(t *testing.T) {
 
 func TestPushListTestPushList(t *testing.T) {
 	type expected struct {
-		keys    []string
-		records []storage.Record
-		err     error
+		data map[string]storage.Record
+		err  error
 	}
 
 	tt := []struct {
@@ -161,10 +160,9 @@ func TestPushListTestPushList(t *testing.T) {
 				{Name: "Alloc", Value: metrics.Gauge(10.123)},
 			},
 			expected: expected{
-				keys: []string{"PollCount_counter", "Alloc_gauge"},
-				records: []storage.Record{
-					{Name: "PollCount", Value: metrics.Counter(11)},
-					{Name: "Alloc", Value: metrics.Gauge(10.123)},
+				data: map[string]storage.Record{
+					"PollCount_counter": {Name: "PollCount", Value: metrics.Counter(11)},
+					"Alloc_gauge":       {Name: "Alloc", Value: metrics.Gauge(10.123)},
 				},
 			},
 		},
@@ -177,10 +175,9 @@ func TestPushListTestPushList(t *testing.T) {
 				{Name: "Alloc", Value: metrics.Gauge(14.321)},
 			},
 			expected: expected{
-				keys: []string{"PollCount_counter", "Alloc_gauge"},
-				records: []storage.Record{
-					{Name: "PollCount", Value: metrics.Counter(23)},
-					{Name: "Alloc", Value: metrics.Gauge(14.321)},
+				data: map[string]storage.Record{
+					"PollCount_counter": {Name: "PollCount", Value: metrics.Counter(23)},
+					"Alloc_gauge":       {Name: "Alloc", Value: metrics.Gauge(14.321)},
 				},
 			},
 		},
@@ -188,8 +185,7 @@ func TestPushListTestPushList(t *testing.T) {
 			name:    "Should not fail on empty list",
 			records: make([]storage.Record, 0),
 			expected: expected{
-				keys:    make([]string, 0),
-				records: make([]storage.Record, 0),
+				data: make(map[string]storage.Record, 0),
 			},
 		},
 		{
@@ -199,9 +195,8 @@ func TestPushListTestPushList(t *testing.T) {
 			},
 			storageErr: entity.ErrUnexpected,
 			expected: expected{
-				keys:    make([]string, 0),
-				records: make([]storage.Record, 0),
-				err:     entity.ErrUnexpected,
+				data: make(map[string]storage.Record, 0),
+				err:  entity.ErrUnexpected,
 			},
 		},
 	}
@@ -213,7 +208,7 @@ func TestPushListTestPushList(t *testing.T) {
 				Return(storage.Record{Name: "PollCount", Value: metrics.Counter(1)}, tc.storageErr)
 			m.On("Get", mock.Anything, mock.AnythingOfType("string")).
 				Return(storage.Record{}, entity.ErrMetricNotFound)
-			m.On("PushList", mock.Anything, tc.expected.keys, tc.expected.records).
+			m.On("PushBatch", mock.Anything, tc.expected.data).
 				Return(tc.storageErr)
 
 			r := services.NewMetricsRecorder(m)
@@ -233,13 +228,13 @@ func TestGetUnknownMetric(t *testing.T) {
 	}{
 		{
 			name:     "Should return error on unknown counter",
-			kind:     entity.Counter,
+			kind:     metrics.KindCounter,
 			metric:   "unknown",
 			expected: entity.ErrMetricNotFound,
 		},
 		{
 			name:     "Should return error on unknown gauge",
-			kind:     entity.Gauge,
+			kind:     metrics.KindGauge,
 			metric:   "unknown",
 			expected: entity.ErrMetricNotFound,
 		},

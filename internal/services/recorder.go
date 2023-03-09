@@ -7,10 +7,11 @@ import (
 	"sort"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
+// CalculateID generate new metric ID.
 func CalculateID(name, kind string) string {
 	return name + "_" + kind
 }
@@ -23,10 +24,12 @@ func pushListError(reason error) error {
 	return fmt.Errorf("failed to push records list: %w", reason)
 }
 
+// MetricsRecorder implements business logic for metrics writing and reading scenarios.
 type MetricsRecorder struct {
 	storage storage.Storage
 }
 
+// NewMetricsRecorder creatse new NewMetricsRecorder instance with attached storage.
 func NewMetricsRecorder(dataStore storage.Storage) MetricsRecorder {
 	return MetricsRecorder{storage: dataStore}
 }
@@ -37,7 +40,7 @@ func (r MetricsRecorder) calculateNewValue(
 	prevRecord *storage.Record,
 	newRecord storage.Record,
 ) (metrics.Metric, error) {
-	if newRecord.Value.Kind() != entity.Counter {
+	if newRecord.Value.Kind() != metrics.KindCounter {
 		return newRecord.Value, nil
 	}
 
@@ -57,6 +60,7 @@ func (r MetricsRecorder) calculateNewValue(
 	return storedRecord.Value.(metrics.Counter) + newRecord.Value.(metrics.Counter), nil
 }
 
+// Push records metric data.
 func (r MetricsRecorder) Push(ctx context.Context, record storage.Record) (storage.Record, error) {
 	id := CalculateID(record.Name, record.Value.Kind())
 
@@ -73,22 +77,22 @@ func (r MetricsRecorder) Push(ctx context.Context, record storage.Record) (stora
 	return record, nil
 }
 
+// PushList records list of metrics data.
 func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record) error {
-	keys := make([]string, 0)
-	data := make([]storage.Record, 0)
-	seen := make(map[string]int)
+	data := make(map[string]storage.Record)
 
 	for _, record := range records {
 		id := CalculateID(record.Name, record.Value.Kind())
 
-		// NB (alkurbatov): Compress requests to metrics with same names.
-		if pos, ok := seen[id]; ok {
-			value, err := r.calculateNewValue(ctx, id, &data[pos], record)
+		if prev, ok := data[id]; ok {
+			// NB (alkurbatov): Compress metrics with same names.
+			value, err := r.calculateNewValue(ctx, id, &prev, record)
 			if err != nil {
 				return pushListError(err)
 			}
 
-			data[pos].Value = value
+			prev.Value = value
+			data[id] = prev
 
 			continue
 		}
@@ -99,19 +103,17 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 		}
 
 		record.Value = value
-		seen[id] = len(data)
-
-		keys = append(keys, id)
-		data = append(data, record)
+		data[id] = record
 	}
 
-	if err := r.storage.PushList(ctx, keys, data); err != nil {
+	if err := r.storage.PushBatch(ctx, data); err != nil {
 		return pushListError(err)
 	}
 
 	return nil
 }
 
+// Get returns stored metrics record.
 func (r MetricsRecorder) Get(ctx context.Context, kind, name string) (storage.Record, error) {
 	id := CalculateID(name, kind)
 
@@ -123,6 +125,7 @@ func (r MetricsRecorder) Get(ctx context.Context, kind, name string) (storage.Re
 	return record, nil
 }
 
+// List retrieves all stored metrics.
 func (r MetricsRecorder) List(ctx context.Context) ([]storage.Record, error) {
 	rv, err := r.storage.GetAll(ctx)
 	if err != nil {

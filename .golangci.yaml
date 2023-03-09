@@ -1,4 +1,8 @@
 ---
+linters-settings:
+  godot:
+    exclude: '^ @' # swag comments
+
 linters:
   enable-all: true
   disable:
@@ -25,6 +29,7 @@ linters:
     - scopelint
     - sqlclosecheck
     - structcheck
+    - testableexamples
     - varcheck
     - varnamelen
     - wastedassign
@@ -51,9 +56,5 @@ issues:
         - wrapcheck
 
     - path: 'internal/handlers/marshal.go'
-      linters:
-        - wrapcheck
-
-    - path: 'internal/schema/.*.go'
       linters:
         - wrapcheck

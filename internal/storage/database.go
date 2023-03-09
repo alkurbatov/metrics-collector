@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 )
@@ -27,14 +27,17 @@ func getListError(reason error) error {
 	return fmt.Errorf("failed to get records list from DB: %w", reason)
 }
 
+// DatabaseStorage implements database metrics storage.
 type DatabaseStorage struct {
 	pool DBConnPool
 }
 
+// NewDatabaseStorage creates new instance of DatabaseStorage.
 func NewDatabaseStorage(pool DBConnPool) DatabaseStorage {
 	return DatabaseStorage{pool: pool}
 }
 
+// Push records metric data.
 func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) error {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
@@ -72,16 +75,17 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 	return nil
 }
 
-func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []Record) error {
+// PushBatch records list of metrics data in single request to the database.
+func (d DatabaseStorage) PushBatch(ctx context.Context, data map[string]Record) error {
 	// NB (alkurbatov): Since batch queries are run in an implicit transaction
 	// (unless explicit transaction control statements are executed)
 	// we don't need to handle transactions manually.
 	// See: https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY
 	batch := new(pgx.Batch)
-	for i, record := range records {
+	for id, record := range data {
 		batch.Queue(
 			"INSERT INTO metrics(id, name, kind, value) values ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET value = $4",
-			keys[i],
+			id,
 			record.Name,
 			record.Value.Kind(),
 			record.Value.String(),
@@ -95,7 +99,7 @@ func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []
 		}
 	}()
 
-	for i := 0; i < len(records); i++ {
+	for i := 0; i < len(data); i++ {
 		if _, err := batchResp.Exec(); err != nil {
 			return pushListError(err)
 		}
@@ -104,6 +108,7 @@ func (d DatabaseStorage) PushList(ctx context.Context, keys []string, records []
 	return nil
 }
 
+// Get returns stored metrics record.
 func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 	var (
 		name  string
@@ -124,10 +129,10 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 	}
 
 	switch kind {
-	case entity.Counter:
+	case metrics.KindCounter:
 		return Record{Name: name, Value: metrics.Counter(value)}, nil
 
-	case entity.Gauge:
+	case metrics.KindGauge:
 		return Record{Name: name, Value: metrics.Gauge(value)}, nil
 
 	default:
@@ -135,6 +140,7 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 	}
 }
 
+// GetAll returns all stored metrics.
 func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 	rows, err := d.pool.Query(ctx, "SELECT name, kind, value FROM metrics")
 	if err != nil {
@@ -151,11 +157,11 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 	rv := make([]Record, 0)
 	_, err = pgx.ForEachRow(rows, []any{&name, &kind, &value}, func() error {
 		switch kind {
-		case entity.Counter:
+		case metrics.KindCounter:
 			rv = append(rv, Record{Name: name, Value: metrics.Counter(value)})
 			return nil
 
-		case entity.Gauge:
+		case metrics.KindGauge:
 			rv = append(rv, Record{Name: name, Value: metrics.Gauge(value)})
 			return nil
 
@@ -171,10 +177,12 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 	return rv, nil
 }
 
+// Ping verifies that connection to the database can be established.
 func (d DatabaseStorage) Ping(ctx context.Context) error {
 	return d.pool.Ping(ctx) //nolint: wrapcheck
 }
 
+// Close closes all open connection to the database.
 func (d DatabaseStorage) Close() error {
 	d.pool.Close()
 	return nil

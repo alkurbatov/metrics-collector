@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,30 +30,21 @@ func TestPush(t *testing.T) {
 	require.Equal(value, m.Data[metricID].Value)
 }
 
-func TestPushList(t *testing.T) {
-	keys := []string{
-		"PollCount_counter",
-		"Alloc_gauge",
-	}
-	input := []storage.Record{
-		{Name: "PollCount", Value: metrics.Counter(10)},
-		{Name: "Alloc", Value: metrics.Gauge(13.123)},
-	}
-
+func TestPushBatch(t *testing.T) {
 	tt := []struct {
-		name    string
-		keys    []string
-		records []storage.Record
+		name string
+		data map[string]storage.Record
 	}{
 		{
-			name:    "Should push list of records",
-			keys:    keys,
-			records: input,
+			name: "Should push list of records",
+			data: map[string]storage.Record{
+				"PollCount_counter": {Name: "PollCount", Value: metrics.Counter(10)},
+				"Alloc_gauge":       {Name: "Alloc", Value: metrics.Gauge(13.123)},
+			},
 		},
 		{
-			name:    "Should not fail on empty input",
-			keys:    make([]string, 0),
-			records: make([]storage.Record, 0),
+			name: "Should not fail on empty input",
+			data: make(map[string]storage.Record, 0),
 		},
 	}
 
@@ -61,7 +52,7 @@ func TestPushList(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := storage.NewMemStorage()
 
-			err := m.PushList(context.Background(), tc.keys, tc.records)
+			err := m.PushBatch(context.Background(), tc.data)
 			assert.NoError(t, err)
 		})
 	}

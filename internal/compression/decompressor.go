@@ -3,11 +3,19 @@ package compression
 import (
 	"compress/gzip"
 	"net/http"
+	"sync"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/rs/zerolog/log"
 )
 
+var gzipReadersPool = sync.Pool{
+	New: func() interface{} {
+		return new(gzip.Reader)
+	},
+}
+
+// DecompressRequest is net/http middleware extracting gzip-compressed requests.
 func DecompressRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoding := r.Header.Get("Content-Encoding")
@@ -27,14 +35,21 @@ func DecompressRequest(next http.Handler) http.Handler {
 			return
 		}
 
-		reader, err := gzip.NewReader(r.Body)
-		if err != nil {
-			logger.Error().Err(err).Msg("")
+		reader := gzipReadersPool.Get().(*gzip.Reader)
+		if err := reader.Reset(r.Body); err != nil {
+			logger.Error().Err(err).Msg("DecompressRequest - reader.Reset")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		defer reader.Close()
+		defer func() {
+			if err := reader.Close(); err != nil {
+				logger.Error().Err(err).Msg("DecompressRequest - reader.Close")
+			}
+
+			gzipReadersPool.Put(reader)
+		}()
+
 		r.Body = reader
 
 		next.ServeHTTP(w, r)

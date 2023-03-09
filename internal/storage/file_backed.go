@@ -18,6 +18,8 @@ func restoreError(reason error) error {
 	return fmt.Errorf("data restore failed: %w", reason)
 }
 
+// FileBackedStorage implements in-memory metrics storage with ability to
+// dump/restore metrics data to/from disk.
 type FileBackedStorage struct {
 	*MemStorage
 	sync.Mutex
@@ -29,6 +31,7 @@ type FileBackedStorage struct {
 	syncMode bool
 }
 
+// NewFileBackedStorage creates new instance of FileBackedStorage.
 func NewFileBackedStorage(storePath string, syncMode bool) *FileBackedStorage {
 	return &FileBackedStorage{
 		MemStorage: NewMemStorage(),
@@ -37,6 +40,7 @@ func NewFileBackedStorage(storePath string, syncMode bool) *FileBackedStorage {
 	}
 }
 
+// Push records metric data.
 func (f *FileBackedStorage) Push(ctx context.Context, key string, record Record) error {
 	if err := f.MemStorage.Push(ctx, key, record); err != nil {
 		return err
@@ -49,8 +53,9 @@ func (f *FileBackedStorage) Push(ctx context.Context, key string, record Record)
 	return nil
 }
 
-func (f *FileBackedStorage) PushList(ctx context.Context, keys []string, records []Record) error {
-	if err := f.MemStorage.PushList(ctx, keys, records); err != nil {
+// PushBatch records list of metrics data.
+func (f *FileBackedStorage) PushBatch(ctx context.Context, data map[string]Record) error {
+	if err := f.MemStorage.PushBatch(ctx, data); err != nil {
 		return err
 	}
 
@@ -61,10 +66,12 @@ func (f *FileBackedStorage) PushList(ctx context.Context, keys []string, records
 	return nil
 }
 
+// Close dumps all stored data to disk. The storage can be restored from this dump later.
 func (f *FileBackedStorage) Close() error {
 	return f.Dump(context.Background())
 }
 
+// Restore reads previously stored data from disk and populates the storage.
 func (f *FileBackedStorage) Restore() error {
 	f.Lock()
 	defer f.Unlock()
@@ -93,6 +100,7 @@ func (f *FileBackedStorage) Restore() error {
 	return nil
 }
 
+// Dump writes all stored data to disk. The storage can be restored from this dump later.
 func (f *FileBackedStorage) Dump(ctx context.Context) error {
 	f.Lock()
 	defer f.Unlock()

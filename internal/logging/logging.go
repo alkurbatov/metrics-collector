@@ -11,6 +11,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// Setup initializes new logger to be used across packages of the project.
 func Setup(debug bool) {
 	output := zerolog.ConsoleWriter{Out: os.Stdout}
 	output.TimeFormat = time.RFC822
@@ -28,6 +29,7 @@ func Setup(debug bool) {
 	log.Logger = l.Logger()
 }
 
+// RequestsLogger is net/http middleware used to log incoming requests and responses.
 func RequestsLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)

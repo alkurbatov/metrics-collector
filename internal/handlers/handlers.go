@@ -12,11 +12,10 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
-	"github.com/alkurbatov/metrics-collector/internal/schema"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
 type metricsResource struct {
@@ -26,12 +25,12 @@ type metricsResource struct {
 }
 
 func parseUpdateMetricReqList(r *http.Request, signer *security.Signer) ([]storage.Record, error) {
-	req := make([]schema.MetricReq, 0)
+	req := make([]metrics.MetricReq, 0)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err //nolint: wrapcheck
 	}
 
-	rv := make([]storage.Record, 0)
+	rv := make([]storage.Record, len(req))
 
 	for i := range req {
 		record, err := toRecord(r.Context(), &req[i], signer)
@@ -39,7 +38,7 @@ func parseUpdateMetricReqList(r *http.Request, signer *security.Signer) ([]stora
 			return nil, err
 		}
 
-		rv = append(rv, record)
+		rv[i] = record
 	}
 
 	if len(rv) == 0 {
@@ -55,8 +54,21 @@ func newMetricsResource(viewsPath string, recorder services.Recorder, signer *se
 	return metricsResource{view: view, recorder: recorder, signer: signer}
 }
 
+// Update godoc
+// @Tags Metrics
+// @Router /update/{type}/{name}/{value} [post]
+// @Summary Push metric data.
+// @ID metrics_update
+// @Produce plain
+// @Param type path string true "Metrics type (e.g. `counter`, `gauge`)."
+// @Param name path string true "Metrics name."
+// @Param value path string true "Metrics value, must be convertable to `int64` or `float64`."
+// @Success 200 {string} string
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
-	req := schema.MetricReq{
+	req := metrics.MetricReq{
 		ID:    chi.URLParam(r, "name"),
 		MType: chi.URLParam(r, "kind"),
 	}
@@ -64,7 +76,7 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	switch req.MType {
-	case entity.Counter:
+	case metrics.KindCounter:
 		delta, err := metrics.ToCounter(rawValue)
 		if err != nil {
 			writeErrorResponse(ctx, w, http.StatusBadRequest, err)
@@ -73,7 +85,7 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 
 		req.Delta = &delta
 
-	case entity.Gauge:
+	case metrics.KindGauge:
 		value, err := metrics.ToGauge(rawValue)
 		if err != nil {
 			writeErrorResponse(ctx, w, http.StatusBadRequest, err)
@@ -107,10 +119,21 @@ func (h metricsResource) Update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdateJSON godoc
+// @Tags Metrics
+// @Router /update [post]
+// @Summary Push metric data as JSON
+// @ID metrics_json_update
+// @Accept  json
+// @Param request body metrics.MetricReq true "Request parameters."
+// @Success 200 {object} metrics.MetricReq
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	req := new(schema.MetricReq)
+	req := new(metrics.MetricReq)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
@@ -151,6 +174,17 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// BatchUpdateJSON godoc
+// @Tags Metrics
+// @Router /updates [post]
+// @Summary Push list of metrics data as JSON
+// @ID metrics_json_update_list
+// @Accept  json
+// @Param request body []metrics.MetricReq true "List of metrics to update."
+// @Success 200
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) BatchUpdateJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -172,18 +206,31 @@ func (h metricsResource) BatchUpdateJSON(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// Get godoc
+// @Tags Metrics
+// @Router /value/{type}/{name} [get]
+// @Summary Get metrics value as string
+// @ID metrics_info
+// @Produce plain
+// @Param type path string true "Metrics type (e.g. `counter`, `gauge`)."
+// @Param name path string true "Metrics name."
+// @Success 200 {string} string
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 404 {string} string "Metric not found"
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	kind := chi.URLParam(r, "kind")
 	name := chi.URLParam(r, "name")
 
-	if err := schema.ValidateMetricName(name, kind); err != nil {
+	if err := ValidateMetricName(name, kind); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := schema.ValidateMetricKind(kind); err != nil {
+	if err := ValidateMetricKind(kind); err != nil {
 		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
 		return
 	}
@@ -206,21 +253,34 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetJSON godoc
+// @Tags Metrics
+// @Router /value [post]
+// @Summary Get metrics value as JSON
+// @ID metrics_json_info
+// @Accept  json
+// @Produce json
+// @Param request body metrics.MetricReq true "Request parameters: `id` and `type` are required."
+// @Success 200 {object} metrics.MetricReq
+// @Failure 400 {string} string http.StatusBadRequest
+// @Failure 404 {string} string "Metric not found"
+// @Failure 500 {string} string http.StatusInternalServerError
+// @Failure 501 {string} string "Metric type is not supported"
 func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	req := new(schema.MetricReq)
+	req := new(metrics.MetricReq)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := schema.ValidateMetricName(req.ID, req.MType); err != nil {
+	if err := ValidateMetricName(req.ID, req.MType); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := schema.ValidateMetricKind(req.MType); err != nil {
+	if err := ValidateMetricKind(req.MType); err != nil {
 		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
 		return
 	}
@@ -254,6 +314,14 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// List godoc
+// @Tags Metrics
+// @Router / [get]
+// @Summary Get HTML page with full list of stored metrics
+// @ID metrics_list
+// @Produce html
+// @Success 200
+// @Failure 500 {string} string http.StatusInternalServerError
 func (h metricsResource) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -279,6 +347,14 @@ func newLivenessProbe(healthcheck services.HealthCheck) livenessProbe {
 	return livenessProbe{healthcheck: healthcheck}
 }
 
+// Ping godoc
+// @Tags Healthcheck
+// @Router /ping [get]
+// @Summary Verify connection to the database
+// @ID health_info
+// @Success 200
+// @Failure 500 {string} string "Connection is broken"
+// @Failure 501 {string} string "Server is not configured to use database"
 func (h livenessProbe) Ping(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()

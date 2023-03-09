@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/exporter"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
-	"github.com/alkurbatov/metrics-collector/internal/metrics"
+	"github.com/alkurbatov/metrics-collector/internal/monitoring"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/caarlos0/env/v6"
 	"github.com/rs/zerolog/log"
@@ -17,17 +18,17 @@ import (
 )
 
 type AgentConfig struct {
-	PollInterval     time.Duration   `env:"POLL_INTERVAL"`
-	ReportInterval   time.Duration   `env:"REPORT_INTERVAL"`
-	CollectorAddress NetAddress      `env:"ADDRESS"`
-	Secret           security.Secret `env:"KEY"`
+	PollInterval     time.Duration     `env:"POLL_INTERVAL"`
+	ReportInterval   time.Duration     `env:"REPORT_INTERVAL"`
+	CollectorAddress entity.NetAddress `env:"ADDRESS"`
+	Secret           security.Secret   `env:"KEY"`
 	PollTimeout      time.Duration
 	ExportTimeout    time.Duration
 	Debug            bool `env:"DEBUG"`
 }
 
 func NewAgentConfig() AgentConfig {
-	collectorAddress := NetAddress("0.0.0.0:8080")
+	collectorAddress := entity.NetAddress("0.0.0.0:8080")
 	flag.VarP(
 		&collectorAddress,
 		"collector-address",
@@ -105,7 +106,7 @@ func (c AgentConfig) String() string {
 
 type Agent struct {
 	Config AgentConfig
-	stats  metrics.Metrics
+	stats  monitoring.Metrics
 }
 
 func NewAgent() *Agent {
@@ -117,7 +118,7 @@ func NewAgent() *Agent {
 	return &Agent{Config: cfg}
 }
 
-func (app *Agent) poll(ctx context.Context, stats *metrics.Metrics) {
+func (app *Agent) poll(ctx context.Context, stats *monitoring.Metrics) {
 	ticker := time.NewTicker(app.Config.PollInterval)
 	defer ticker.Stop()
 
@@ -154,7 +155,7 @@ func (app *Agent) poll(ctx context.Context, stats *metrics.Metrics) {
 	}
 }
 
-func (app *Agent) report(ctx context.Context, stats *metrics.Metrics) {
+func (app *Agent) report(ctx context.Context, stats *monitoring.Metrics) {
 	ticker := time.NewTicker(app.Config.ReportInterval)
 	defer ticker.Stop()
 
@@ -169,7 +170,7 @@ func (app *Agent) report(ctx context.Context, stats *metrics.Metrics) {
 				taskCtx, cancel := context.WithTimeout(ctx, app.Config.ExportTimeout)
 				defer cancel()
 
-				err := exporter.SendMetrics(taskCtx, app.Config.CollectorAddress.String(), app.Config.Secret, stats)
+				err := exporter.SendMetrics(taskCtx, app.Config.CollectorAddress, app.Config.Secret, stats)
 
 				if errors.Is(err, context.DeadlineExceeded) {
 					log.Error().Dur("deadline", app.Config.PollTimeout).Msg("metrics exporting exceeded deadline")
