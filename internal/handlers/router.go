@@ -1,3 +1,4 @@
+// Package handlers implements REST API for metrics collector server.
 package handlers
 
 // @Title Metrics collector API

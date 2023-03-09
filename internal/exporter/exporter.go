@@ -1,3 +1,4 @@
+// Package exporter provides means to export collected metrics.
 package exporter
 
 import (

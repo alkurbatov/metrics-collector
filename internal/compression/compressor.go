@@ -19,7 +19,7 @@ var gzipWritersPool = sync.Pool{
 	},
 }
 
-// A compressor implements data compression using grip encoder.
+// A Compressor implements data compression using grip encoder.
 type Compressor struct {
 	http.ResponseWriter
 

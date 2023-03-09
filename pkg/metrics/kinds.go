@@ -9,7 +9,7 @@ const (
 	KindGauge   = "gauge"
 )
 
-// Common representation of all supported metrics kinds.
+// A Metric is common representation of all supported metrics kinds.
 type Metric interface {
 	// Kind return kind of this metric, e.g. "counter".
 	Kind() string

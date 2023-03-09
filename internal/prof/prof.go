@@ -1,3 +1,4 @@
+// Package prof encapsulates pprof with attached HTTP server.
 package prof
 
 import (
@@ -49,7 +50,7 @@ func New(address entity.NetAddress) *Profiler {
 	return p
 }
 
-// Starts the HTTP server handling pprof requests.
+// Start runs the HTTP server handling pprof requests.
 func (p *Profiler) Start() {
 	if err := p.server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal().Err(err).Msg("Profiler - Start - p.server.ListenAndServe")
