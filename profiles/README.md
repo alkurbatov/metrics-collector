@@ -20,6 +20,8 @@ go tool pprof -top -diff_base=profiles/base.server.pprof profiles/result.server.
 
 # Более детальное в интерактивном режиме:
 go tool pprof -nodefraction=0 -base ./profiles/base.server.pprof ./cmd/server/server ./profiles/result.server.pprof
+
+# Для получение еще более подробной информации добавьте флаги `-nodefraction 0 -nodecount 100000`.
 ```
 
 ### Дополнительные опции
