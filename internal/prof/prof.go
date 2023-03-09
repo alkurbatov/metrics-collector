@@ -9,8 +9,6 @@ import (
 	"runtime"
 	"time"
 
-	_ "net/http/pprof" //nolint: gosec //served on different port which should be hidden in production
-
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/zerolog/log"
@@ -30,9 +28,7 @@ func New(address entity.NetAddress) *Profiler {
 	r := chi.NewRouter()
 
 	r.Use(logging.RequestsLogger)
-	r.Use(middleware.StripSlashes)
-
-	r.Mount("/debug/pprof", http.DefaultServeMux)
+	r.Mount("/debug", middleware.Profiler())
 
 	httpServer := &http.Server{
 		Handler:     r,
