@@ -72,7 +72,7 @@ func (f *FileBackedStorage) Close() error {
 }
 
 // Restore reads previously stored data from disk and populates the storage.
-func (f *FileBackedStorage) Restore() error {
+func (f *FileBackedStorage) Restore() (err error) {
 	f.Lock()
 	defer f.Unlock()
 
@@ -88,7 +88,11 @@ func (f *FileBackedStorage) Restore() error {
 		return restoreError(err)
 	}
 
-	defer file.Close()
+	defer func() {
+		if dErr := file.Close(); err == nil {
+			err = restoreError(dErr)
+		}
+	}()
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(f.MemStorage); err != nil {
@@ -101,7 +105,7 @@ func (f *FileBackedStorage) Restore() error {
 }
 
 // Dump writes all stored data to disk. The storage can be restored from this dump later.
-func (f *FileBackedStorage) Dump(ctx context.Context) error {
+func (f *FileBackedStorage) Dump(ctx context.Context) (err error) {
 	f.Lock()
 	defer f.Unlock()
 
@@ -112,10 +116,14 @@ func (f *FileBackedStorage) Dump(ctx context.Context) error {
 		return dumpError(err)
 	}
 
-	defer file.Close()
+	defer func() {
+		if dErr := file.Close(); err == nil {
+			err = dumpError(dErr)
+		}
+	}()
 
 	encoder := json.NewEncoder(file)
-	snapshot := f.MemStorage.Snapshot()
+	snapshot := f.Snapshot()
 
 	if err := encoder.Encode(snapshot); err != nil {
 		return dumpError(err)
