@@ -48,5 +48,7 @@ func ExampleNewUpdateCounterReq() {
 	}
 
 	// For this example we don't care about the response.
-	defer resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		log.Fatal(err)
+	}
 }

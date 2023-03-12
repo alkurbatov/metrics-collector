@@ -42,7 +42,9 @@ func sendTestRequest(t *testing.T, router http.Handler, method, path string, pay
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	contentType := resp.Header.Get("Content-Type")
 
