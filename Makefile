@@ -1,4 +1,4 @@
-COMPONENTS = agent server
+COMPONENTS = agent server staticlint
 E2E_TEST = test/devopstest
 API_DOCS = docs/api
 CCFLAGS =
@@ -37,6 +37,7 @@ clean: ## Remove build artifacts and downloaded test tools
 
 lint: ## Run linters on the source code
 	golangci-lint run
+	./cmd/staticlint/staticlint ./cmd/... ./internal/... ./pkg/...
 .PHONY: lint
 
 unit-tests: ## Run unit tests
