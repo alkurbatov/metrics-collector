@@ -6,11 +6,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/alkurbatov/metrics-collector/internal/app"
+	"github.com/alkurbatov/metrics-collector/internal/server"
 )
 
 func main() {
-	app := app.NewServer()
+	app := server.New()
 
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan,

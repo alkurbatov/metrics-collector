@@ -8,12 +8,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/alkurbatov/metrics-collector/internal/app"
+	"github.com/alkurbatov/metrics-collector/internal/agent"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	app := app.NewAgent()
+	app := agent.New()
 
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan,
