@@ -1,8 +1,43 @@
-// Package staticlint implements multichecker static analyser with various linters
-// from passes, staticheck etc.
+// Package staticlint implements multichecker static analyser with different linters.
+// The packages uses golang.org/x/tools/go/analysis/multichecker under the hood
+// to combine different linters in unified and convenient utility.
+//
+// Staticlint includes the following linters:
+//
+// From golang.org/x/tools/go/analysis/passes:
+// assign, atomic, atomicalign, bools, composite, copylock, deepequalerrors,
+// directive, errorsas, httpresponse, ifaceassert, loopclosure, lostcancel,
+// nilfunc, nilness, reflectvaluecompare, shadow, shift, sigchanyzer, sortslice,
+// stdmethods, stringintconv, structtag, tests, timeformat, unmarshal,
+// unreachable, unsafeptr, unusedresult, unusedwrite.
+//
+// For additional details regarding particular linter please refer to:
+// https://pkg.go.dev/golang.org/x/tools/go/analysis/passes
+//
+// From staticheck.io:
+//   - All SA* (staticcheck) linters.
+//   - All S* (simple) linters.
+//   - All ST* (stylecheck) linters.
+//   - All QF* (quickfix) linters.
+//
+// For additional details regarding particular linting group please refer to:
+// https://staticcheck.io/docs/checks/
+//
+// Other publicly available linters:
+//   - errcheck to check for unchecked errors in Go code, see
+//     https://github.com/kisielk/errcheck
+//   - bodyclose to check whether HTTP response body is closed and
+//     a re-use of TCP connection is not blocked, see:
+//     https://github.com/timakin/bodyclose
+//   - testpackage that makes you use a separate _test package, see
+//     https://github.com/maratori/testpackage
+//
+// Custom linters:
+//   - noexit to check whether os.Exit is used in the main function of the main package.
 package staticlint
 
 import (
+	"github.com/alkurbatov/metrics-collector/pkg/noexit"
 	"github.com/kisielk/errcheck/errcheck"
 	"github.com/maratori/testpackage/pkg/testpackage"
 	"github.com/timakin/bodyclose/passes/bodyclose"
@@ -45,10 +80,13 @@ import (
 	"honnef.co/go/tools/stylecheck"
 )
 
+// StaticLint is umbrella structure for collection of linters passed to
+// golang.org/x/tools/go/analysis/multichecker.
 type StaticLint struct {
 	checkers []*analysis.Analyzer
 }
 
+// New initializes new instance of StaticLint linter.
 func New() StaticLint {
 	// Add analyzers from passes.
 	checkers := []*analysis.Analyzer{
@@ -101,9 +139,13 @@ func New() StaticLint {
 	checkers = append(checkers, bodyclose.Analyzer)
 	checkers = append(checkers, testpackage.NewAnalyzer())
 
+	// Add custom linter.
+	checkers = append(checkers, noexit.Analyzer)
+
 	return StaticLint{checkers}
 }
 
+// Run launches the linters against provided source code.
 func (s StaticLint) Run() {
 	multichecker.Main(s.checkers...)
 }

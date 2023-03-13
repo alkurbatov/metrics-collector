@@ -53,6 +53,6 @@ e2e-tests: $(E2E_TEST) build ### Run e2e tests
 
 godoc: ### Show public packages documentation using godoc
 	@echo "Project documentation is available at:"
-	@echo "http://127.0.0.1:3000/pkg/github.com/alkurbatov/metrics-collector/pkg/metrics/\n"
+	@echo "http://127.0.0.1:3000/pkg/github.com/alkurbatov/metrics-collector/pkg/\n"
 	@godoc -http=:3000 -index -play
 .PHONY: godoc
