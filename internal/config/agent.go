@@ -1,4 +1,4 @@
-package agent
+package config
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-type Config struct {
+type Agent struct {
 	PollInterval     time.Duration     `env:"POLL_INTERVAL"`
 	ReportInterval   time.Duration     `env:"REPORT_INTERVAL"`
 	CollectorAddress entity.NetAddress `env:"ADDRESS"`
@@ -22,7 +22,7 @@ type Config struct {
 	Debug            bool `env:"DEBUG"`
 }
 
-func NewConfig() Config {
+func NewAgent() *Agent {
 	collectorAddress := entity.NetAddress("0.0.0.0:8080")
 	flag.VarP(
 		&collectorAddress,
@@ -61,7 +61,7 @@ func NewConfig() Config {
 
 	flag.Parse()
 
-	cfg := Config{
+	cfg := Agent{
 		CollectorAddress: collectorAddress,
 		ReportInterval:   *reportInterval,
 		PollInterval:     *pollInterval,
@@ -76,10 +76,10 @@ func NewConfig() Config {
 		log.Fatal().Err(err).Msg("")
 	}
 
-	return cfg
+	return &cfg
 }
 
-func (c Config) String() string {
+func (c Agent) String() string {
 	var sb strings.Builder
 
 	sb.WriteString("Configuration:\n")

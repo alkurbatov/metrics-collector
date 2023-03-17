@@ -1,7 +1,12 @@
 COMPONENTS = agent server staticlint
 E2E_TEST = test/devopstest
 API_DOCS = docs/api
-CCFLAGS =
+
+AGENT_VERSION ?= 0.19.0
+SERVER_VERSION ?= 0.19.0
+
+BUILD_DATE ?= $(shell date +%F\ %H:%M:%S)
+BUILD_COMMIT ?= $(shell git rev-parse --short HEAD)
 
 DEFAULT_GOAL := help
 
@@ -20,16 +25,37 @@ $(E2E_TEST):
 		-o $@
 	@chmod +x $(E2E_TEST)
 
-build: api-docs $(COMPONENTS) ## Build whole project
+build: $(COMPONENTS) ## Build whole project
 .PHONY: build
 
-$(COMPONENTS):
-	go build $(CCFLAGS) -o cmd/$@/$@ cmd/$@/*.go
+agent: ## Build agent
+	go build \
+		-ldflags "\
+			-X 'main.buildVersion=$(AGENT_VERSION)' \
+			-X 'main.buildDate=$(BUILD_DATE)' \
+			-X 'main.buildCommit=$(BUILD_COMMIT)' \
+		" \
+		-o cmd/$@/$@ \
+		cmd/$@/*.go
+.PHONY: agent
 
-api-docs:
+server: ## Build metrics server
 	rm -rf $(API_DOCS)
 	swag init -g ./internal/handlers/router.go --output $(API_DOCS)
-.PHONY: api-docs
+
+	go build \
+		-ldflags "\
+			-X 'main.buildVersion=$(SERVER_VERSION)' \
+			-X 'main.buildDate=$(BUILD_DATE)' \
+			-X 'main.buildCommit=$(BUILD_COMMIT)' \
+		" \
+		-o cmd/$@/$@ \
+		cmd/$@/*.go
+.PHONY: server
+
+staticlint: ## Build static lint utility
+	go build $(CCFLAGS) -o cmd/$@/$@ cmd/$@/*.go
+.PHONY: staticlint
 
 clean: ## Remove build artifacts and downloaded test tools
 	rm -f cmd/agent/agent cmd/server/server $(E2E_TEST) $(API_DOCS)

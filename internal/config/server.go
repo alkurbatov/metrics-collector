@@ -1,4 +1,4 @@
-package server
+package config
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-type Config struct {
+type Server struct {
 	ListenAddress  entity.NetAddress    `env:"ADDRESS"`
 	StoreInterval  time.Duration        `env:"STORE_INTERVAL"`
 	StorePath      string               `env:"STORE_FILE"`
@@ -22,7 +22,7 @@ type Config struct {
 	Debug          bool                 `env:"DEBUG"`
 }
 
-func NewConfig() (*Config, error) {
+func NewServer() (*Server, error) {
 	var (
 		listenAddress entity.NetAddress = "0.0.0.0:8080"
 		pprofAddress  entity.NetAddress
@@ -84,7 +84,7 @@ func NewConfig() (*Config, error) {
 
 	flag.Parse()
 
-	cfg := &Config{
+	cfg := &Server{
 		ListenAddress:  listenAddress,
 		StorePath:      *storePath,
 		StoreInterval:  *storeInterval,
@@ -107,7 +107,7 @@ func NewConfig() (*Config, error) {
 	return cfg, nil
 }
 
-func (c Config) String() string {
+func (c Server) String() string {
 	var sb strings.Builder
 
 	sb.WriteString("Configuration:\n")

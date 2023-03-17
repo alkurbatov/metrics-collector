@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/alkurbatov/metrics-collector/internal/config"
 	"github.com/alkurbatov/metrics-collector/internal/handlers"
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/prof"
 	"github.com/alkurbatov/metrics-collector/internal/recovery"
 	"github.com/alkurbatov/metrics-collector/internal/security"
@@ -21,22 +21,17 @@ import (
 )
 
 type Server struct {
-	config   *Config
+	config   *config.Server
 	storage  storage.Storage
 	server   *http.Server
 	profiler *prof.Profiler
 }
 
-func New() *Server {
-	cfg, err := NewConfig()
-	if err != nil {
-		log.Fatal().Err(err).Msg("")
-	}
-
-	logging.Setup(cfg.Debug)
-	log.Info().Msg(cfg.String())
-
-	var pool *pgxpool.Pool
+func New(cfg *config.Server) *Server {
+	var (
+		pool *pgxpool.Pool
+		err  error
+	)
 
 	if len(cfg.DatabaseURL) > 0 {
 		if err = runMigrations(cfg.DatabaseURL); err != nil {

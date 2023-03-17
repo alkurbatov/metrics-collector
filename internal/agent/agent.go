@@ -6,24 +6,19 @@ import (
 	"errors"
 	"time"
 
+	"github.com/alkurbatov/metrics-collector/internal/config"
 	"github.com/alkurbatov/metrics-collector/internal/exporter"
-	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/monitoring"
 	"github.com/alkurbatov/metrics-collector/internal/recovery"
 	"github.com/rs/zerolog/log"
 )
 
 type Agent struct {
-	config Config
+	config *config.Agent
 	stats  monitoring.Metrics
 }
 
-func New() *Agent {
-	cfg := NewConfig()
-
-	logging.Setup(cfg.Debug)
-	log.Info().Msg(cfg.String())
-
+func New(cfg *config.Agent) *Agent {
 	return &Agent{config: cfg}
 }
 
