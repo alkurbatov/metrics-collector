@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"os"
 	"time"
@@ -27,7 +28,7 @@ type Server struct {
 	profiler *prof.Profiler
 }
 
-func New(cfg *config.Server) *Server {
+func New(cfg *config.Server) (*Server, error) {
 	var (
 		pool *pgxpool.Pool
 		err  error
@@ -35,12 +36,12 @@ func New(cfg *config.Server) *Server {
 
 	if len(cfg.DatabaseURL) > 0 {
 		if err = runMigrations(cfg.DatabaseURL); err != nil {
-			log.Fatal().Err(err).Msg("")
+			return nil, fmt.Errorf("Server - New - runMigrations: %w", err)
 		}
 
 		pool, err = pgxpool.New(context.Background(), string(cfg.DatabaseURL))
 		if err != nil {
-			log.Fatal().Err(err).Msg("")
+			return nil, fmt.Errorf("Server - New - pgxpool.New: %w", err)
 		}
 	}
 
@@ -53,7 +54,12 @@ func New(cfg *config.Server) *Server {
 		signer = security.NewSigner(cfg.Secret)
 	}
 
-	router := handlers.Router(cfg.ListenAddress, "./web/views", recorder, healthcheck, signer)
+	view, err := template.ParseFiles("./web/views/metrics.html")
+	if err != nil {
+		return nil, fmt.Errorf("Server - New - template.ParseFiles: %w", err)
+	}
+
+	router := handlers.Router(cfg.ListenAddress, view, recorder, healthcheck, signer)
 	srv := &http.Server{
 		Addr:    cfg.ListenAddress.String(),
 		Handler: router,
@@ -76,7 +82,7 @@ func New(cfg *config.Server) *Server {
 		storage:  dataStore,
 		server:   srv,
 		profiler: profiler,
-	}
+	}, nil
 }
 
 func (app *Server) restoreStorage() {

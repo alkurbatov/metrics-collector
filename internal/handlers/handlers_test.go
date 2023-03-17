@@ -3,6 +3,7 @@ package handlers_test
 import (
 	"bytes"
 	"encoding/json"
+	"html/template"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,13 +20,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newRouter(key security.Secret, recorder services.Recorder, healthcheck services.HealthCheck) http.Handler {
+func newRouter(
+	t *testing.T,
+	key security.Secret,
+	recorder services.Recorder,
+	healthcheck services.HealthCheck,
+) http.Handler {
+	t.Helper()
+
 	var signer *security.Signer
 	if len(key) > 0 {
 		signer = security.NewSigner(key)
 	}
 
-	return handlers.Router("0.0.0.0:8080", "../../web/views", recorder, healthcheck, signer)
+	view, err := template.ParseFiles("../../web/views/metrics.html")
+	require.NoError(t, err)
+
+	return handlers.Router("0.0.0.0:8080", view, recorder, healthcheck, signer)
 }
 
 func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) (int, string, []byte) {
@@ -141,7 +152,7 @@ func TestUpdateMetric(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("Push", mock.Anything, mock.AnythingOfType("Record")).Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter("", m, nil)
+			router := newRouter(t, "", m, nil)
 			code, _, body := sendTestRequest(t, router, http.MethodPost, tc.path, nil)
 
 			assert.Equal(tc.expected.code, code)
@@ -263,7 +274,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("Push", mock.Anything, mock.AnythingOfType("Record")).Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter(tc.serverKey, m, nil)
+			router := newRouter(t, tc.serverKey, m, nil)
 
 			if len(tc.clientKey) > 0 {
 				signer := security.NewSigner(tc.clientKey)
@@ -363,7 +374,7 @@ func TestBatchUpdate(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderErr)
 
-			router := newRouter(tc.serverKey, m, nil)
+			router := newRouter(t, tc.serverKey, m, nil)
 
 			if len(tc.clientKey) > 0 {
 				signer := security.NewSigner(tc.clientKey)
@@ -469,7 +480,7 @@ func TestGetMetric(t *testing.T) {
 			m.On("Get", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 				Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter("", m, nil)
+			router := newRouter(t, "", m, nil)
 
 			code, contentType, body := sendTestRequest(t, router, http.MethodGet, tc.path, nil)
 
@@ -594,7 +605,7 @@ func TestGetJSONMetric(t *testing.T) {
 			m.On("Get", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 				Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter(tc.serverKey, m, nil)
+			router := newRouter(t, tc.serverKey, m, nil)
 
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
@@ -648,7 +659,7 @@ func TestListMetrics(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("List", mock.Anything).Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter("", m, nil)
+			router := newRouter(t, "", m, nil)
 			require := require.New(t)
 
 			code, contentType, body := sendTestRequest(t, router, http.MethodGet, "/", nil)
@@ -704,7 +715,7 @@ func TestPing(t *testing.T) {
 			m := new(services.HealthCheckMock)
 			m.On("CheckStorage", mock.Anything).Return(tc.checkResp)
 
-			router := newRouter("", nil, m)
+			router := newRouter(t, "", nil, m)
 
 			code, _, body := sendTestRequest(t, router, http.MethodGet, "/ping", nil)
 

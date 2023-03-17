@@ -27,7 +27,10 @@ func main() {
 	logging.Setup(cfg.Debug)
 	log.Info().Msg(cfg.String())
 
-	app := server.New(cfg)
+	app, err := server.New(cfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("")
+	}
 
 	log.Info().Msg("Build version: " + buildVersion)
 	log.Info().Msg("Build date: " + buildDate)

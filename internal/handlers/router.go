@@ -15,6 +15,7 @@ package handlers
 // @Tag.description "API to inspect service health state"
 
 import (
+	"html/template"
 	"net/http"
 
 	// Import pregenerated OpenAPI (Swagger) documentation.
@@ -31,12 +32,12 @@ import (
 
 func Router(
 	address entity.NetAddress,
-	viewsPath string,
+	view *template.Template,
 	recorder services.Recorder,
 	healthcheck services.HealthCheck,
 	signer *security.Signer,
 ) http.Handler {
-	metrics := newMetricsResource(viewsPath, recorder, signer)
+	metrics := newMetricsResource(view, recorder, signer)
 	probe := newLivenessProbe(healthcheck)
 
 	r := chi.NewRouter()

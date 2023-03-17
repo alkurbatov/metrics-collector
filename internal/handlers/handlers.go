@@ -48,9 +48,11 @@ func parseUpdateMetricReqList(r *http.Request, signer *security.Signer) ([]stora
 	return rv, nil
 }
 
-func newMetricsResource(viewsPath string, recorder services.Recorder, signer *security.Signer) metricsResource {
-	view := loadViewTemplate(viewsPath + "/metrics.html")
-
+func newMetricsResource(
+	view *template.Template,
+	recorder services.Recorder,
+	signer *security.Signer,
+) metricsResource {
 	return metricsResource{view: view, recorder: recorder, signer: signer}
 }
 
