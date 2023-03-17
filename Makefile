@@ -58,7 +58,7 @@ staticlint: ## Build static lint utility
 .PHONY: staticlint
 
 clean: ## Remove build artifacts and downloaded test tools
-	rm -f cmd/agent/agent cmd/server/server $(E2E_TEST) $(API_DOCS)
+	rm -rf cmd/agent/agent cmd/server/server cmd/staticlint/staticlint $(E2E_TEST)
 .PHONY: clean
 
 lint: ## Run linters on the source code
