@@ -1,3 +1,5 @@
+// Package security implements security-related features such as
+// signature creation and verification, secrets processing etc.
 package security
 
 import (

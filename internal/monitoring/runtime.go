@@ -6,7 +6,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
-// Metrics of Go runtime.
+// RuntimeStats represents Go runtime metrics.
 // Regarding puurpose of each value see:
 // https://pkg.go.dev/runtime#MemStats
 type RuntimeStats struct {

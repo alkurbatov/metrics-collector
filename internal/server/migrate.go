@@ -1,4 +1,4 @@
-package app
+package server
 
 import (
 	"errors"
@@ -38,7 +38,19 @@ func runMigrations(url security.DatabaseURL) error {
 	}
 
 	err = migrator.Up()
-	defer migrator.Close()
+
+	defer func() {
+		srcErr, dbErr := migrator.Close()
+		loc := "Server - runMigrations - migrator.Close"
+
+		if srcErr != nil {
+			log.Error().Err(srcErr).Msg(loc)
+		}
+
+		if dbErr != nil {
+			log.Error().Err(dbErr).Msg(loc)
+		}
+	}()
 
 	if err == nil {
 		log.Info().Msg("Applying migrations: success")

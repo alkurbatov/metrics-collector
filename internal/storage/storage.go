@@ -1,3 +1,4 @@
+// Package storage implements inetrface to diffent ways of storing metrics data.
 package storage
 
 import (
@@ -17,6 +18,7 @@ type Storage interface {
 	Close() error
 }
 
+// NewDataStore create new DataStore object encapsulating particular storage type.
 // New storage is picked according to the following priority:
 // - if DB connection was initialized, use database storage;
 // - if filePath is set, use file backed storage;

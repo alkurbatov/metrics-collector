@@ -3,6 +3,7 @@ package handlers_test
 import (
 	"bytes"
 	"encoding/json"
+	"html/template"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,16 +20,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newRouter(key security.Secret, recorder services.Recorder, healthcheck services.HealthCheck) http.Handler {
+func newRouter(
+	t *testing.T,
+	key security.Secret,
+	recorder services.Recorder,
+	healthcheck services.HealthCheck,
+) http.Handler {
+	t.Helper()
+
 	var signer *security.Signer
 	if len(key) > 0 {
 		signer = security.NewSigner(key)
 	}
 
-	return handlers.Router("0.0.0.0:8080", "../../web/views", recorder, healthcheck, signer)
+	view, err := template.ParseFiles("../../web/views/metrics.html")
+	require.NoError(t, err)
+
+	return handlers.Router("0.0.0.0:8080", view, recorder, healthcheck, signer)
 }
 
-func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) *http.Response {
+func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) (int, string, []byte) {
 	t.Helper()
 
 	srv := httptest.NewServer(router)
@@ -42,7 +53,20 @@ func sendTestRequest(t *testing.T, router http.Handler, method, path string, pay
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 
-	return resp
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	contentType := resp.Header.Get("Content-Type")
+
+	if resp.Body == http.NoBody {
+		return resp.StatusCode, contentType, nil
+	}
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return resp.StatusCode, contentType, respBody
 }
 
 func TestUpdateMetric(t *testing.T) {
@@ -128,17 +152,13 @@ func TestUpdateMetric(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("Push", mock.Anything, mock.AnythingOfType("Record")).Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter("", m, nil)
-			resp := sendTestRequest(t, router, http.MethodPost, tc.path, nil)
+			router := newRouter(t, "", m, nil)
+			code, _, body := sendTestRequest(t, router, http.MethodPost, tc.path, nil)
 
-			assert.Equal(tc.expected.code, resp.StatusCode)
+			assert.Equal(tc.expected.code, code)
 
 			if tc.expected.code == http.StatusOK {
-				respBody, err := io.ReadAll(resp.Body)
-				require.NoError(t, err)
-				defer resp.Body.Close()
-
-				assert.Equal(tc.expected.body, string(respBody))
+				assert.Equal(tc.expected.body, string(body))
 			}
 		})
 	}
@@ -254,7 +274,7 @@ func TestUpdateJSONMetric(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("Push", mock.Anything, mock.AnythingOfType("Record")).Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter(tc.serverKey, m, nil)
+			router := newRouter(t, tc.serverKey, m, nil)
 
 			if len(tc.clientKey) > 0 {
 				signer := security.NewSigner(tc.clientKey)
@@ -265,19 +285,15 @@ func TestUpdateJSONMetric(t *testing.T) {
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
 
-			resp := sendTestRequest(t, router, http.MethodPost, "/update", payload)
+			code, contentType, body := sendTestRequest(t, router, http.MethodPost, "/update", payload)
 
-			assert.Equal(tc.expected.code, resp.StatusCode)
+			assert.Equal(tc.expected.code, code)
 
 			if tc.expected.code == http.StatusOK {
-				assert.Equal("application/json", resp.Header.Get("Content-Type"))
-
-				respBody, err := io.ReadAll(resp.Body)
-				require.NoError(err)
-				defer resp.Body.Close()
+				assert.Equal("application/json", contentType)
 
 				var resp metrics.MetricReq
-				err = json.Unmarshal(respBody, &resp)
+				err = json.Unmarshal(body, &resp)
 				require.NoError(err)
 
 				assert.Equal(tc.req, resp)
@@ -358,7 +374,7 @@ func TestBatchUpdate(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderErr)
 
-			router := newRouter(tc.serverKey, m, nil)
+			router := newRouter(t, tc.serverKey, m, nil)
 
 			if len(tc.clientKey) > 0 {
 				signer := security.NewSigner(tc.clientKey)
@@ -372,10 +388,8 @@ func TestBatchUpdate(t *testing.T) {
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
 
-			resp := sendTestRequest(t, router, http.MethodPost, "/updates/", payload)
-			defer resp.Body.Close()
-
-			require.Equal(tc.expected.code, resp.StatusCode)
+			code, _, _ := sendTestRequest(t, router, http.MethodPost, "/updates/", payload)
+			require.Equal(tc.expected.code, code)
 		})
 	}
 }
@@ -466,18 +480,15 @@ func TestGetMetric(t *testing.T) {
 			m.On("Get", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 				Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter("", m, nil)
+			router := newRouter(t, "", m, nil)
 
-			resp := sendTestRequest(t, router, http.MethodGet, tc.path, nil)
-			assert.Equal(tc.expected.code, resp.StatusCode)
-			assert.Equal("text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
+			code, contentType, body := sendTestRequest(t, router, http.MethodGet, tc.path, nil)
+
+			assert.Equal(tc.expected.code, code)
+			assert.Equal("text/plain; charset=utf-8", contentType)
 
 			if tc.expected.code == http.StatusOK {
-				respBody, err := io.ReadAll(resp.Body)
-				require.NoError(t, err)
-				defer resp.Body.Close()
-
-				assert.Equal(tc.expected.body, string(respBody))
+				assert.Equal(tc.expected.body, string(body))
 			}
 		})
 	}
@@ -594,23 +605,19 @@ func TestGetJSONMetric(t *testing.T) {
 			m.On("Get", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 				Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter(tc.serverKey, m, nil)
+			router := newRouter(t, tc.serverKey, m, nil)
 
 			payload, err := json.Marshal(tc.req)
 			require.NoError(err)
 
-			resp := sendTestRequest(t, router, http.MethodPost, "/value", payload)
-			assert.Equal(tc.expected.code, resp.StatusCode)
+			code, contentType, body := sendTestRequest(t, router, http.MethodPost, "/value", payload)
+			assert.Equal(tc.expected.code, code)
 
 			if tc.expected.code == http.StatusOK {
-				assert.Equal("application/json", resp.Header.Get("Content-Type"))
-
-				respBody, err := io.ReadAll(resp.Body)
-				require.NoError(err)
-				defer resp.Body.Close()
+				assert.Equal("application/json", contentType)
 
 				var resp metrics.MetricReq
-				err = json.Unmarshal(respBody, &resp)
+				err = json.Unmarshal(body, &resp)
 				require.NoError(err)
 
 				tc.expected.body.Hash = tc.expected.hash
@@ -652,21 +659,18 @@ func TestListMetrics(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("List", mock.Anything).Return(tc.recorderRV, tc.recorderErr)
 
-			router := newRouter("", m, nil)
+			router := newRouter(t, "", m, nil)
 			require := require.New(t)
 
-			resp := sendTestRequest(t, router, http.MethodGet, "/", nil)
-			require.Equal(tc.expected.code, resp.StatusCode)
+			code, contentType, body := sendTestRequest(t, router, http.MethodGet, "/", nil)
+
+			require.Equal(tc.expected.code, code)
 
 			if tc.expected.code == http.StatusOK {
-				require.Equal("text/html; charset=utf-8", resp.Header.Get("Content-Type"))
+				require.Equal("text/html; charset=utf-8", contentType)
 			}
 
-			respBody, err := io.ReadAll(resp.Body)
-			defer resp.Body.Close()
-
-			require.NoError(err)
-			require.NotZero(len(respBody))
+			require.NotZero(len(body))
 		})
 	}
 }
@@ -711,19 +715,16 @@ func TestPing(t *testing.T) {
 			m := new(services.HealthCheckMock)
 			m.On("CheckStorage", mock.Anything).Return(tc.checkResp)
 
-			router := newRouter("", nil, m)
+			router := newRouter(t, "", nil, m)
 
-			resp := sendTestRequest(t, router, http.MethodGet, "/ping", nil)
-			require.Equal(tc.expected.code, resp.StatusCode)
+			code, _, body := sendTestRequest(t, router, http.MethodGet, "/ping", nil)
 
-			respBody, err := io.ReadAll(resp.Body)
-			require.NoError(err)
-			defer resp.Body.Close()
+			require.Equal(tc.expected.code, code)
 
 			if tc.expected.code == http.StatusOK {
-				require.Zero(len(respBody))
+				require.Nil(body)
 			} else {
-				require.NotZero(len(respBody))
+				require.NotZero(len(body))
 			}
 		})
 	}

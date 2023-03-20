@@ -37,15 +37,10 @@ func NewMetricsRecorder(dataStore storage.Storage) MetricsRecorder {
 func (r MetricsRecorder) calculateNewValue(
 	ctx context.Context,
 	key string,
-	prevRecord *storage.Record,
 	newRecord storage.Record,
 ) (metrics.Metric, error) {
 	if newRecord.Value.Kind() != metrics.KindCounter {
 		return newRecord.Value, nil
-	}
-
-	if prevRecord != nil {
-		return prevRecord.Value.(metrics.Counter) + newRecord.Value.(metrics.Counter), nil
 	}
 
 	storedRecord, err := r.storage.Get(ctx, key)
@@ -64,7 +59,7 @@ func (r MetricsRecorder) calculateNewValue(
 func (r MetricsRecorder) Push(ctx context.Context, record storage.Record) (storage.Record, error) {
 	id := CalculateID(record.Name, record.Value.Kind())
 
-	value, err := r.calculateNewValue(ctx, id, nil, record)
+	value, err := r.calculateNewValue(ctx, id, record)
 	if err != nil {
 		return storage.Record{}, pushError(err)
 	}
@@ -86,18 +81,16 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 
 		if prev, ok := data[id]; ok {
 			// NB (alkurbatov): Compress metrics with same names.
-			value, err := r.calculateNewValue(ctx, id, &prev, record)
-			if err != nil {
-				return pushListError(err)
+			if record.Value.Kind() == metrics.KindCounter {
+				record.Value = prev.Value.(metrics.Counter) + record.Value.(metrics.Counter)
 			}
 
-			prev.Value = value
-			data[id] = prev
+			data[id] = record
 
 			continue
 		}
 
-		value, err := r.calculateNewValue(ctx, id, nil, record)
+		value, err := r.calculateNewValue(ctx, id, record)
 		if err != nil {
 			return pushListError(err)
 		}

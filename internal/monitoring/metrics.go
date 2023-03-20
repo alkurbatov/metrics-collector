@@ -1,3 +1,5 @@
+// Package monitoring provides means to collect different types of metrics.
+// The collected metrics should be exported later e.g. using the package exporter.
 package monitoring
 
 import (

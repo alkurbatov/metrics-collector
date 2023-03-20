@@ -8,12 +8,29 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/alkurbatov/metrics-collector/internal/app"
+	"github.com/alkurbatov/metrics-collector/internal/agent"
+	"github.com/alkurbatov/metrics-collector/internal/config"
+	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/rs/zerolog/log"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
-	app := app.NewAgent()
+	cfg := config.NewAgent()
+
+	logging.Setup(cfg.Debug)
+
+	log.Info().Msg("Build version: " + buildVersion)
+	log.Info().Msg("Build date: " + buildDate)
+	log.Info().Msg("Build commit: " + buildCommit)
+	log.Info().Msg(cfg.String())
+
+	app := agent.New(cfg)
 
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan,

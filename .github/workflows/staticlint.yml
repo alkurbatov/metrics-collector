@@ -1,0 +1,26 @@
+name: staticlint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  staticlint:
+    runs-on: ubuntu-latest
+    container: golang:1.19
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.51.1
+
+      - name: Build staticlint
+        run: make staticlint
+
+      - name: Lint the code
+        run: make lint

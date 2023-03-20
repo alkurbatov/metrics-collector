@@ -1,3 +1,4 @@
+// Package exporter provides means to export collected metrics.
 package exporter
 
 import (
@@ -116,7 +117,10 @@ func (h *BatchExporter) doSend(ctx context.Context) error {
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
 	respBody, err := io.ReadAll(resp.Body)
 
 	if err != nil {

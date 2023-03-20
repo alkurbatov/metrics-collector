@@ -1,5 +1,4 @@
-// Client REST API for metrics collector (server).
-
+// Package metrics provides client REST API for metrics collector (server).
 package metrics
 
 // MetricReq represents info regarding particular metric name, type and value.

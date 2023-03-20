@@ -1,3 +1,4 @@
+// Package prof encapsulates pprof with attached HTTP server.
 package prof
 
 import (
@@ -7,8 +8,6 @@ import (
 	"net/http"
 	"runtime"
 	"time"
-
-	_ "net/http/pprof" //nolint: gosec //served on different port which should be hidden in production
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -29,9 +28,7 @@ func New(address entity.NetAddress) *Profiler {
 	r := chi.NewRouter()
 
 	r.Use(logging.RequestsLogger)
-	r.Use(middleware.StripSlashes)
-
-	r.Mount("/debug/pprof", http.DefaultServeMux)
+	r.Mount("/debug", middleware.Profiler())
 
 	httpServer := &http.Server{
 		Handler:     r,
@@ -49,7 +46,7 @@ func New(address entity.NetAddress) *Profiler {
 	return p
 }
 
-// Starts the HTTP server handling pprof requests.
+// Start runs the HTTP server handling pprof requests.
 func (p *Profiler) Start() {
 	if err := p.server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal().Err(err).Msg("Profiler - Start - p.server.ListenAndServe")

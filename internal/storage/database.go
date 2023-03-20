@@ -27,6 +27,12 @@ func getListError(reason error) error {
 	return fmt.Errorf("failed to get records list from DB: %w", reason)
 }
 
+func rollback(ctx context.Context, tx pgx.Tx) {
+	if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+		log.Ctx(ctx).Error().Err(pushError(err)).Msg("")
+	}
+}
+
 // DatabaseStorage implements database metrics storage.
 type DatabaseStorage struct {
 	pool DBConnPool
@@ -51,11 +57,7 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 	}
 
 	defer conn.Release()
-	defer func() {
-		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			log.Ctx(ctx).Error().Err(pushError(err)).Msg("")
-		}
-	}()
+	defer rollback(ctx, tx)
 
 	if _, err = tx.Exec(
 		ctx,
