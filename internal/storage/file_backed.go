@@ -117,7 +117,7 @@ func (f *FileBackedStorage) Dump(ctx context.Context) (err error) {
 	}
 
 	defer func() {
-		if dErr := file.Close(); err == nil {
+		if dErr := file.Close(); err == nil && dErr != nil {
 			err = dumpError(dErr)
 		}
 	}()
