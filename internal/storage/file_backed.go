@@ -67,8 +67,8 @@ func (f *FileBackedStorage) PushBatch(ctx context.Context, data map[string]Recor
 }
 
 // Close dumps all stored data to disk. The storage can be restored from this dump later.
-func (f *FileBackedStorage) Close() error {
-	return f.Dump(context.Background())
+func (f *FileBackedStorage) Close(ctx context.Context) error {
+	return f.Dump(ctx)
 }
 
 // Restore reads previously stored data from disk and populates the storage.

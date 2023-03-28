@@ -36,7 +36,7 @@ func (m *Mock) GetAll(ctx context.Context) ([]Record, error) {
 	return args.Get(0).([]Record), args.Error(1)
 }
 
-func (m *Mock) Close() error {
-	args := m.Called()
+func (m *Mock) Close(ctx context.Context) error {
+	args := m.Called(ctx)
 	return args.Error(0)
 }

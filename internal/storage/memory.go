@@ -72,7 +72,7 @@ func (m *MemStorage) GetAll(ctx context.Context) ([]Record, error) {
 }
 
 // Close has no effect on in-memory storage.
-func (m *MemStorage) Close() error {
+func (m *MemStorage) Close(ctx context.Context) error {
 	return nil // noop
 }
 

@@ -3,15 +3,16 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"html/template"
-	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/config"
 	"github.com/alkurbatov/metrics-collector/internal/handlers"
+	"github.com/alkurbatov/metrics-collector/internal/httpserver"
 	"github.com/alkurbatov/metrics-collector/internal/prof"
 	"github.com/alkurbatov/metrics-collector/internal/recovery"
 	"github.com/alkurbatov/metrics-collector/internal/security"
@@ -21,10 +22,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const _defaultShutdownTimeout = 10 * time.Second
+
 type Server struct {
 	config   *config.Server
 	storage  storage.Storage
-	server   *http.Server
+	server   *httpserver.Server
 	profiler *prof.Profiler
 }
 
@@ -60,22 +63,9 @@ func New(cfg *config.Server) (*Server, error) {
 	}
 
 	router := handlers.Router(cfg.ListenAddress, view, recorder, healthcheck, signer)
-	srv := &http.Server{
-		Addr:    cfg.ListenAddress.String(),
-		Handler: router,
+	srv := httpserver.New(router, cfg.ListenAddress)
 
-		// NB (alkurbatov): Set reasonable timeouts, see:
-		// https://habr.com/ru/company/ispring/blog/560032/
-		ReadTimeout:       5 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
-	var profiler *prof.Profiler
-	if len(cfg.PprofAddress) > 0 {
-		profiler = prof.New(cfg.PprofAddress)
-	}
+	profiler := prof.New(cfg.PprofAddress)
 
 	return &Server{
 		config:   cfg,
@@ -124,7 +114,16 @@ func (app *Server) dumpStorage(ctx context.Context) {
 	}
 }
 
-func (app *Server) Serve(ctx context.Context) {
+func (app *Server) Run() {
+	ctx, cancelBackgroundTasks := context.WithCancel(context.Background())
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt,
+		os.Interrupt,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+
 	if len(app.config.DatabaseURL) == 0 && len(app.config.StorePath) > 0 {
 		if app.config.RestoreOnStart {
 			app.restoreStorage()
@@ -135,31 +134,52 @@ func (app *Server) Serve(ctx context.Context) {
 		}
 	}
 
-	if app.profiler != nil {
-		go app.profiler.Start()
+	select {
+	case s := <-interrupt:
+		log.Info().Msg("app - Run - interrupt: signal " + s.String())
+	case err := <-app.server.Notify():
+		log.Error().Err(err).Msg("app - Run - app.server.Notify")
+	case err := <-app.profiler.Notify():
+		log.Error().Err(err).Msg("app - Run - app.profiler.Notify")
 	}
 
-	if err := app.server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal().Err(err).Msg("")
+	log.Info().Msg("Shutting down...")
+
+	stopped := make(chan struct{})
+
+	stopCtx, cancel := context.WithTimeout(context.Background(), _defaultShutdownTimeout)
+	defer cancel()
+
+	cancelBackgroundTasks()
+
+	go app.shutdown(stopCtx, stopped)
+
+	select {
+	case <-stopped:
+		log.Info().Msg("Server shutdown successful")
+
+	case <-stopCtx.Done():
+		log.Warn().Msgf("Exceeded %s shutdown timeout, exit forcibly", _defaultShutdownTimeout)
 	}
 }
 
-func (app *Server) Shutdown(signal os.Signal) {
-	log.Info().Msg(fmt.Sprintf("Signal '%s' received, shutting down...", signal))
-
-	if err := app.server.Shutdown(context.Background()); err != nil {
+func (app *Server) shutdown(
+	ctx context.Context,
+	notify chan<- struct{},
+) {
+	if err := app.server.Shutdown(ctx); err != nil {
 		log.Error().Err(err).Msg("")
 	}
 
-	if err := app.storage.Close(); err != nil {
+	if err := app.storage.Close(ctx); err != nil {
 		log.Error().Err(err).Msg("")
 	}
 
 	if app.profiler != nil {
-		if err := app.profiler.Shutdown(context.Background()); err != nil {
+		if err := app.profiler.Shutdown(ctx); err != nil {
 			log.Error().Err(err).Msg("")
 		}
 	}
 
-	log.Info().Msg("Successfully shutdown the service")
+	close(notify)
 }
