@@ -15,11 +15,13 @@ import (
 
 type Agent struct {
 	config *config.Agent
-	stats  monitoring.Metrics
+	stats  *monitoring.Metrics
 }
 
 func New(cfg *config.Agent) *Agent {
-	return &Agent{config: cfg}
+	stats := monitoring.NewMetrics()
+
+	return &Agent{config: cfg, stats: stats}
 }
 
 func (app *Agent) poll(ctx context.Context, stats *monitoring.Metrics) {
@@ -97,6 +99,6 @@ func (app *Agent) report(ctx context.Context, stats *monitoring.Metrics) {
 }
 
 func (app *Agent) Serve(ctx context.Context) {
-	go app.poll(ctx, &app.stats)
-	go app.report(ctx, &app.stats)
+	go app.poll(ctx, app.stats)
+	go app.report(ctx, app.stats)
 }

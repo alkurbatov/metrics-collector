@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"golang.org/x/sync/errgroup"
@@ -24,12 +25,20 @@ type Metrics struct {
 
 	// Count of metrics polling attempts.
 	PollCount metrics.Counter
+
+	// Pseudo-random generator to fill the RandomValue metric.
+	generator *rand.Rand
+}
+
+func NewMetrics() *Metrics {
+	r := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint: gosec
+	return &Metrics{generator: r}
 }
 
 // Poll refreshes values of metrics and increments PollCount.
 func (m *Metrics) Poll(ctx context.Context) error {
 	m.PollCount++
-	m.RandomValue = metrics.Gauge(rand.Float64()) //nolint: gosec
+	m.RandomValue = metrics.Gauge(m.generator.Float64())
 
 	g, _ := errgroup.WithContext(ctx)
 
