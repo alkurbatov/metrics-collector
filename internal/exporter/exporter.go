@@ -2,8 +2,6 @@
 package exporter
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/alkurbatov/metrics-collector/internal/compression"
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/monitoring"
 	"github.com/alkurbatov/metrics-collector/internal/security"
@@ -97,18 +96,8 @@ func (h *BatchExporter) doSend(ctx context.Context) error {
 		return err
 	}
 
-	payload := new(bytes.Buffer)
-
-	compressor, err := gzip.NewWriterLevel(payload, gzip.BestCompression)
+	payload, err := compression.Pack(jsonReq)
 	if err != nil {
-		return err
-	}
-
-	if _, err = compressor.Write(jsonReq); err != nil {
-		return err
-	}
-
-	if err = compressor.Close(); err != nil {
 		return err
 	}
 

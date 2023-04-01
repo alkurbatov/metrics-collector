@@ -1,6 +1,7 @@
 package compression
 
 import (
+	"bytes"
 	"compress/gzip"
 	"net/http"
 	"sync"
@@ -98,4 +99,24 @@ func CompressResponse(next http.Handler) http.Handler {
 
 		next.ServeHTTP(compressor, r)
 	})
+}
+
+// Pack compresses bytes using gzip algorithm.
+func Pack(data []byte) (*bytes.Buffer, error) {
+	rv := new(bytes.Buffer)
+
+	encoder := gzipWritersPool.Get().(*gzip.Writer)
+	defer gzipWritersPool.Put(encoder)
+
+	encoder.Reset(rv)
+
+	if _, err := encoder.Write(data); err != nil {
+		return nil, err
+	}
+
+	if err := encoder.Close(); err != nil {
+		return nil, err
+	}
+
+	return rv, nil
 }
