@@ -2,6 +2,11 @@
 linters-settings:
   godot:
     exclude: '^ @' # swag comments
+  tagliatelle:
+    case:
+      use-field-name: false
+      rules:
+        json: snake
 
 linters:
   enable-all: true

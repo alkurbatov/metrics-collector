@@ -21,7 +21,10 @@ var (
 )
 
 func main() {
-	cfg := config.NewAgent()
+	cfg, err := config.NewAgent()
+	if err != nil {
+		log.Fatal().Err(err).Msg("")
+	}
 
 	logging.Setup(cfg.Debug)
 

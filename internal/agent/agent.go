@@ -98,7 +98,7 @@ func (app *Agent) report(ctx context.Context) {
 				taskCtx, cancel := context.WithTimeout(ctx, app.config.ExportTimeout)
 				defer cancel()
 
-				err := exporter.SendMetrics(taskCtx, app.config.CollectorAddress, app.config.Secret, app.publicKey, app.stats)
+				err := exporter.SendMetrics(taskCtx, app.config.Address, app.config.Secret, app.publicKey, app.stats)
 
 				if errors.Is(err, context.DeadlineExceeded) {
 					log.Error().Dur("deadline", app.config.PollTimeout).Msg("metrics exporting exceeded deadline")
