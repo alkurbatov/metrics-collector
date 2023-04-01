@@ -1,6 +1,7 @@
 COMPONENTS = agent server staticlint
 E2E_TEST = test/devopstest
 API_DOCS = docs/api
+KEY_PATH = build/keys
 
 AGENT_VERSION ?= 0.19.0
 SERVER_VERSION ?= 0.19.0
@@ -82,3 +83,9 @@ godoc: ### Show public packages documentation using godoc
 	@echo "http://127.0.0.1:3000/pkg/github.com/alkurbatov/metrics-collector/pkg/\n"
 	@godoc -http=:3000 -index -play
 .PHONY: godoc
+
+keys: ## Generate private and public RSA key pair to encrypt agent -> server communications
+	mkdir -p $(KEY_PATH)
+	openssl genrsa -out $(KEY_PATH)/private.pem 4096
+	openssl rsa -in $(KEY_PATH)/private.pem -outform PEM -pubout -out $(KEY_PATH)/public.pem
+.PHONY: keys

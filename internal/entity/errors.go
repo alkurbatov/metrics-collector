@@ -7,6 +7,8 @@ import (
 
 var (
 	ErrBadAddressFormat        = errors.New("expected address in host:port form")
+	ErrBadKeyFile              = errors.New("provided file doesn't contain key in the PEM format")
+	ErrNotSupportedKey         = errors.New("provided key type is not supported")
 	ErrEncodingNotSupported    = errors.New("encoding type not supported")
 	ErrHTTP                    = errors.New("HTTP request failed")
 	ErrHealthCheckNotSupported = errors.New("storage doesn't support healthcheck")

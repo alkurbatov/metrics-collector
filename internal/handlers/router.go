@@ -36,6 +36,7 @@ func Router(
 	recorder services.Recorder,
 	healthcheck services.HealthCheck,
 	signer *security.Signer,
+	privateKey security.PrivateKey,
 ) http.Handler {
 	metrics := newMetricsResource(view, recorder, signer)
 	probe := newLivenessProbe(healthcheck)
@@ -44,6 +45,11 @@ func Router(
 
 	r.Use(logging.RequestsLogger)
 	r.Use(middleware.StripSlashes)
+
+	if privateKey != nil {
+		r.Use(security.DecryptRequest(privateKey))
+	}
+
 	r.Use(compression.DecompressRequest)
 	r.Use(compression.CompressResponse)
 

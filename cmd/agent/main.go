@@ -30,7 +30,10 @@ func main() {
 	log.Info().Msg("Build commit: " + buildCommit)
 	log.Info().Msg(cfg.String())
 
-	app := agent.New(cfg)
+	app, err := agent.New(cfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("")
+	}
 
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan,

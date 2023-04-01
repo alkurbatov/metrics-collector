@@ -17,6 +17,7 @@ type Server struct {
 	StorePath      string               `env:"STORE_FILE"`
 	RestoreOnStart bool                 `env:"RESTORE"`
 	Secret         security.Secret      `env:"KEY"`
+	PrivateKeyPath entity.FilePath      `env:"CRYPTO_KEY"`
 	DatabaseURL    security.DatabaseURL `env:"DATABASE_DSN"`
 	PprofAddress   entity.NetAddress    `env:"PPROF_ADDRESS"`
 	Debug          bool                 `env:"DEBUG"`
@@ -61,6 +62,14 @@ func NewServer() (*Server, error) {
 		"secret key for signature generation",
 	)
 
+	keyPath := entity.FilePath("")
+	flag.VarP(
+		&keyPath,
+		"crypto-key",
+		"e",
+		"path to private key (stored in PEM format) to decrypt agent -> server communications",
+	)
+
 	databaseURL := flag.StringP(
 		"db-dsn",
 		"d",
@@ -90,6 +99,7 @@ func NewServer() (*Server, error) {
 		StoreInterval:  *storeInterval,
 		RestoreOnStart: *restoreOnStart,
 		Secret:         secret,
+		PrivateKeyPath: keyPath,
 		DatabaseURL:    security.DatabaseURL(*databaseURL),
 		Debug:          *debug,
 		PprofAddress:   pprofAddress,
@@ -119,6 +129,10 @@ func (c Server) String() string {
 
 	if len(c.Secret) > 0 {
 		sb.WriteString(fmt.Sprintf("\t\tSecret key: %s\n", c.Secret))
+	}
+
+	if len(c.PrivateKeyPath) > 0 {
+		sb.WriteString(fmt.Sprintf("\t\tPrivate key path: %s\n", c.PrivateKeyPath))
 	}
 
 	if len(c.DatabaseURL) > 0 {

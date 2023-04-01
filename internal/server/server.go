@@ -57,12 +57,20 @@ func New(cfg *config.Server) (*Server, error) {
 		signer = security.NewSigner(cfg.Secret)
 	}
 
+	var key security.PrivateKey
+	if len(cfg.PrivateKeyPath) != 0 {
+		key, err = security.NewPrivateKey(cfg.PrivateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("server - New - security.NewPrivateKey: %w", err)
+		}
+	}
+
 	view, err := template.ParseFiles("./web/views/metrics.html")
 	if err != nil {
 		return nil, fmt.Errorf("Server - New - template.ParseFiles: %w", err)
 	}
 
-	router := handlers.Router(cfg.ListenAddress, view, recorder, healthcheck, signer)
+	router := handlers.Router(cfg.ListenAddress, view, recorder, healthcheck, signer, key)
 	srv := httpserver.New(router, cfg.ListenAddress)
 
 	profiler := prof.New(cfg.PprofAddress)

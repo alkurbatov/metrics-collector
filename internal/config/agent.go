@@ -17,6 +17,7 @@ type Agent struct {
 	ReportInterval   time.Duration     `env:"REPORT_INTERVAL"`
 	CollectorAddress entity.NetAddress `env:"ADDRESS"`
 	Secret           security.Secret   `env:"KEY"`
+	PublicKeyPath    entity.FilePath   `env:"CRYPTO_KEY"`
 	PollTimeout      time.Duration
 	ExportTimeout    time.Duration
 	Debug            bool `env:"DEBUG"`
@@ -52,6 +53,14 @@ func NewAgent() *Agent {
 		"secret key for signature generation",
 	)
 
+	keyPath := entity.FilePath("")
+	flag.VarP(
+		&keyPath,
+		"crypto-key",
+		"e",
+		"path to public key (stored in PEM format) to encrypt agent -> server communications",
+	)
+
 	debug := flag.BoolP(
 		"debug",
 		"g",
@@ -66,6 +75,7 @@ func NewAgent() *Agent {
 		ReportInterval:   *reportInterval,
 		PollInterval:     *pollInterval,
 		Secret:           secret,
+		PublicKeyPath:    keyPath,
 		PollTimeout:      2 * time.Second,
 		ExportTimeout:    4 * time.Second,
 		Debug:            *debug,
@@ -89,6 +99,10 @@ func (c Agent) String() string {
 
 	if len(c.Secret) > 0 {
 		sb.WriteString(fmt.Sprintf("\t\tSecret key: %s\n", c.Secret))
+	}
+
+	if len(c.PublicKeyPath) > 0 {
+		sb.WriteString(fmt.Sprintf("\t\tPublic key path: %s\n", c.PublicKeyPath))
 	}
 
 	sb.WriteString(fmt.Sprintf("\t\tPollTimeout: %fs\n", c.PollTimeout.Seconds()))
