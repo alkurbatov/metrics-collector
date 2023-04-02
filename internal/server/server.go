@@ -22,12 +22,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const _defaultShutdownTimeout = 10 * time.Second
+const _defaultShutdownTimeout = 60 * time.Second
 
 type Server struct {
-	config   *config.Server
-	storage  storage.Storage
-	server   *httpserver.Server
+	// Full configuration of the service.
+	config *config.Server
+
+	// Storage backend (in memory, file, database).
+	storage storage.Storage
+
+	// Instance of HTTP server serving main API.
+	server *httpserver.Server
+
+	// Instance of HTTP server serving pprof endpoints.
+	// Works on different port.
 	profiler *prof.Profiler
 }
 
@@ -122,6 +130,7 @@ func (app *Server) dumpStorage(ctx context.Context) {
 	}
 }
 
+// Run starts the main app and waits till compeletion or termination signal.
 func (app *Server) Run() {
 	ctx, cancelBackgroundTasks := context.WithCancel(context.Background())
 
@@ -130,6 +139,7 @@ func (app *Server) Run() {
 		os.Interrupt,
 		syscall.SIGINT,
 		syscall.SIGTERM,
+		syscall.SIGQUIT,
 	)
 
 	if len(app.config.DatabaseURL) == 0 && len(app.config.StorePath) > 0 {
