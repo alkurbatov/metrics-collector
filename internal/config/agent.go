@@ -39,7 +39,7 @@ func NewAgent() (*Agent, error) {
 	address := cfg.Address
 	flag.VarP(
 		&address,
-		"collector-address",
+		"address",
 		"a",
 		"address:port of metrics collector",
 	)
