@@ -3,8 +3,8 @@ E2E_TEST = test/devopstest
 API_DOCS = docs/api
 KEY_PATH = build/keys
 
-AGENT_VERSION ?= 0.19.0
-SERVER_VERSION ?= 0.19.0
+AGENT_VERSION ?= 0.22.0
+SERVER_VERSION ?= 0.22.0
 
 BUILD_DATE ?= $(shell date +%F\ %H:%M:%S)
 BUILD_COMMIT ?= $(shell git rev-parse --short HEAD)
@@ -22,7 +22,7 @@ install-tools: $(E2E_TEST) ## Install additional linters and test tools
 $(E2E_TEST):
 	@echo Installing $@
 	curl -sSfL \
-		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.12/devopstest-darwin-amd64 \
+		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.14/devopstest-darwin-amd64 \
 		-o $@
 	@chmod +x $(E2E_TEST)
 
