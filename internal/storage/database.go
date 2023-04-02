@@ -11,6 +11,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var _ Storage = (*DatabaseStorage)(nil)
+
 func pushError(reason error) error {
 	return fmt.Errorf("failed to push record to DB: %w", reason)
 }

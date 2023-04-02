@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+var _ DBConnPool = (*DBConnPoolMock)(nil)
+
 type DBConnPoolMock struct {
 	mock.Mock
 }

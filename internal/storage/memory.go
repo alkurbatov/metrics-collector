@@ -7,6 +7,8 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 )
 
+var _ Storage = (*MemStorage)(nil)
+
 // MemStorage implements in-memory metrics storage.
 type MemStorage struct {
 	Data map[string]Record `json:"records"`

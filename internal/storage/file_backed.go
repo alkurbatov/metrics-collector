@@ -10,6 +10,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var _ Storage = (*FileBackedStorage)(nil)
+
 func dumpError(reason error) error {
 	return fmt.Errorf("data dump failed: %w", reason)
 }
