@@ -19,13 +19,13 @@ type Agent struct {
 	Address        entity.NetAddress `env:"ADDRESS" json:"address"`
 	Secret         security.Secret   `env:"KEY" json:"key"`
 	PublicKeyPath  entity.FilePath   `env:"CRYPTO_KEY" json:"crypto_key"`
-	PollTimeout    time.Duration
-	ExportTimeout  time.Duration
-	Debug          bool `env:"DEBUG" json:"debug"`
+	PollTimeout    time.Duration     `json:"-"`
+	ExportTimeout  time.Duration     `json:"-"`
+	Debug          bool              `env:"DEBUG" json:"debug"`
 }
 
-func NewAgent() (*Agent, error) {
-	cfg := Agent{
+func NewAgent() *Agent {
+	return &Agent{
 		Address:        "0.0.0.0:8080",
 		ReportInterval: 10 * time.Second,
 		PollInterval:   2 * time.Second,
@@ -35,8 +35,10 @@ func NewAgent() (*Agent, error) {
 		ExportTimeout:  4 * time.Second,
 		Debug:          false,
 	}
+}
 
-	address := cfg.Address
+func (c *Agent) Parse() error {
+	address := c.Address
 	flag.VarP(
 		&address,
 		"address",
@@ -47,17 +49,17 @@ func NewAgent() (*Agent, error) {
 	reportInterval := flag.DurationP(
 		"report-interval",
 		"r",
-		cfg.ReportInterval,
+		c.ReportInterval,
 		"metrics report interval in seconds",
 	)
 	pollInterval := flag.DurationP(
 		"poll-interval",
 		"p",
-		cfg.PollInterval,
+		c.PollInterval,
 		"metrics poll interval in seconds",
 	)
 
-	secret := cfg.Secret
+	secret := c.Secret
 	flag.VarP(
 		&secret,
 		"key",
@@ -65,7 +67,7 @@ func NewAgent() (*Agent, error) {
 		"secret key for signature generation",
 	)
 
-	keyPath := cfg.PublicKeyPath
+	keyPath := c.PublicKeyPath
 	flag.VarP(
 		&keyPath,
 		"crypto-key",
@@ -76,7 +78,7 @@ func NewAgent() (*Agent, error) {
 	debug := flag.BoolP(
 		"debug",
 		"g",
-		cfg.Debug,
+		c.Debug,
 		"enable verbose logging",
 	)
 
@@ -91,49 +93,39 @@ func NewAgent() (*Agent, error) {
 	flag.Parse()
 
 	if len(configPath) != 0 {
-		if err := loadFromFile(configPath, &cfg); err != nil {
-			return nil, err
+		if err := loadFromFile(configPath, c); err != nil {
+			return err
 		}
 	}
 
 	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "address" {
-			cfg.Address = address
-			return
-		}
+		switch f.Name {
+		case "address":
+			c.Address = address
 
-		if f.Name == "report-interval" {
-			cfg.ReportInterval = *reportInterval
-			return
-		}
+		case "report-interval":
+			c.ReportInterval = *reportInterval
 
-		if f.Name == "poll-interval" {
-			cfg.PollInterval = *pollInterval
-			return
-		}
+		case "poll-interval":
+			c.PollInterval = *pollInterval
 
-		if f.Name == "key" {
-			cfg.Secret = secret
-			return
-		}
+		case "key":
+			c.Secret = secret
 
-		if f.Name == "crypto-key" {
-			cfg.PublicKeyPath = keyPath
-			return
-		}
+		case "crypto-key":
+			c.PublicKeyPath = keyPath
 
-		if f.Name == "debug" {
-			cfg.Debug = *debug
-			return
+		case "debug":
+			c.Debug = *debug
 		}
 	})
 
-	err := env.Parse(&cfg)
+	err := env.Parse(c)
 	if err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
 
-	return &cfg, nil
+	return nil
 }
 
 func (c Agent) String() string {
@@ -175,18 +167,21 @@ func (c *Agent) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("agent - UnmarshalJSON - json.Unmarshal: %w", err)
 	}
 
-	reportInterval, err := time.ParseDuration(aux.ReportInterval)
-	if err != nil {
-		return fmt.Errorf("agent - UnmarshalJSON - time.ParseDuration: %w", err)
+	var err error
+
+	if len(aux.ReportInterval) != 0 {
+		c.ReportInterval, err = time.ParseDuration(aux.ReportInterval)
+		if err != nil {
+			return fmt.Errorf("agent - UnmarshalJSON - time.ParseDuration: %w", err)
+		}
 	}
 
-	pollInterval, err := time.ParseDuration(aux.PollInterval)
-	if err != nil {
-		return fmt.Errorf("agent - UnmarshalJSON - time.ParseDuration: %w", err)
+	if len(aux.PollInterval) != 0 {
+		c.PollInterval, err = time.ParseDuration(aux.PollInterval)
+		if err != nil {
+			return fmt.Errorf("agent - UnmarshalJSON - time.ParseDuration: %w", err)
+		}
 	}
-
-	c.ReportInterval = reportInterval
-	c.PollInterval = pollInterval
 
 	return nil
 }

@@ -14,8 +14,8 @@ var (
 )
 
 func main() {
-	cfg, err := config.NewServer()
-	if err != nil {
+	cfg := config.NewServer()
+	if err := cfg.Parse(); err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
 

@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1
+	github.com/gkampitakis/go-snaps v0.4.2
 	github.com/go-chi/chi v1.5.4
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/golang-migrate/migrate/v4 v4.15.2
@@ -28,6 +29,8 @@ require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/containerd/containerd v1.6.18 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gkampitakis/ciinfo v0.1.1 // indirect
+	github.com/gkampitakis/go-diff v1.3.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
@@ -41,6 +44,8 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/puddle/v2 v2.1.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -51,6 +56,10 @@ require (
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/swaggo/files v1.0.0 // indirect
+	github.com/tidwall/gjson v1.14.3 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect

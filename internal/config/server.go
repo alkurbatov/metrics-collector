@@ -24,8 +24,8 @@ type Server struct {
 	Debug          bool                 `env:"DEBUG" json:"debug"`
 }
 
-func NewServer() (*Server, error) {
-	cfg := &Server{
+func NewServer() *Server {
+	return &Server{
 		Address:        "0.0.0.0:8080",
 		StorePath:      "/tmp/devops-metrics-db.json",
 		StoreInterval:  300 * time.Second,
@@ -36,8 +36,10 @@ func NewServer() (*Server, error) {
 		Debug:          false,
 		PprofAddress:   "",
 	}
+}
 
-	address := cfg.Address
+func (c *Server) Parse() error {
+	address := c.Address
 	flag.VarP(
 		&address,
 		"address",
@@ -48,22 +50,22 @@ func NewServer() (*Server, error) {
 	storeInterval := flag.DurationP(
 		"store-interval",
 		"i",
-		cfg.StoreInterval,
+		c.StoreInterval,
 		"count of seconds after which metrics are dumped to the disk, zero value activates saving after each request",
 	)
 	storePath := flag.StringP(
 		"store-file",
 		"f",
-		cfg.StorePath,
+		c.StorePath,
 		"path to file to store metrics",
 	)
 	restoreOnStart := flag.BoolP(
 		"restore",
 		"r",
-		cfg.RestoreOnStart,
+		c.RestoreOnStart,
 		"whether to restore state on startup or not",
 	)
-	secret := cfg.Secret
+	secret := c.Secret
 	flag.VarP(
 		&secret,
 		"key",
@@ -71,7 +73,7 @@ func NewServer() (*Server, error) {
 		"secret key for signature generation",
 	)
 
-	keyPath := cfg.PrivateKeyPath
+	keyPath := c.PrivateKeyPath
 	flag.VarP(
 		&keyPath,
 		"crypto-key",
@@ -82,11 +84,11 @@ func NewServer() (*Server, error) {
 	databaseURL := flag.StringP(
 		"db-dsn",
 		"d",
-		cfg.DatabaseURL.String(),
+		c.DatabaseURL.String(),
 		"full database connection URL",
 	)
 
-	pprofAddress := cfg.PprofAddress
+	pprofAddress := c.PprofAddress
 	flag.VarP(
 		&pprofAddress,
 		"pprof-address",
@@ -97,7 +99,7 @@ func NewServer() (*Server, error) {
 	debug := flag.BoolP(
 		"debug",
 		"g",
-		cfg.Debug,
+		c.Debug,
 		"enable verbose logging",
 	)
 
@@ -112,67 +114,51 @@ func NewServer() (*Server, error) {
 	flag.Parse()
 
 	if len(configPath) != 0 {
-		if err := loadFromFile(configPath, &cfg); err != nil {
-			return nil, err
+		if err := loadFromFile(configPath, c); err != nil {
+			return err
 		}
 	}
 
 	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "address" {
-			cfg.Address = address
-			return
-		}
+		switch f.Name {
+		case "address":
+			c.Address = address
 
-		if f.Name == "store-interval" {
-			cfg.StoreInterval = *storeInterval
-			return
-		}
+		case "store-interval":
+			c.StoreInterval = *storeInterval
 
-		if f.Name == "store-file" {
-			cfg.StorePath = *storePath
-			return
-		}
+		case "store-file":
+			c.StorePath = *storePath
 
-		if f.Name == "restore" {
-			cfg.RestoreOnStart = *restoreOnStart
-			return
-		}
+		case "restore":
+			c.RestoreOnStart = *restoreOnStart
 
-		if f.Name == "key" {
-			cfg.Secret = secret
-			return
-		}
+		case "key":
+			c.Secret = secret
 
-		if f.Name == "crypto-key" {
-			cfg.PrivateKeyPath = keyPath
-			return
-		}
+		case "crypto-key":
+			c.PrivateKeyPath = keyPath
 
-		if f.Name == "db-dsn" {
-			cfg.DatabaseURL = security.DatabaseURL(*databaseURL)
-			return
-		}
+		case "db-dsn":
+			c.DatabaseURL = security.DatabaseURL(*databaseURL)
 
-		if f.Name == "pprof-address" {
-			cfg.PprofAddress = pprofAddress
-			return
-		}
+		case "pprof-address":
+			c.PprofAddress = pprofAddress
 
-		if f.Name == "debug" {
-			cfg.Debug = *debug
-			return
+		case "debug":
+			c.Debug = *debug
 		}
 	})
 
-	if err := env.Parse(cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse server config: %w", err)
+	if err := env.Parse(c); err != nil {
+		return fmt.Errorf("failed to parse server config: %w", err)
 	}
 
-	if len(cfg.StorePath) == 0 && cfg.RestoreOnStart {
-		return nil, entity.ErrRestoreNoSource
+	if len(c.StorePath) == 0 && c.RestoreOnStart {
+		return entity.ErrRestoreNoSource
 	}
 
-	return cfg, nil
+	return nil
 }
 
 func (c Server) String() string {
@@ -220,12 +206,14 @@ func (c *Server) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("server - UnmarshalJSON - json.Unmarshal: %w", err)
 	}
 
-	storeInterval, err := time.ParseDuration(aux.StoreInterval)
-	if err != nil {
-		return fmt.Errorf("server - UnmarshalJSON - time.ParseDuration: %w", err)
-	}
+	var err error
 
-	c.StoreInterval = storeInterval
+	if len(aux.StoreInterval) != 0 {
+		c.StoreInterval, err = time.ParseDuration(aux.StoreInterval)
+		if err != nil {
+			return fmt.Errorf("server - UnmarshalJSON - time.ParseDuration: %w", err)
+		}
+	}
 
 	return nil
 }

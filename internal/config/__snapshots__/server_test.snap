@@ -1,0 +1,24 @@
+
+[TestServerConfigString/Test_default_config_to_string - 1]
+Configuration:
+        Listening address: 0.0.0.0:8080
+        Store interval: 5m0s
+        Store path: /tmp/devops-metrics-db.json
+        Restore on start: true
+        Debug: false
+
+---
+
+[TestServerConfigString/Test_full_config_to_string - 1]
+Configuration:
+        Listening address: 0.0.0.0:8080
+        Store interval: 5m0s
+        Store path: /tmp/devops-metrics-db.json
+        Restore on start: true
+        Secret key: ***
+        Private key path: ./keys/key.pem
+        Database URL: postgres://*****:*****@127.0.0.1:5432/praktikum?sslmode=disable
+        Pprof address: 0.0.0.0:3000
+        Debug: false
+
+---

@@ -14,8 +14,8 @@ var (
 )
 
 func main() {
-	cfg, err := config.NewAgent()
-	if err != nil {
+	cfg := config.NewAgent()
+	if err := cfg.Parse(); err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
 
