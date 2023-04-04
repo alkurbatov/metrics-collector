@@ -70,6 +70,11 @@ func Encrypt(src io.Reader, key PublicKey) (*bytes.Buffer, error) {
 		n, err := src.Read(chunk)
 
 		if n > 0 {
+			// NB (alkurbatov): If len(message) < chunkSize, avoid encryption and sending of trailing zeroes.
+			if n != len(chunk) {
+				chunk = chunk[:n]
+			}
+
 			encryptedChunk, encErr := rsa.EncryptOAEP(
 				sha256.New(),
 				rand.Reader,
