@@ -13,25 +13,9 @@ import (
 
 var _ Storage = (*DatabaseStorage)(nil)
 
-func pushError(reason error) error {
-	return fmt.Errorf("failed to push record to DB: %w", reason)
-}
-
-func pushListError(reason error) error {
-	return fmt.Errorf("failed to push records list to DB: %w", reason)
-}
-
-func getError(reason error) error {
-	return fmt.Errorf("failed to get record from DB: %w", reason)
-}
-
-func getListError(reason error) error {
-	return fmt.Errorf("failed to get records list from DB: %w", reason)
-}
-
 func rollback(ctx context.Context, tx pgx.Tx) {
 	if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-		log.Ctx(ctx).Error().Err(pushError(err)).Msg("")
+		log.Ctx(ctx).Error().Err(err).Msg("DatabaseStorage - rollback - tx.Rollback")
 	}
 }
 
@@ -49,13 +33,13 @@ func NewDatabaseStorage(pool DBConnPool) DatabaseStorage {
 func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) error {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
-		return pushError(err)
+		return fmt.Errorf("DatabaseStorage - Push - d.pool.Acquire: %w", err)
 	}
 
 	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
 		conn.Release()
-		return pushError(err)
+		return fmt.Errorf("DatabaseStorage - Push - conn.BeginTx: %w", err)
 	}
 
 	defer conn.Release()
@@ -69,11 +53,11 @@ func (d DatabaseStorage) Push(ctx context.Context, key string, record Record) er
 		record.Value.Kind(),
 		record.Value.String(),
 	); err != nil {
-		return pushError(err)
+		return fmt.Errorf("DatabaseStorage - Push - tx.Exec: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return pushError(err)
+		return fmt.Errorf("DatabaseStorage - Push - tx.Commit: %w", err)
 	}
 
 	return nil
@@ -99,13 +83,13 @@ func (d DatabaseStorage) PushBatch(ctx context.Context, data map[string]Record) 
 	batchResp := d.pool.SendBatch(ctx, batch)
 	defer func() {
 		if err := batchResp.Close(); err != nil {
-			log.Ctx(ctx).Error().Err(pushListError(err)).Msg("")
+			log.Ctx(ctx).Error().Err(err).Msg("DatabaseStorage - PushBatch - batchResp.Close")
 		}
 	}()
 
 	for i := 0; i < len(data); i++ {
 		if _, err := batchResp.Exec(); err != nil {
-			return pushListError(err)
+			return fmt.Errorf("DatabaseStorage - PushBatch - batchResp.Exec: %w", err)
 		}
 	}
 
@@ -126,10 +110,10 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Record{}, getError(entity.ErrMetricNotFound)
+			return Record{}, fmt.Errorf("DatabaseStorage - Get - d.pool.QueryRow: %w", entity.ErrMetricNotFound)
 		}
 
-		return Record{}, getError(err)
+		return Record{}, fmt.Errorf("DatabaseStorage - Get - d.pool.QueryRow: %w", err)
 	}
 
 	switch kind {
@@ -140,7 +124,7 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 		return Record{Name: name, Value: metrics.Gauge(value)}, nil
 
 	default:
-		return Record{}, getError(entity.MetricNotImplementedError(kind))
+		return Record{}, fmt.Errorf("DatabaseStorage - Get - kind: %w", entity.MetricNotImplementedError(kind))
 	}
 }
 
@@ -148,7 +132,7 @@ func (d DatabaseStorage) Get(ctx context.Context, key string) (Record, error) {
 func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 	rows, err := d.pool.Query(ctx, "SELECT name, kind, value FROM metrics")
 	if err != nil {
-		return nil, getListError(err)
+		return nil, fmt.Errorf("DatabaseStorage - GetAll - d.pool.Query: %w", err)
 	}
 	defer rows.Close()
 
@@ -175,7 +159,7 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 	})
 
 	if err != nil {
-		return nil, getListError(err)
+		return nil, fmt.Errorf("DatabaseStorage - GetAll - pgx.ForEachRow: %w", err)
 	}
 
 	return rv, nil

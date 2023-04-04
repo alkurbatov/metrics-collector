@@ -12,14 +12,6 @@ import (
 
 var _ Storage = (*FileBackedStorage)(nil)
 
-func dumpError(reason error) error {
-	return fmt.Errorf("data dump failed: %w", reason)
-}
-
-func restoreError(reason error) error {
-	return fmt.Errorf("data restore failed: %w", reason)
-}
-
 // FileBackedStorage implements in-memory metrics storage with ability to
 // dump/restore metrics data to/from disk.
 type FileBackedStorage struct {
@@ -87,18 +79,18 @@ func (f *FileBackedStorage) Restore() (err error) {
 			return nil
 		}
 
-		return restoreError(err)
+		return fmt.Errorf("FileBackedStorage - Restore - os.Open: %w", err)
 	}
 
 	defer func() {
 		if dErr := file.Close(); err == nil && dErr != nil {
-			err = restoreError(dErr)
+			err = fmt.Errorf("FileBackedStorage - Restore - file.Close: %w", dErr)
 		}
 	}()
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(f.MemStorage); err != nil {
-		return restoreError(err)
+		return fmt.Errorf("FileBackedStorage - Restore - decoder.Decode: %w", err)
 	}
 
 	log.Info().Msg("Storage data was successfully restored")
@@ -115,12 +107,12 @@ func (f *FileBackedStorage) Dump(ctx context.Context) (err error) {
 
 	file, err := os.OpenFile(f.storePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return dumpError(err)
+		return fmt.Errorf("FileBackedStorage - Dump - os.OpenFile: %w", err)
 	}
 
 	defer func() {
 		if dErr := file.Close(); err == nil && dErr != nil {
-			err = dumpError(dErr)
+			err = fmt.Errorf("FileBackedStorage - Dump - file.Close: %w", dErr)
 		}
 	}()
 
@@ -128,7 +120,7 @@ func (f *FileBackedStorage) Dump(ctx context.Context) (err error) {
 	snapshot := f.Snapshot()
 
 	if err := encoder.Encode(snapshot); err != nil {
-		return dumpError(err)
+		return fmt.Errorf("FileBackedStorage - Dump - encoder.Encode: %w", err)
 	}
 
 	return nil

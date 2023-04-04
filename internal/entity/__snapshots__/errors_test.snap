@@ -1,0 +1,12 @@
+
+[TestMetricNotImplementedError - 1]
+metric kind not supported (summary)
+---
+
+[TestHTTPError - 1]
+HTTP request failed (500): Something bad has happened
+---
+
+[TestEncodingNotSupportedError - 1]
+encoding type not supported (deflate)
+---
