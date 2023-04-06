@@ -9,8 +9,8 @@ const (
 	KindGauge   = "gauge"
 )
 
-var _ Metric = (*Counter)(nil)
-var _ Metric = (*Gauge)(nil)
+var _ Metric = Counter(0)
+var _ Metric = Gauge(0)
 
 // A Metric is common representation of all supported metrics kinds.
 type Metric interface {

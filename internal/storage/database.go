@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var _ Storage = (*DatabaseStorage)(nil)
+var _ Storage = DatabaseStorage{}
 
 func rollback(ctx context.Context, tx pgx.Tx) {
 	if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
