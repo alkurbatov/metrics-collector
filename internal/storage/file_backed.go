@@ -10,13 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func dumpError(reason error) error {
-	return fmt.Errorf("data dump failed: %w", reason)
-}
-
-func restoreError(reason error) error {
-	return fmt.Errorf("data restore failed: %w", reason)
-}
+var _ Storage = (*FileBackedStorage)(nil)
 
 // FileBackedStorage implements in-memory metrics storage with ability to
 // dump/restore metrics data to/from disk.
@@ -67,8 +61,8 @@ func (f *FileBackedStorage) PushBatch(ctx context.Context, data map[string]Recor
 }
 
 // Close dumps all stored data to disk. The storage can be restored from this dump later.
-func (f *FileBackedStorage) Close() error {
-	return f.Dump(context.Background())
+func (f *FileBackedStorage) Close(ctx context.Context) error {
+	return f.Dump(ctx)
 }
 
 // Restore reads previously stored data from disk and populates the storage.
@@ -85,18 +79,18 @@ func (f *FileBackedStorage) Restore() (err error) {
 			return nil
 		}
 
-		return restoreError(err)
+		return fmt.Errorf("FileBackedStorage - Restore - os.Open: %w", err)
 	}
 
 	defer func() {
 		if dErr := file.Close(); err == nil && dErr != nil {
-			err = restoreError(dErr)
+			err = fmt.Errorf("FileBackedStorage - Restore - file.Close: %w", dErr)
 		}
 	}()
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(f.MemStorage); err != nil {
-		return restoreError(err)
+		return fmt.Errorf("FileBackedStorage - Restore - decoder.Decode: %w", err)
 	}
 
 	log.Info().Msg("Storage data was successfully restored")
@@ -113,12 +107,12 @@ func (f *FileBackedStorage) Dump(ctx context.Context) (err error) {
 
 	file, err := os.OpenFile(f.storePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return dumpError(err)
+		return fmt.Errorf("FileBackedStorage - Dump - os.OpenFile: %w", err)
 	}
 
 	defer func() {
-		if dErr := file.Close(); err == nil {
-			err = dumpError(dErr)
+		if dErr := file.Close(); err == nil && dErr != nil {
+			err = fmt.Errorf("FileBackedStorage - Dump - file.Close: %w", dErr)
 		}
 	}()
 
@@ -126,7 +120,7 @@ func (f *FileBackedStorage) Dump(ctx context.Context) (err error) {
 	snapshot := f.Snapshot()
 
 	if err := encoder.Encode(snapshot); err != nil {
-		return dumpError(err)
+		return fmt.Errorf("FileBackedStorage - Dump - encoder.Encode: %w", err)
 	}
 
 	return nil

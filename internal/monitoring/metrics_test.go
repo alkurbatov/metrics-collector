@@ -13,7 +13,7 @@ func TestPoll(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := new(monitoring.Metrics)
+	m := monitoring.NewMetrics()
 	require.Zero(m.PollCount)
 	require.Zero(m.RandomValue)
 	require.Zero(m.System.TotalMemory)

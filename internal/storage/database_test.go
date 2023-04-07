@@ -40,5 +40,5 @@ func TestCloseNeverFails(t *testing.T) {
 	m.On("Close").Return()
 
 	s := storage.NewDatabaseStorage(m)
-	assert.NoError(t, s.Close())
+	assert.NoError(t, s.Close(context.Background()))
 }

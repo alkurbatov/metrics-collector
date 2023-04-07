@@ -11,6 +11,8 @@ import (
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
+var _ Recorder = MetricsRecorder{}
+
 // CalculateID generate new metric ID.
 func CalculateID(name, kind string) string {
 	return name + "_" + kind

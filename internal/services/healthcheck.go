@@ -8,6 +8,8 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 )
 
+var _ HealthCheck = HealthCheckImpl{}
+
 func storageCheckError(reason error) error {
 	return fmt.Errorf("storage check failed: %w", reason)
 }

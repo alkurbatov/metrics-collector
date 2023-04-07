@@ -1,0 +1,22 @@
+
+[TestAgentConfigString/Test_default_config_to_string - 1]
+Configuration:
+        Poll interval: 2s
+        Report interval: 10s
+        Collector address: 0.0.0.0:8080
+        PollTimeout: 2.000000s
+        ExportTimeout: 4.000000s
+        Debug: false
+---
+
+[TestAgentConfigString/Test_full_config_to_string - 1]
+Configuration:
+        Poll interval: 2s
+        Report interval: 10s
+        Collector address: 0.0.0.0:8080
+        Secret key: ***
+        Public key path: ./keys/key.pem
+        PollTimeout: 2.000000s
+        ExportTimeout: 4.000000s
+        Debug: false
+---

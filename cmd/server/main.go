@@ -1,11 +1,6 @@
 package main
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
-
 	"github.com/alkurbatov/metrics-collector/internal/config"
 	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"github.com/alkurbatov/metrics-collector/internal/server"
@@ -19,8 +14,8 @@ var (
 )
 
 func main() {
-	cfg, err := config.NewServer()
-	if err != nil {
+	cfg := config.NewServer()
+	if err := cfg.Parse(); err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
 
@@ -36,20 +31,5 @@ func main() {
 	log.Info().Msg("Build date: " + buildDate)
 	log.Info().Msg("Build commit: " + buildCommit)
 
-	sigChan := make(chan os.Signal, 2)
-	signal.Notify(sigChan,
-		os.Interrupt,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go app.Serve(ctx)
-
-	signal := <-sigChan
-
-	cancel()
-	app.Shutdown(signal)
+	app.Run()
 }

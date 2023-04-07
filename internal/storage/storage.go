@@ -15,7 +15,7 @@ type Storage interface {
 	PushBatch(ctx context.Context, data map[string]Record) error
 	Get(ctx context.Context, key string) (Record, error)
 	GetAll(ctx context.Context) ([]Record, error)
-	Close() error
+	Close(ctx context.Context) error
 }
 
 // NewDataStore create new DataStore object encapsulating particular storage type.

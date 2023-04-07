@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+var _ Recorder = (*RecorderMock)(nil)
+
 type RecorderMock struct {
 	mock.Mock
 }

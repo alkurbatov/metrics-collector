@@ -36,7 +36,7 @@ func newRouter(
 	view, err := template.ParseFiles("../../web/views/metrics.html")
 	require.NoError(t, err)
 
-	return handlers.Router("0.0.0.0:8080", view, recorder, healthcheck, signer)
+	return handlers.Router("0.0.0.0:8080", view, recorder, healthcheck, signer, nil)
 }
 
 func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) (int, string, []byte) {

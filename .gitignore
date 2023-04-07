@@ -31,3 +31,6 @@ vendor/
 
 # OS X things
 .DS_Store
+
+# Public/private keys for communications encryption
+build/keys

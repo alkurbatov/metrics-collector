@@ -9,10 +9,6 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
-func processPollError(reason error) error {
-	return fmt.Errorf("process poll failed: %w", reason)
-}
-
 type SystemStats struct {
 	// Total amount of RAM on this system.
 	TotalMemory metrics.Gauge
@@ -28,7 +24,7 @@ type SystemStats struct {
 func (s *SystemStats) Poll(ctx context.Context) error {
 	vMem, err := mem.VirtualMemory()
 	if err != nil {
-		return processPollError(err)
+		return fmt.Errorf("SystemStats - Poll - mem.VirtualMemory: %w", err)
 	}
 
 	s.TotalMemory = metrics.Gauge(vMem.Total)
@@ -36,7 +32,7 @@ func (s *SystemStats) Poll(ctx context.Context) error {
 
 	utilisation, err := cpu.PercentWithContext(ctx, 0, false)
 	if err != nil {
-		return processPollError(err)
+		return fmt.Errorf("SystemStats - Poll - cpu.PercentWithContext: %w", err)
 	}
 
 	// NB (alkurbatov): Since we asked for cumulative CPU stats

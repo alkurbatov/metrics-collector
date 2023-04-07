@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+var _ HealthCheck = (*HealthCheckMock)(nil)
+
 type HealthCheckMock struct {
 	mock.Mock
 }

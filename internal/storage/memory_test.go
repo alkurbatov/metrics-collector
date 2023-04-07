@@ -142,5 +142,5 @@ func TestSnapshot(t *testing.T) {
 
 func TestCloseIsNoop(t *testing.T) {
 	m := storage.NewMemStorage()
-	assert.NoError(t, m.Close())
+	assert.NoError(t, m.Close(context.Background()))
 }

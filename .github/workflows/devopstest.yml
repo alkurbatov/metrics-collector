@@ -47,6 +47,10 @@ jobs:
           cd cmd/agent
           go build -buildvcs=false -o agent
 
+      - name: Generate RSA keys
+        run: |
+          make keys
+
 # Соглашение:
 #   Во всех заданиях, нужно обрабатывать все пограничные случаи и негатив-кейсы.
 #   По ходу продвижения по инкрементам, тесты становятся строже.

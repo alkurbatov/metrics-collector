@@ -2,8 +2,6 @@
 package exporter
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/alkurbatov/metrics-collector/internal/compression"
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/monitoring"
 	"github.com/alkurbatov/metrics-collector/internal/security"
@@ -31,12 +30,20 @@ type BatchExporter struct {
 	// Internal buffer to store requests.
 	buffer []metrics.MetricReq
 
+	// Public key to encrypt data.
+	// If not set, the data is sent unencrypted.
+	publicKey security.PublicKey
+
 	// Error happened during one of previous method calls.
 	// If at least one error occurred, further calls are noop.
 	err error
 }
 
-func NewBatchExporter(collectorAddress entity.NetAddress, secret security.Secret) *BatchExporter {
+func NewBatchExporter(
+	collectorAddress entity.NetAddress,
+	secret security.Secret,
+	publicKey security.PublicKey,
+) *BatchExporter {
 	baseURL := "http://" + collectorAddress.String()
 	client := &http.Client{
 		Timeout: 2 * time.Second,
@@ -48,11 +55,12 @@ func NewBatchExporter(collectorAddress entity.NetAddress, secret security.Secret
 	}
 
 	return &BatchExporter{
-		baseURL: baseURL,
-		client:  client,
-		signer:  signer,
-		buffer:  make([]metrics.MetricReq, 0),
-		err:     nil,
+		baseURL:   baseURL,
+		client:    client,
+		signer:    signer,
+		buffer:    make([]metrics.MetricReq, 0),
+		publicKey: publicKey,
+		err:       nil,
 	}
 }
 
@@ -83,27 +91,24 @@ func (h *BatchExporter) Error() error {
 }
 
 func (h *BatchExporter) doSend(ctx context.Context) error {
-	payload, err := json.Marshal(h.buffer)
+	jsonReq, err := json.Marshal(h.buffer)
 	if err != nil {
 		return err
 	}
 
-	var compressedReq bytes.Buffer
-
-	compressor, err := gzip.NewWriterLevel(&compressedReq, gzip.BestCompression)
+	payload, err := compression.Pack(jsonReq)
 	if err != nil {
 		return err
 	}
 
-	if _, err = compressor.Write(payload); err != nil {
-		return err
+	if h.publicKey != nil {
+		payload, err = security.Encrypt(io.Reader(payload), h.publicKey)
+		if err != nil {
+			return err
+		}
 	}
 
-	if err = compressor.Close(); err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, h.baseURL+"/updates", &compressedReq)
+	req, err := http.NewRequest(http.MethodPost, h.baseURL+"/updates", payload)
 	if err != nil {
 		return err
 	}
@@ -122,7 +127,6 @@ func (h *BatchExporter) doSend(ctx context.Context) error {
 	}()
 
 	respBody, err := io.ReadAll(resp.Body)
-
 	if err != nil {
 		return err
 	}
@@ -155,12 +159,13 @@ func SendMetrics(
 	ctx context.Context,
 	collectorAddress entity.NetAddress,
 	secret security.Secret,
+	publicKey security.PublicKey,
 	stats *monitoring.Metrics,
 ) error {
 	// NB (alkurbatov): Take snapshot to avoid possible races.
 	snapshot := *stats
 
-	batch := NewBatchExporter(collectorAddress, secret)
+	batch := NewBatchExporter(collectorAddress, secret, publicKey)
 
 	batch.
 		Add(metrics.NewUpdateGaugeReq("CPUutilization1", snapshot.System.CPUutilization1)).
