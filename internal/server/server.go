@@ -170,7 +170,10 @@ func (app *Server) Run() {
 
 	cancelBackgroundTasks()
 
-	go app.shutdown(stopCtx, stopped)
+	go func() {
+		app.shutdown(stopCtx)
+		close(stopped)
+	}()
 
 	select {
 	case <-stopped:
@@ -181,10 +184,7 @@ func (app *Server) Run() {
 	}
 }
 
-func (app *Server) shutdown(
-	ctx context.Context,
-	notify chan<- struct{},
-) {
+func (app *Server) shutdown(ctx context.Context) {
 	if err := app.server.Shutdown(ctx); err != nil {
 		log.Error().Err(err).Msg("")
 	}
@@ -198,6 +198,4 @@ func (app *Server) shutdown(
 			log.Error().Err(err).Msg("")
 		}
 	}
-
-	close(notify)
 }

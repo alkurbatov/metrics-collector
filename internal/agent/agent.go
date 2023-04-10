@@ -165,25 +165,21 @@ func (app *Agent) Run() {
 	log.Info().Msg("Shutting down...")
 	cancelBackgroundTasks()
 
-	func() {
-		stopped := make(chan struct{})
+	stopped := make(chan struct{})
 
-		stopCtx, cancel := context.WithTimeout(context.Background(), _defaultShutdownTimeout)
-		defer cancel()
+	stopCtx, cancel := context.WithTimeout(context.Background(), _defaultShutdownTimeout)
+	defer cancel()
 
-		go func() {
-			defer close(stopped)
-			wg.Wait()
-		}()
-
-		select {
-		case <-stopped:
-			log.Info().Msg("Agent shutdown successful")
-			return
-
-		case <-stopCtx.Done():
-			log.Warn().Msgf("Exceeded %s shutdown timeout, exit forcibly", _defaultShutdownTimeout)
-			return
-		}
+	go func() {
+		defer close(stopped)
+		wg.Wait()
 	}()
+
+	select {
+	case <-stopped:
+		log.Info().Msg("Agent shutdown successful")
+
+	case <-stopCtx.Done():
+		log.Warn().Msgf("Exceeded %s shutdown timeout, exit forcibly", _defaultShutdownTimeout)
+	}
 }
