@@ -163,7 +163,7 @@ func DecryptRequest(key PrivateKey) func(next http.Handler) http.Handler {
 			msg, err := Decrypt(r.Body, key)
 			if err != nil {
 				logger.Error().Err(err).Msg("security - DecryptRequest - Decrypt")
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusBadRequest)
 
 				return
 			}
