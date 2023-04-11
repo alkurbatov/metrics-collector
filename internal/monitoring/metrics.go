@@ -48,11 +48,7 @@ func (m *Metrics) Poll(ctx context.Context) error {
 	})
 
 	g.Go(func() error {
-		if err := m.System.Poll(ctx); err != nil {
-			return err
-		}
-
-		return nil
+		return m.System.Poll(ctx)
 	})
 
 	if err := g.Wait(); err != nil {

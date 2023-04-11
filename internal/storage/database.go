@@ -171,7 +171,7 @@ func (d DatabaseStorage) Ping(ctx context.Context) error {
 }
 
 // Close closes all open connection to the database.
-func (d DatabaseStorage) Close(ctx context.Context) error {
+func (d DatabaseStorage) Close(_ context.Context) error {
 	d.pool.Close()
 	return nil
 }
