@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ type Server struct {
 	RestoreOnStart bool                 `env:"RESTORE" json:"restore"`
 	Secret         security.Secret      `env:"KEY" json:"key"`
 	PrivateKeyPath entity.FilePath      `env:"CRYPTO_KEY" json:"crypto_key"`
+	TrustedSubnet  *net.IPNet           `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 	DatabaseURL    security.DatabaseURL `env:"DATABASE_DSN" json:"database_dsn"`
 	PprofAddress   entity.NetAddress    `env:"PPROF_ADDRESS" json:"pprof_address"`
 	Debug          bool                 `env:"DEBUG" json:"debug"`
@@ -32,6 +34,7 @@ func NewServer() *Server {
 		RestoreOnStart: true,
 		Secret:         "",
 		PrivateKeyPath: "",
+		TrustedSubnet:  nil,
 		DatabaseURL:    "",
 		Debug:          false,
 		PprofAddress:   "",
@@ -79,6 +82,18 @@ func (c *Server) Parse() error {
 		"crypto-key",
 		"e",
 		"path to private key (stored in PEM format) to decrypt agent -> server communications",
+	)
+
+	defaultSubnet := net.IPNet{}
+	if c.TrustedSubnet != nil {
+		defaultSubnet = *c.TrustedSubnet
+	}
+
+	trustedSubnet := flag.IPNetP(
+		"trusted-subnet",
+		"t",
+		defaultSubnet,
+		"subnet in CIDR notation, requests from IP address from different subnets will be rejected",
 	)
 
 	databaseURL := flag.StringP(
@@ -139,6 +154,9 @@ func (c *Server) Parse() error {
 		case "crypto-key":
 			c.PrivateKeyPath = keyPath
 
+		case "trusted-subnet":
+			c.TrustedSubnet = trustedSubnet
+
 		case "db-dsn":
 			c.DatabaseURL = security.DatabaseURL(*databaseURL)
 
@@ -179,6 +197,10 @@ func (c Server) String() string {
 		sb.WriteString(fmt.Sprintf("\t\tPrivate key path: %s\n", c.PrivateKeyPath))
 	}
 
+	if c.TrustedSubnet != nil {
+		sb.WriteString(fmt.Sprintf("\t\tTrusted subnet: %s\n", c.TrustedSubnet.String()))
+	}
+
 	if len(c.DatabaseURL) > 0 {
 		sb.WriteString(fmt.Sprintf("\t\tDatabase URL: %s\n", c.DatabaseURL))
 	}
@@ -197,6 +219,7 @@ func (c *Server) UnmarshalJSON(data []byte) error {
 
 	aux := &struct {
 		StoreInterval string `json:"store_interval"`
+		TrustedSubnet string `json:"trusted_subnet"`
 		*Alias
 	}{
 		Alias: (*Alias)(c),
@@ -212,6 +235,13 @@ func (c *Server) UnmarshalJSON(data []byte) error {
 		c.StoreInterval, err = time.ParseDuration(aux.StoreInterval)
 		if err != nil {
 			return fmt.Errorf("server - UnmarshalJSON - time.ParseDuration: %w", err)
+		}
+	}
+
+	if len(aux.TrustedSubnet) != 0 {
+		_, c.TrustedSubnet, err = net.ParseCIDR(aux.TrustedSubnet)
+		if err != nil {
+			return fmt.Errorf("server - UnmarshalJSON - net.ParseCIDR: %w", err)
 		}
 	}
 

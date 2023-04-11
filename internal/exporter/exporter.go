@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -15,6 +16,25 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
+
+// Get preferred outbound IP address of this machine.
+func getOutboundIP() (net.IP, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return net.IP{}, err
+	}
+
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	localAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		return net.IP{}, fmt.Errorf("exporter - getOutboundIP - conn.LocalAddr: %w", entity.ErrUnexpected)
+	}
+
+	return localAddr.IP, nil
+}
 
 // BatchExporter sends collected metrics to metrics collector in single batch request.
 type BatchExporter struct {
@@ -113,9 +133,15 @@ func (h *BatchExporter) doSend(ctx context.Context) error {
 		return err
 	}
 
+	clientIP, err := getOutboundIP()
+	if err != nil {
+		return err
+	}
+
 	req = req.WithContext(ctx)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("X-Real-IP", clientIP.String())
 
 	resp, err := h.client.Do(req)
 	if err != nil {

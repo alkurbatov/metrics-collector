@@ -10,3 +10,15 @@ HTTP request failed (500): Something bad has happened
 [TestEncodingNotSupportedError - 1]
 encoding type not supported (deflate)
 ---
+
+[TestTestUntrustedSourceError/Empty_IP - 1]
+request's source is not trusted (<nil>)
+---
+
+[TestTestUntrustedSourceError/IPv4_value - 1]
+request's source is not trusted (192.168.10.12)
+---
+
+[TestTestUntrustedSourceError/IPv6_value - 1]
+request's source is not trusted (2001:470:28:30d:21e:67ff:fe7a:e1da)
+---

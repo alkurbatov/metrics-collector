@@ -1,6 +1,7 @@
 package entity_test
 
 import (
+	"net"
 	"net/http"
 	"testing"
 
@@ -28,4 +29,32 @@ func TestEncodingNotSupportedError(t *testing.T) {
 
 	require.ErrorIs(t, err, entity.ErrEncodingNotSupported)
 	snaps.MatchSnapshot(t, err.Error())
+}
+
+func TestTestUntrustedSourceError(t *testing.T) {
+	tt := []struct {
+		name     string
+		sourceIP string
+	}{
+		{
+			name: "Empty IP",
+		},
+		{
+			name:     "IPv4 value",
+			sourceIP: "192.168.10.12",
+		},
+		{
+			name:     "IPv6 value",
+			sourceIP: "2001:470:28:30d:21e:67ff:fe7a:e1da",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			err := entity.UntrustedSourceError(net.ParseIP(tc.sourceIP))
+
+			require.ErrorIs(t, err, entity.ErrUntrustedSource)
+			snaps.MatchSnapshot(t, err.Error())
+		})
+	}
 }

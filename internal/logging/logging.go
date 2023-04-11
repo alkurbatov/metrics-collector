@@ -40,10 +40,16 @@ func RequestsLogger(next http.Handler) http.Handler {
 		logger := log.With().Str("req-id", id).Logger()
 		ctx := logger.WithContext(r.Context())
 
-		logger.Info().
+		l := logger.Info().
 			Str("method", r.Method).
-			Str("url", r.URL.String()).
-			Msg("")
+			Str("url", r.URL.String())
+
+		clientIP := r.Header.Get("X-Real-IP")
+		if len(clientIP) != 0 {
+			l.Str("client-ip", clientIP)
+		}
+
+		l.Msg("")
 
 		next.ServeHTTP(ww, r.WithContext(ctx))
 

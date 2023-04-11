@@ -3,6 +3,7 @@ package entity
 import (
 	"errors"
 	"fmt"
+	"net"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 	ErrRecordKindDontMatch     = errors.New("kind of recorded metric doesn't match request")
 	ErrRestoreNoSource         = errors.New("state restoration was requested, but path to store file is not set")
 	ErrUnexpected              = errors.New("unexpected error")
+	ErrUntrustedSource         = errors.New("request's source is not trusted")
 )
 
 func MetricNotImplementedError(kind string) error {
@@ -34,4 +36,8 @@ func HTTPError(code int, reason []byte) error {
 
 func EncodingNotSupportedError(name string) error {
 	return fmt.Errorf("%w (%s)", ErrEncodingNotSupported, name)
+}
+
+func UntrustedSourceError(src net.IP) error {
+	return fmt.Errorf("%w (%s)", ErrUntrustedSource, src.String())
 }

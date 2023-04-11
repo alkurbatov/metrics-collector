@@ -78,7 +78,7 @@ func New(cfg *config.Server) (*Server, error) {
 		return nil, fmt.Errorf("Server - New - template.ParseFiles: %w", err)
 	}
 
-	router := handlers.Router(cfg.Address, view, recorder, healthcheck, signer, key)
+	router := handlers.Router(cfg.Address, view, recorder, healthcheck, signer, key, cfg.TrustedSubnet)
 	srv := httpserver.New(router, cfg.Address)
 
 	profiler := prof.New(cfg.PprofAddress)

@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"encoding/json"
+	"net"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ func TestServerConfigString(t *testing.T) {
 				RestoreOnStart: true,
 				Secret:         "xxx",
 				PrivateKeyPath: "./keys/key.pem",
+				TrustedSubnet:  &net.IPNet{IP: net.ParseIP("192.169.0.0"), Mask: net.IPv4Mask(255, 255, 255, 255)},
 				DatabaseURL:    "postgres://postgres:postgres@127.0.0.1:5432/praktikum?sslmode=disable",
 				Debug:          false,
 				PprofAddress:   "0.0.0.0:3000",
@@ -44,9 +46,8 @@ func TestServerConfigString(t *testing.T) {
 
 func TestServerConfigUnmarshalJSON(t *testing.T) {
 	tt := []struct {
-		name     string
-		src      string
-		expected config.Server
+		name string
+		src  string
 	}{
 		{
 			name: "Load full configuration",
@@ -57,21 +58,11 @@ func TestServerConfigUnmarshalJSON(t *testing.T) {
 "restore": true,
 "key": "xxx",
 "crypto_key": "./keys/key.pem",
+"trusted_subnet": "10.30.0.0/32",
 "database_dsn": "postgres://postgres:postgres@127.0.0.1:5432/praktikum?sslmode=disable",
 "pprof_address": "0.0.0.0:3000",
 "debug": true
 }`,
-			expected: config.Server{
-				Address:        "0.0.0.0:1234",
-				StorePath:      "/tmp/my-db.json",
-				StoreInterval:  5 * time.Second,
-				RestoreOnStart: true,
-				Secret:         "xxx",
-				PrivateKeyPath: "./keys/key.pem",
-				DatabaseURL:    "postgres://postgres:postgres@127.0.0.1:5432/praktikum?sslmode=disable",
-				Debug:          true,
-				PprofAddress:   "0.0.0.0:3000",
-			},
 		},
 		{
 			name: "Load partial configuration",
@@ -79,17 +70,12 @@ func TestServerConfigUnmarshalJSON(t *testing.T) {
 "crypto_key": "./keys/key.pem",
 "debug": false
 }`,
-			expected: config.Server{
-				Address:        "0.0.0.0:8080",
-				StorePath:      "/tmp/devops-metrics-db.json",
-				StoreInterval:  300 * time.Second,
-				RestoreOnStart: true,
-				Secret:         "",
-				PrivateKeyPath: "./keys/key.pem",
-				DatabaseURL:    "",
-				Debug:          false,
-				PprofAddress:   "",
-			},
+		},
+		{
+			name: "Load partial configuration with IPv6 subnet",
+			src: `{
+"trusted_subnet": "::1/128"
+}`,
 		},
 	}
 
@@ -100,7 +86,7 @@ func TestServerConfigUnmarshalJSON(t *testing.T) {
 			err := json.Unmarshal([]byte(tc.src), cfg)
 			require.NoError(t, err)
 
-			require.Equal(t, tc.expected, *cfg)
+			snaps.MatchSnapshot(t, cfg.String())
 		})
 	}
 }
@@ -120,6 +106,12 @@ func TestServerConfigUnmarshallInvalidJSON(t *testing.T) {
 			name: "Parse config with invalid store interval",
 			src: `{
 "store_interval": "_"
+}`,
+		},
+		{
+			name: "Parse config with invalid trusted subnet",
+			src: `{
+"trusted_subnet": "1.2.3/10"
 }`,
 		},
 	}
