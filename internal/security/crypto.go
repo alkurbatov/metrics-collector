@@ -64,9 +64,9 @@ func Encrypt(src io.Reader, key PublicKey) (*bytes.Buffer, error) {
 	// NB (alkurbatov): As the message could be large, thus
 	// we have to split it in chunks to bypass RSA key limitations.
 	chunkSize := (*rsa.PublicKey)(key).Size() - 2*sha256.New().Size() - 2
+	chunk := make([]byte, chunkSize)
 
 	for {
-		chunk := make([]byte, chunkSize)
 		n, err := src.Read(chunk)
 
 		if n > 0 {
@@ -122,12 +122,17 @@ func Decrypt(src io.Reader, key PrivateKey) (*bytes.Buffer, error) {
 	// NB (alkurbatov): As the message could be large, thus
 	// we have to read it in chunks to bypass RSA key limitations.
 	chunkSize := key.PublicKey.Size()
+	chunk := make([]byte, chunkSize)
 
 	for {
-		chunk := make([]byte, chunkSize)
 		n, err := src.Read(chunk)
 
 		if n > 0 {
+			// NB (alkurbatov): If len(message) < chunkSize, cut off possible garbage.
+			if n != len(chunk) {
+				chunk = chunk[:n]
+			}
+
 			decryptedChunk, decErr := rsa.DecryptOAEP(
 				sha256.New(),
 				nil,
