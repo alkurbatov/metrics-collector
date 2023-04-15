@@ -8,8 +8,8 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 )
 
-// loadFromFile overwrites the provided config with data from configuration file.
-func loadFromFile[T any](src entity.FilePath, dst *T) error {
+// LoadFromFile overwrites the provided config with data from configuration file.
+func LoadFromFile(src entity.FilePath, dst Config) error {
 	data, err := os.ReadFile(src.String())
 	if err != nil {
 		return fmt.Errorf("config - loadFromFile - os.ReadFile: %w", err)

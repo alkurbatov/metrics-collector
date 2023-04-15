@@ -93,7 +93,7 @@ func (c *Agent) Parse() error {
 	flag.Parse()
 
 	if len(configPath) != 0 {
-		if err := loadFromFile(configPath, c); err != nil {
+		if err := LoadFromFile(configPath, c); err != nil {
 			return err
 		}
 	}
