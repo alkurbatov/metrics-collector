@@ -1,0 +1,13 @@
+{
+  "details": {
+    "methodFqn": "metrics.collector.v1.Metrics.Update"
+  },
+  "requests": [
+    {
+      "location": "Update-request.json"
+    }
+  ],
+  "operationType": "unary",
+  "invokerName": "grpc",
+  "importStreamId": "8697db12-5cc2-4fb7-a80b-5579c72e685c"
+}

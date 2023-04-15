@@ -21,14 +21,14 @@ type HealthServer struct {
 
 // NewHealthServer creates new instance of gRPC serving Health API and attaches it to the server.
 func NewHealthServer(server *grpc.Server, healthcheck services.HealthCheck) {
-	h := &HealthServer{healthcheck: healthcheck}
+	s := &HealthServer{healthcheck: healthcheck}
 
-	grpcapi.RegisterHealthServer(server, h)
+	grpcapi.RegisterHealthServer(server, s)
 }
 
 // Ping verifies connection to the database.
-func (h HealthServer) Ping(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
-	err := h.healthcheck.CheckStorage(ctx)
+func (s HealthServer) Ping(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
+	err := s.healthcheck.CheckStorage(ctx)
 	if err == nil {
 		return new(emptypb.Empty), nil
 	}

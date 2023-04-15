@@ -1,4 +1,5 @@
-package httpbackend
+// Package validators provides common validators for API requests.
+package validators
 
 import (
 	"regexp"

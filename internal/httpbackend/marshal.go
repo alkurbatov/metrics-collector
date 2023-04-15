@@ -6,13 +6,14 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/internal/validators"
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/rs/zerolog/log"
 )
 
 func toRecord(ctx context.Context, req *metrics.MetricReq, signer *security.Signer) (storage.Record, error) {
-	if err := ValidateMetricName(req.ID, req.MType); err != nil {
-		return storage.Record{}, err
+	if err := validators.ValidateMetricName(req.ID, req.MType); err != nil {
+		return storage.Record{}, err //nolint: wrapcheck
 	}
 
 	if signer != nil {
@@ -29,14 +30,14 @@ func toRecord(ctx context.Context, req *metrics.MetricReq, signer *security.Sign
 	}
 
 	switch req.MType {
-	case "counter":
+	case metrics.KindCounter:
 		if req.Delta == nil {
 			return storage.Record{}, entity.ErrIncompleteRequest
 		}
 
 		return storage.Record{Name: req.ID, Value: *req.Delta}, nil
 
-	case "gauge":
+	case metrics.KindGauge:
 		if req.Value == nil {
 			return storage.Record{}, entity.ErrIncompleteRequest
 		}

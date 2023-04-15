@@ -88,6 +88,7 @@ func New(cfg *config.Server) (*Server, error) {
 
 	grpcSrv := grpcserver.New(cfg.GRPCAddress)
 	grpcbackend.NewHealthServer(grpcSrv.Instance(), healthcheck)
+	grpcbackend.NewMetricsServer(grpcSrv.Instance(), recorder)
 
 	profiler := prof.New(cfg.PprofAddress)
 

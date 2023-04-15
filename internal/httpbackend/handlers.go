@@ -13,6 +13,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/internal/validators"
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
@@ -225,12 +226,12 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 	kind := chi.URLParam(r, "kind")
 	name := chi.URLParam(r, "name")
 
-	if err := ValidateMetricName(name, kind); err != nil {
+	if err := validators.ValidateMetricName(name, kind); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := ValidateMetricKind(kind); err != nil {
+	if err := validators.ValidateMetricKind(kind); err != nil {
 		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
 		return
 	}
@@ -275,12 +276,12 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := ValidateMetricName(req.ID, req.MType); err != nil {
+	if err := validators.ValidateMetricName(req.ID, req.MType); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := ValidateMetricKind(req.MType); err != nil {
+	if err := validators.ValidateMetricKind(req.MType); err != nil {
 		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
 		return
 	}
@@ -356,15 +357,17 @@ func newLivenessProbe(healthcheck services.HealthCheck) livenessProbe {
 // @Failure 500 {string} string "Connection is broken"
 // @Failure 501 {string} string "Server is not configured to use database"
 func (h livenessProbe) Ping(w http.ResponseWriter, r *http.Request) {
-	err := h.healthcheck.CheckStorage(r.Context())
+	ctx := r.Context()
+
+	err := h.healthcheck.CheckStorage(ctx)
 	if err == nil {
 		return
 	}
 
 	if errors.Is(err, entity.ErrHealthCheckNotSupported) {
-		writeErrorResponse(r.Context(), w, http.StatusNotImplemented, err)
+		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
 		return
 	}
 
-	writeErrorResponse(r.Context(), w, http.StatusInternalServerError, err)
+	writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
 }
