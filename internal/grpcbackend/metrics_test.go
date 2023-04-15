@@ -118,8 +118,6 @@ func TestUpdateMetric(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			require := require.New(t)
-
 			m := new(services.RecorderMock)
 			m.On("Push", mock.Anything, mock.AnythingOfType("Record")).Return(tc.recorderRV, tc.recorderErr)
 
@@ -129,8 +127,8 @@ func TestUpdateMetric(t *testing.T) {
 			resp, err := client.Update(context.Background(), tc.req)
 
 			status, ok := status.FromError(err)
-			require.True(ok)
-			require.Equal(tc.expected, status.Code())
+			require.True(t, ok)
+			require.Equal(t, tc.expected, status.Code())
 
 			if tc.expected == codes.OK {
 				requireEqual(t, tc.req, resp)
@@ -245,6 +243,61 @@ func TestGetMetric(t *testing.T) {
 			if tc.expected.code == codes.OK {
 				requireEqual(t, tc.expected.body, resp)
 			}
+		})
+	}
+}
+
+func TestBatchUpdate(t *testing.T) {
+	batchReq := []*grpcapi.MetricReq{
+		{Id: "PollCount", Mtype: metrics.KindCounter, Delta: 10},
+		{Id: "Alloc", Mtype: metrics.KindGauge, Value: 11.23},
+	}
+
+	tt := []struct {
+		name        string
+		data        []*grpcapi.MetricReq
+		recorderErr error
+		expected    codes.Code
+	}{
+		{
+			name:     "Should handle list of different metrics",
+			data:     batchReq,
+			expected: codes.OK,
+		},
+		{
+			name:     "Should fail on empty list",
+			data:     make([]*grpcapi.MetricReq, 0),
+			expected: codes.InvalidArgument,
+		},
+		{
+			name: "Should fail in unknown metric kind found in list",
+			data: []*grpcapi.MetricReq{
+				{Id: "xxx", Mtype: "unknown"},
+			},
+			expected: codes.Unimplemented,
+		},
+		{
+			name:        "Should fail if recorder is broken",
+			data:        batchReq,
+			recorderErr: entity.ErrUnexpected,
+			expected:    codes.Internal,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			m := new(services.RecorderMock)
+			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderErr)
+
+			client, closer := createTestServer(t, m)
+			t.Cleanup(closer)
+
+			req := &grpcapi.BatchUpdateRequest{Data: tc.data}
+			_, err := client.BatchUpdate(context.Background(), req)
+
+			status, ok := status.FromError(err)
+			require.True(t, ok)
+			require.Equal(t, tc.expected, status.Code())
 		})
 	}
 }

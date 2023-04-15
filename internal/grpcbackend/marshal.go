@@ -40,3 +40,22 @@ func toMetricReq(record storage.Record) *grpcapi.MetricReq {
 
 	return req
 }
+
+func toRecordsList(req *grpcapi.BatchUpdateRequest) ([]storage.Record, error) {
+	rv := make([]storage.Record, len(req.Data))
+
+	for i := range req.Data {
+		record, err := toRecord(req.Data[i])
+		if err != nil {
+			return nil, err
+		}
+
+		rv[i] = record
+	}
+
+	if len(rv) == 0 {
+		return nil, entity.ErrIncompleteRequest
+	}
+
+	return rv, nil
+}

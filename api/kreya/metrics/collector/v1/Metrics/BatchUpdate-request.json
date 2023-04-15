@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "id": "{{ faker.random.uuid }}",
+      "mtype": "IB Cambridgeshire",
+      "delta": "452",
+      "value": 311.41805624287935
+    },
+    {
+      "id": "{{ faker.random.uuid }}",
+      "mtype": "IB Cambridgeshire",
+      "delta": "749",
+      "value": 568.2049356225625
+    }
+  ]
+}
