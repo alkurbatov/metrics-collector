@@ -28,6 +28,7 @@
 21. [Инкремент 21 (конфигурационные файлы)](./docs/tasks/increment21.md)
 22. [Инкремент 22 (штатное завершение работы)](./docs/tasks/increment22.md)
 23. [Инкремент 23 (блокировка запросов из недоверенной подсети)](./docs/tasks/increment23.md)
+24. [Инкремент 24 (gRPC)](./docs/tasks/increment24.md)
 
 ## Разработка и тестирование
 Для получения полного списка доступных команд выполните:
@@ -44,6 +45,13 @@ make help
 В проекте используется `pre-commit` для запуска линтеров перед коммитом. Для установки утилиты воспользуйтесь [официальной инструкцией](https://pre-commit.com/#install), затем выполните команду:
 ```bash
 make install-tools
+```
+
+#### protoc
+Для генерации `gRPC` кода необходимо установить [protoc](https://grpc.io/docs/protoc-installation/), а также плагины для `Go`:
+```bash
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 ```
 
 #### migrate
@@ -93,8 +101,11 @@ migrate -database ${DATABASE_DSN} -path ./migrations down -all
 (!) Переменные окружения имеют приоритет перед опциями командной строки.
 
 ```bash
-# Адрес и порт, по которым доступно API сервера:
+# Адрес и порт, по которым доступно HTTP API сервера:
 export ADDRESS=0.0.0.0:8080
+
+# Адрес и порт, по которым доступно gRPC API сервера:
+export GRPC_ADDRESS=0.0.0.0:50051
 
 # Интервал времени в секундах, по истечении которого текущие показания
 # сервера сбрасываются на диск (значение 0 — делает запись синхронной):

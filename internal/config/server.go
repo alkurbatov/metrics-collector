@@ -15,6 +15,7 @@ import (
 
 type Server struct {
 	Address        entity.NetAddress    `env:"ADDRESS" json:"address"`
+	GRPCAddress    entity.NetAddress    `env:"GRPC_ADDRESS" json:"grpc_address"`
 	StoreInterval  time.Duration        `env:"STORE_INTERVAL" json:"store_interval"`
 	StorePath      string               `env:"STORE_FILE" json:"store_file"`
 	RestoreOnStart bool                 `env:"RESTORE" json:"restore"`
@@ -29,6 +30,7 @@ type Server struct {
 func NewServer() *Server {
 	return &Server{
 		Address:        "0.0.0.0:8080",
+		GRPCAddress:    "0.0.0.0:50051",
 		StorePath:      "/tmp/devops-metrics-db.json",
 		StoreInterval:  300 * time.Second,
 		RestoreOnStart: true,
@@ -47,7 +49,15 @@ func (c *Server) Parse() error {
 		&address,
 		"address",
 		"a",
-		"address:port server listens on",
+		"address:port for HTTP API requests",
+	)
+
+	grpcAddress := c.Address
+	flag.VarP(
+		&grpcAddress,
+		"grpc-address",
+		"s",
+		"address:port for gRPC API requests",
 	)
 
 	storeInterval := flag.DurationP(
@@ -139,6 +149,9 @@ func (c *Server) Parse() error {
 		case "address":
 			c.Address = address
 
+		case "grpc-address":
+			c.GRPCAddress = grpcAddress
+
 		case "store-interval":
 			c.StoreInterval = *storeInterval
 
@@ -183,7 +196,8 @@ func (c Server) String() string {
 	var sb strings.Builder
 
 	sb.WriteString("Configuration:\n")
-	sb.WriteString(fmt.Sprintf("\t\tListening address: %s\n", c.Address))
+	sb.WriteString(fmt.Sprintf("\t\tHTTP API address: %s\n", c.Address))
+	sb.WriteString(fmt.Sprintf("\t\tgRPC API address: %s\n", c.GRPCAddress))
 
 	sb.WriteString(fmt.Sprintf("\t\tStore interval: %s\n", c.StoreInterval))
 	sb.WriteString(fmt.Sprintf("\t\tStore path: %s\n", c.StorePath))

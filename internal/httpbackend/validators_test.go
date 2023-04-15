@@ -1,11 +1,11 @@
-package handlers_test
+package httpbackend_test
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/handlers"
+	"github.com/alkurbatov/metrics-collector/internal/httpbackend"
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 )
@@ -95,7 +95,7 @@ func TestValidateMetricsName(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			err := handlers.ValidateMetricName(tc.metric, tc.kind)
+			err := httpbackend.ValidateMetricName(tc.metric, tc.kind)
 			assert.ErrorIs(t, tc.err, err)
 		})
 	}
@@ -124,7 +124,7 @@ func TestValidateMetricKind(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			err := handlers.ValidateMetricKind(tc.kind)
+			err := httpbackend.ValidateMetricKind(tc.kind)
 
 			if tc.err == nil {
 				assert.NoError(t, err)

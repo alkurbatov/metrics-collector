@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package metrics.collector.v1;
+option go_package = "github.com/alkurbatov/metrics-collector/grpcapi";
+
+import "google/protobuf/empty.proto";
+
+service Health {
+  rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty);
+}

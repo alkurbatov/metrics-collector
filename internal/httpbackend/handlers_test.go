@@ -1,4 +1,4 @@
-package handlers_test
+package httpbackend_test
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/handlers"
+	"github.com/alkurbatov/metrics-collector/internal/httpbackend"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
@@ -36,7 +36,7 @@ func newRouter(
 	view, err := template.ParseFiles("../../web/views/metrics.html")
 	require.NoError(t, err)
 
-	return handlers.Router("0.0.0.0:8080", view, recorder, healthcheck, signer, nil, nil)
+	return httpbackend.Router("0.0.0.0:8080", view, recorder, healthcheck, signer, nil, nil)
 }
 
 func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) (int, string, []byte) {

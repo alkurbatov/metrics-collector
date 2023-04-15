@@ -1,4 +1,4 @@
-package handlers
+package httpbackend
 
 import (
 	"context"
@@ -44,7 +44,7 @@ func toRecord(ctx context.Context, req *metrics.MetricReq, signer *security.Sign
 		return storage.Record{Name: req.ID, Value: *req.Value}, nil
 
 	default:
-		return storage.Record{}, entity.MetricNotImplementedError(req.MType)
+		return storage.Record{}, entity.MetricNotImplementedError(req.MType) //nolint: wrapcheck
 	}
 }
 

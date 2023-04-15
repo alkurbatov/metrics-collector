@@ -1,0 +1,7 @@
+{
+  "id": "5cf6f40c-e242-418f-a8f3-2cf627269ad0",
+  "color": "#60A5FA",
+  "globalContent": {
+    "grpc_endpoint": "::50051"
+  }
+}

@@ -33,6 +33,7 @@ func New(address entity.NetAddress) *Profiler {
 	runtime.MemProfileRate = 2048
 
 	server := httpserver.New(r, address)
+	server.Start()
 
 	return &Profiler{server}
 }

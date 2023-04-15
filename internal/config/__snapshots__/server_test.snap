@@ -1,7 +1,8 @@
 
 [TestServerConfigString/Test_default_config_to_string - 1]
 Configuration:
-        Listening address: 0.0.0.0:8080
+        HTTP API address: 0.0.0.0:8080
+        gRPC API address: 0.0.0.0:50051
         Store interval: 5m0s
         Store path: /tmp/devops-metrics-db.json
         Restore on start: true
@@ -11,7 +12,8 @@ Configuration:
 
 [TestServerConfigString/Test_full_config_to_string - 1]
 Configuration:
-        Listening address: 0.0.0.0:8080
+        HTTP API address: 0.0.0.0:8080
+        gRPC API address: 
         Store interval: 5m0s
         Store path: /tmp/devops-metrics-db.json
         Restore on start: true
@@ -26,7 +28,8 @@ Configuration:
 
 [TestServerConfigUnmarshalJSON/Load_full_configuration - 1]
 Configuration:
-        Listening address: 0.0.0.0:1234
+        HTTP API address: 0.0.0.0:1234
+        gRPC API address: 0.0.0.0:50051
         Store interval: 5s
         Store path: /tmp/my-db.json
         Restore on start: true
@@ -41,7 +44,8 @@ Configuration:
 
 [TestServerConfigUnmarshalJSON/Load_partial_configuration - 1]
 Configuration:
-        Listening address: 0.0.0.0:8080
+        HTTP API address: 0.0.0.0:8080
+        gRPC API address: 0.0.0.0:50051
         Store interval: 5m0s
         Store path: /tmp/devops-metrics-db.json
         Restore on start: true
@@ -52,7 +56,8 @@ Configuration:
 
 [TestServerConfigUnmarshalJSON/Load_partial_configuration_with_IPv6_subnet - 1]
 Configuration:
-        Listening address: 0.0.0.0:8080
+        HTTP API address: 0.0.0.0:8080
+        gRPC API address: 0.0.0.0:50051
         Store interval: 5m0s
         Store path: /tmp/devops-metrics-db.json
         Restore on start: true

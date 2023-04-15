@@ -1,5 +1,5 @@
-// Package handlers implements REST API for metrics collector server.
-package handlers
+// Package httpbackend implements REST API for metrics collector server.
+package httpbackend
 
 // @Title Metrics collector API
 // @Description Service for storing metrics data.

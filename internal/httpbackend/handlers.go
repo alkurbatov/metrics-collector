@@ -1,13 +1,11 @@
-package handlers
+package httpbackend
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"html/template"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -358,18 +356,15 @@ func newLivenessProbe(healthcheck services.HealthCheck) livenessProbe {
 // @Failure 500 {string} string "Connection is broken"
 // @Failure 501 {string} string "Server is not configured to use database"
 func (h livenessProbe) Ping(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	err := h.healthcheck.CheckStorage(ctx)
+	err := h.healthcheck.CheckStorage(r.Context())
 	if err == nil {
 		return
 	}
 
 	if errors.Is(err, entity.ErrHealthCheckNotSupported) {
-		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
+		writeErrorResponse(r.Context(), w, http.StatusNotImplemented, err)
 		return
 	}
 
-	writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
+	writeErrorResponse(r.Context(), w, http.StatusInternalServerError, err)
 }

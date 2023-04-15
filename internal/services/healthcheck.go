@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
@@ -27,6 +28,9 @@ func NewHealthCheck(dataStore storage.Storage) HealthCheckImpl {
 // CheckStorage verifies connection to the database.
 // Fails if database storage is not configured.
 func (h HealthCheckImpl) CheckStorage(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	database, ok := h.storage.(storage.DatabaseStorage)
 	if !ok {
 		return storageCheckError(entity.ErrHealthCheckNotSupported)

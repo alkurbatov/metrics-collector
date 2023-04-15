@@ -3,8 +3,12 @@ E2E_TEST = test/devopstest
 API_DOCS = docs/api
 KEY_PATH = build/keys
 
-AGENT_VERSION ?= 0.22.0
-SERVER_VERSION ?= 0.22.0
+PROTO_SRC = api/proto
+PROTO_FILES = health metrics
+PROTO_DST = pkg/grpcapi
+
+AGENT_VERSION ?= 0.24.0
+SERVER_VERSION ?= 0.24.0
 
 BUILD_DATE ?= $(shell date +%F\ %H:%M:%S)
 BUILD_COMMIT ?= $(shell git rev-parse --short HEAD)
@@ -26,8 +30,23 @@ $(E2E_TEST):
 		-o $@
 	@chmod +x $(E2E_TEST)
 
-build: $(COMPONENTS) ## Build whole project
+build: proto $(COMPONENTS) ## Build whole project
 .PHONY: build
+
+proto: $(PROTO_FILES) ## Generate gRPC protobuf bindings
+.PHONY: proto
+
+$(PROTO_FILES): %: $(PROTO_DST)/%
+
+$(PROTO_DST)/%:
+	@mkdir -p $(PROTO_DST)
+	protoc \
+		--proto_path=$(PROTO_SRC) \
+		--go_out=$(PROTO_DST) \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=$(PROTO_DST) \
+		--go-grpc_opt=paths=source_relative \
+		$(PROTO_SRC)/$(notdir $@).proto
 
 agent: ## Build agent
 	go build \
@@ -42,7 +61,7 @@ agent: ## Build agent
 
 server: ## Build metrics server
 	rm -rf $(API_DOCS)
-	swag init -g ./internal/handlers/router.go --output $(API_DOCS)
+	swag init -g ./internal/httpbackend/router.go --output $(API_DOCS)
 
 	go build \
 		-ldflags "\
@@ -59,12 +78,12 @@ staticlint: ## Build static lint utility
 .PHONY: staticlint
 
 clean: ## Remove build artifacts and downloaded test tools
-	rm -rf cmd/agent/agent cmd/server/server cmd/staticlint/staticlint $(E2E_TEST)
+	rm -rf cmd/agent/agent cmd/server/server cmd/staticlint/staticlint $(E2E_TEST) $(PROTO_DST)
 .PHONY: clean
 
 lint: ## Run linters on the source code
 	golangci-lint run
-	./cmd/staticlint/staticlint ./cmd/... ./internal/... ./pkg/...
+	go list ./... | grep -F -v -e pkg/grpcapi -e docs | xargs ./cmd/staticlint/staticlint
 .PHONY: lint
 
 unit-tests: ## Run unit tests
