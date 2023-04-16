@@ -31,6 +31,15 @@ func ValidateMetricKind(kind string) error {
 		return nil
 
 	default:
-		return entity.MetricNotImplementedError(kind) //nolint: wrapcheck
+		return entity.MetricNotImplementedError(kind)
 	}
+}
+
+// ValidateTransport verifies that transport is supported by service.
+func ValidateTransport(transport string) error {
+	if transport == entity.TransportHTTP || transport == entity.TransportGRPC {
+		return nil
+	}
+
+	return entity.TransportNotSupportedError(transport)
 }

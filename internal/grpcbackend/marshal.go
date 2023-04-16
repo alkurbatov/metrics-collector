@@ -10,7 +10,7 @@ import (
 
 func toRecord(req *grpcapi.MetricReq) (storage.Record, error) {
 	if err := validators.ValidateMetricName(req.Id, req.Mtype); err != nil {
-		return storage.Record{}, err //nolint: wrapcheck
+		return storage.Record{}, err
 	}
 
 	switch req.Mtype {
@@ -21,7 +21,7 @@ func toRecord(req *grpcapi.MetricReq) (storage.Record, error) {
 		return storage.Record{Name: req.Id, Value: metrics.Gauge(req.Value)}, nil
 
 	default:
-		return storage.Record{}, entity.MetricNotImplementedError(req.Mtype) //nolint: wrapcheck
+		return storage.Record{}, entity.MetricNotImplementedError(req.Mtype)
 	}
 }
 

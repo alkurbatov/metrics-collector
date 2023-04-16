@@ -58,3 +58,10 @@ func TestTestUntrustedSourceError(t *testing.T) {
 		})
 	}
 }
+
+func TestTransportNotSupportedError(t *testing.T) {
+	err := entity.TransportNotSupportedError("tcp")
+
+	require.ErrorIs(t, err, entity.ErrTransportNotSupported)
+	snaps.MatchSnapshot(t, err.Error())
+}

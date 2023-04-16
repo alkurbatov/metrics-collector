@@ -39,7 +39,6 @@ proto: $(PROTO_FILES) ## Generate gRPC protobuf bindings
 $(PROTO_FILES): %: $(PROTO_DST)/%
 
 $(PROTO_DST)/%:
-	@mkdir -p $(PROTO_DST)
 	protoc \
 		--proto_path=$(PROTO_SRC) \
 		--go_out=$(PROTO_DST) \
@@ -78,17 +77,17 @@ staticlint: ## Build static lint utility
 .PHONY: staticlint
 
 clean: ## Remove build artifacts and downloaded test tools
-	rm -rf cmd/agent/agent cmd/server/server cmd/staticlint/staticlint $(E2E_TEST) $(PROTO_DST)
+	rm -rf cmd/agent/agent cmd/server/server cmd/staticlint/staticlint $(E2E_TEST) $(PROTO_DST)/*.pb.go
 .PHONY: clean
 
 lint: ## Run linters on the source code
 	golangci-lint run
-	go list ./... | grep -F -v -e pkg/grpcapi -e docs | xargs ./cmd/staticlint/staticlint
+	go list ./... | grep -F -v -e docs | xargs ./cmd/staticlint/staticlint
 .PHONY: lint
 
 unit-tests: ## Run unit tests
 	@go test -v -race ./... -coverprofile=coverage.out.tmp -covermode atomic
-	@cat coverage.out.tmp | grep -v "_mock.go" > coverage.out
+	@cat coverage.out.tmp | grep -v -E "(_mock|.pb).go" > coverage.out
 	@go tool cover -html=coverage.out -o coverage.html
 	@go tool cover -func=coverage.out
 .PHONY: unit-tests

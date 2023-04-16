@@ -65,5 +65,5 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		return nil
 	}
 
-	return s.server.Shutdown(ctx) //nolint: wrapcheck
+	return s.server.Shutdown(ctx)
 }

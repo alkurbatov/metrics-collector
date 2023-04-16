@@ -51,7 +51,7 @@ func (r MetricsRecorder) calculateNewValue(
 	}
 
 	if err != nil {
-		return nil, err //nolint: wrapcheck
+		return nil, err
 	}
 
 	return storedRecord.Value.(metrics.Counter) + newRecord.Value.(metrics.Counter), nil

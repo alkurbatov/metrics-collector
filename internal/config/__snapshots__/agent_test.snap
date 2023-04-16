@@ -4,6 +4,7 @@ Configuration:
         Poll interval: 2s
         Report interval: 10s
         Collector address: 0.0.0.0:8080
+        Transport: http
         PollTimeout: 2.000000s
         ExportTimeout: 4.000000s
         Debug: false
@@ -14,6 +15,7 @@ Configuration:
         Poll interval: 2s
         Report interval: 10s
         Collector address: 0.0.0.0:8080
+        Transport: grpc
         Secret key: ***
         Public key path: ./keys/key.pem
         PollTimeout: 2.000000s

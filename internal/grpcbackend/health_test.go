@@ -38,7 +38,7 @@ func sendTestRequest(t *testing.T, healthcheck *services.HealthCheckMock) *statu
 	}()
 
 	dialer := func(context.Context, string) (net.Conn, error) {
-		return lis.Dial() //nolint: wrapcheck
+		return lis.Dial()
 	}
 	conn, err := grpc.Dial("", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(err)

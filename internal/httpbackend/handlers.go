@@ -26,7 +26,7 @@ type metricsResource struct {
 func parseUpdateMetricReqList(r *http.Request, signer *security.Signer) ([]storage.Record, error) {
 	req := make([]metrics.MetricReq, 0)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err //nolint: wrapcheck
+		return nil, err
 	}
 
 	rv := make([]storage.Record, len(req))

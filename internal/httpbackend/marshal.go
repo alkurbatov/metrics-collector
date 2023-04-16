@@ -13,7 +13,7 @@ import (
 
 func toRecord(ctx context.Context, req *metrics.MetricReq, signer *security.Signer) (storage.Record, error) {
 	if err := validators.ValidateMetricName(req.ID, req.MType); err != nil {
-		return storage.Record{}, err //nolint: wrapcheck
+		return storage.Record{}, err
 	}
 
 	if signer != nil {
@@ -45,7 +45,7 @@ func toRecord(ctx context.Context, req *metrics.MetricReq, signer *security.Sign
 		return storage.Record{Name: req.ID, Value: *req.Value}, nil
 
 	default:
-		return storage.Record{}, entity.MetricNotImplementedError(req.MType) //nolint: wrapcheck
+		return storage.Record{}, entity.MetricNotImplementedError(req.MType)
 	}
 }
 

@@ -168,6 +168,9 @@ export CONFIG=
 # Адрес и порт сервера, агрегирующего метрики:
 export ADDRESS=0.0.0.0:8080
 
+# Тип транспорта используемого для сбора метрик (http или gRPC):
+export TRANSPORT=http
+
 # Интервал опроса метрик (в секундах):
 export POLL_INTERVAL=2s
 

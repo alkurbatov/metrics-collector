@@ -16,6 +16,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/monitoring"
 	"github.com/alkurbatov/metrics-collector/internal/recovery"
 	"github.com/alkurbatov/metrics-collector/internal/security"
+	"github.com/alkurbatov/metrics-collector/internal/validators"
 	"github.com/rs/zerolog/log"
 )
 
@@ -38,6 +39,10 @@ func New(cfg *config.Agent) (*Agent, error) {
 		key security.PublicKey
 		err error
 	)
+
+	if err = validators.ValidateTransport(cfg.Transport); err != nil {
+		return nil, fmt.Errorf("agent - New - validators.ValidateTransport: %w", err)
+	}
 
 	if len(cfg.PublicKeyPath) != 0 {
 		key, err = security.NewPublicKey(cfg.PublicKeyPath)
@@ -111,7 +116,14 @@ func (app *Agent) report(ctx context.Context) {
 				taskCtx, cancel := context.WithTimeout(context.Background(), app.config.ExportTimeout)
 				defer cancel()
 
-				err := exporter.SendMetrics(taskCtx, app.config.Address, app.config.Secret, app.publicKey, app.stats)
+				err := exporter.SendMetrics(
+					taskCtx,
+					app.config.Transport,
+					app.config.Address,
+					app.config.Secret,
+					app.publicKey,
+					app.stats,
+				)
 
 				if errors.Is(err, context.DeadlineExceeded) {
 					log.Error().Dur("deadline", app.config.PollTimeout).Msg("metrics exporting exceeded deadline")

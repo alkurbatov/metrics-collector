@@ -38,6 +38,7 @@ linters:
     - varcheck
     - varnamelen
     - wastedassign
+    - wrapcheck
 
     # FIXME (alkurbatov): Enable when we add parallelism to the tests.
     - paralleltest
@@ -47,19 +48,3 @@ issues:
     - path: '(.+)_test\.go'
       linters:
         - noctx
-
-    - path: '(.+)_mock\.go'
-      linters:
-        - wrapcheck
-
-    - path: 'internal/compression/.*.go'
-      linters:
-        - wrapcheck
-
-    - path: 'internal/exporter/exporter.go'
-      linters:
-        - wrapcheck
-
-    - path: 'internal/handlers/marshal.go'
-      linters:
-        - wrapcheck

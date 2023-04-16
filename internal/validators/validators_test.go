@@ -96,7 +96,7 @@ func TestValidateMetricsName(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			err := validators.ValidateMetricName(tc.metric, tc.kind)
-			assert.ErrorIs(t, tc.err, err)
+			assert.ErrorIs(t, err, tc.err)
 		})
 	}
 }
@@ -125,6 +125,48 @@ func TestValidateMetricKind(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			err := validators.ValidateMetricKind(tc.kind)
+
+			if tc.err == nil {
+				assert.NoError(t, err)
+				return
+			}
+
+			assert.ErrorAs(t, err, &tc.err)
+		})
+	}
+}
+
+func TestValidateTransport(t *testing.T) {
+	tt := []struct {
+		name      string
+		transport string
+		err       error
+	}{
+		{
+			name:      "HTTP transport is supported",
+			transport: entity.TransportHTTP,
+			err:       nil,
+		},
+		{
+			name:      "gRPC transport is supported",
+			transport: entity.TransportGRPC,
+			err:       nil,
+		},
+		{
+			name:      "Unknown transport is not supported",
+			transport: "unknown",
+			err:       entity.ErrTransportNotSupported,
+		},
+		{
+			name:      "Empty transport is not supported",
+			transport: "",
+			err:       entity.ErrTransportNotSupported,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validators.ValidateTransport(tc.transport)
 
 			if tc.err == nil {
 				assert.NoError(t, err)

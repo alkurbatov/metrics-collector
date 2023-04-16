@@ -22,3 +22,7 @@ request's source is not trusted (192.168.10.12)
 [TestTestUntrustedSourceError/IPv6_value - 1]
 request's source is not trusted (2001:470:28:30d:21e:67ff:fe7a:e1da)
 ---
+
+[TestTransportNotSupportedError - 1]
+transport type not supported (tcp)
+---

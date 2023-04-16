@@ -4,6 +4,7 @@ Configuration:
         Poll interval: 1s
         Report interval: 1s
         Collector address: localhost:8080
+        Transport: http
         Public key path: ./build/keys/public.pem
         PollTimeout: 0.000000s
         ExportTimeout: 0.000000s

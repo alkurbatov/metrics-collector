@@ -154,7 +154,7 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 			return nil
 
 		default:
-			return entity.MetricNotImplementedError(kind) //nolint: wrapcheck
+			return entity.MetricNotImplementedError(kind)
 		}
 	})
 
@@ -167,7 +167,11 @@ func (d DatabaseStorage) GetAll(ctx context.Context) ([]Record, error) {
 
 // Ping verifies that connection to the database can be established.
 func (d DatabaseStorage) Ping(ctx context.Context) error {
-	return d.pool.Ping(ctx) //nolint: wrapcheck
+	if err := d.pool.Ping(ctx); err != nil {
+		return fmt.Errorf("DatabaseSrorage - Ping - d.pool.Ping: %w", err)
+	}
+
+	return nil
 }
 
 // Close closes all open connection to the database.

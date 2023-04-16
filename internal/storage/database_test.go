@@ -30,7 +30,8 @@ func TestPing(t *testing.T) {
 			m.On("Ping", mock.Anything).Return(tc.result)
 
 			s := storage.NewDatabaseStorage(m)
-			assert.ErrorIs(t, tc.result, s.Ping(context.Background()))
+			err := s.Ping(context.Background())
+			assert.ErrorIs(t, err, tc.result)
 		})
 	}
 }

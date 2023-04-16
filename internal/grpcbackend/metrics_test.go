@@ -34,7 +34,7 @@ func createTestServer(t *testing.T, recorder *services.RecorderMock) (grpcapi.Me
 	}()
 
 	dialer := func(context.Context, string) (net.Conn, error) {
-		return lis.Dial() //nolint: wrapcheck
+		return lis.Dial()
 	}
 	conn, err := grpc.Dial("", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(err)
@@ -59,22 +59,14 @@ func TestUpdateMetric(t *testing.T) {
 		expected    codes.Code
 	}{
 		{
-			name: "Should push counter",
-			req: &grpcapi.MetricReq{
-				Id:    "PollCount",
-				Mtype: metrics.KindCounter,
-				Delta: 10,
-			},
+			name:       "Should push counter",
+			req:        grpcapi.NewUpdateCounterReq("PollCount", 10),
 			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected:   codes.OK,
 		},
 		{
-			name: "Should push gauge",
-			req: &grpcapi.MetricReq{
-				Id:    "Alloc",
-				Mtype: metrics.KindGauge,
-				Value: 13.123,
-			},
+			name:       "Should push gauge",
+			req:        grpcapi.NewUpdateGaugeReq("Alloc", 13.123),
 			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(13.123)},
 			expected:   codes.OK,
 		},
@@ -87,30 +79,18 @@ func TestUpdateMetric(t *testing.T) {
 			expected: codes.Unimplemented,
 		},
 		{
-			name: "Should fail on counter with invalid name",
-			req: &grpcapi.MetricReq{
-				Id:    "X)",
-				Mtype: metrics.KindCounter,
-				Delta: 10,
-			},
+			name:     "Should fail on counter with invalid name",
+			req:      grpcapi.NewUpdateCounterReq("X)", 10),
 			expected: codes.InvalidArgument,
 		},
 		{
-			name: "Should fail on gauge with invalid name",
-			req: &grpcapi.MetricReq{
-				Id:    "X;",
-				Mtype: metrics.KindGauge,
-				Value: 13.123,
-			},
+			name:     "Should fail on gauge with invalid name",
+			req:      grpcapi.NewUpdateGaugeReq("X;", 13.123),
 			expected: codes.InvalidArgument,
 		},
 		{
-			name: "Should fail on broken recorder",
-			req: &grpcapi.MetricReq{
-				Id:    "fail",
-				Mtype: metrics.KindGauge,
-				Value: 13,
-			},
+			name:        "Should fail on broken recorder",
+			req:         grpcapi.NewUpdateGaugeReq("fail", 13),
 			recorderErr: entity.ErrUnexpected,
 			expected:    codes.Internal,
 		},
@@ -152,28 +132,20 @@ func TestGetMetric(t *testing.T) {
 	}{
 		{
 			name:       "Should get counter",
-			req:        &grpcapi.GetMetricRequest{Id: "PollCount", Mtype: metrics.KindCounter},
+			req:        grpcapi.NewGetCounterReq("PollCount"),
 			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected: result{
 				code: codes.OK,
-				body: &grpcapi.MetricReq{
-					Id:    "PollCount",
-					Mtype: metrics.KindCounter,
-					Delta: 10,
-				},
+				body: grpcapi.NewUpdateCounterReq("PollCount", 10),
 			},
 		},
 		{
 			name:       "Should get gauge",
-			req:        &grpcapi.GetMetricRequest{Id: "Alloc", Mtype: metrics.KindGauge},
+			req:        grpcapi.NewGetGaugeReq("Alloc"),
 			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(11.345)},
 			expected: result{
 				code: codes.OK,
-				body: &grpcapi.MetricReq{
-					Id:    "Alloc",
-					Mtype: metrics.KindGauge,
-					Value: 11.345,
-				},
+				body: grpcapi.NewUpdateGaugeReq("Alloc", 11.345),
 			},
 		},
 		{
@@ -185,7 +157,7 @@ func TestGetMetric(t *testing.T) {
 		},
 		{
 			name:        "Should fail on unknown counter",
-			req:         &grpcapi.GetMetricRequest{Id: "unknown", Mtype: metrics.KindCounter},
+			req:         grpcapi.NewGetCounterReq("unknown"),
 			recorderErr: entity.ErrMetricNotFound,
 			expected: result{
 				code: codes.NotFound,
@@ -193,7 +165,7 @@ func TestGetMetric(t *testing.T) {
 		},
 		{
 			name:        "Should fail on unknown gauge",
-			req:         &grpcapi.GetMetricRequest{Id: "unknown", Mtype: metrics.KindGauge},
+			req:         grpcapi.NewGetGaugeReq("unknown"),
 			recorderErr: entity.ErrMetricNotFound,
 			expected: result{
 				code: codes.NotFound,
@@ -201,21 +173,21 @@ func TestGetMetric(t *testing.T) {
 		},
 		{
 			name: "Should fail on counter with invalid name",
-			req:  &grpcapi.GetMetricRequest{Id: "X)", Mtype: metrics.KindCounter},
+			req:  grpcapi.NewGetCounterReq("X)"),
 			expected: result{
 				code: codes.InvalidArgument,
 			},
 		},
 		{
 			name: "Should fail on gauge with invalid name",
-			req:  &grpcapi.GetMetricRequest{Id: "X;", Mtype: metrics.KindGauge},
+			req:  grpcapi.NewGetGaugeReq("X;"),
 			expected: result{
 				code: codes.InvalidArgument,
 			},
 		},
 		{
 			name:        "Should fail on broken recorder",
-			req:         &grpcapi.GetMetricRequest{Id: "Alloc", Mtype: metrics.KindGauge},
+			req:         grpcapi.NewGetGaugeReq("Alloc"),
 			recorderErr: entity.ErrUnexpected,
 			expected: result{
 				code: codes.Internal,
@@ -249,8 +221,8 @@ func TestGetMetric(t *testing.T) {
 
 func TestBatchUpdate(t *testing.T) {
 	batchReq := []*grpcapi.MetricReq{
-		{Id: "PollCount", Mtype: metrics.KindCounter, Delta: 10},
-		{Id: "Alloc", Mtype: metrics.KindGauge, Value: 11.23},
+		grpcapi.NewUpdateCounterReq("PollCount", 10),
+		grpcapi.NewUpdateGaugeReq("Alloc", 11.23),
 	}
 
 	tt := []struct {

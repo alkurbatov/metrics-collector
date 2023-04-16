@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/config"
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +24,7 @@ func TestAgentConfigString(t *testing.T) {
 			name: "Test full config to string",
 			src: &config.Agent{
 				Address:        "0.0.0.0:8080",
+				Transport:      entity.TransportGRPC,
 				PollInterval:   2 * time.Second,
 				ReportInterval: 10 * time.Second,
 				Secret:         "xxx",
@@ -51,6 +53,7 @@ func TestAgentConfigUnmarshalJSON(t *testing.T) {
 			name: "Load full configuration",
 			src: `{
 "address": "0.0.0.0:1234",
+"transport": "grpc",
 "poll_interval": "2s",
 "report_interval": "5s",
 "key": "xxx",
@@ -59,6 +62,7 @@ func TestAgentConfigUnmarshalJSON(t *testing.T) {
 }`,
 			expected: config.Agent{
 				Address:        "0.0.0.0:1234",
+				Transport:      entity.TransportGRPC,
 				PollInterval:   2 * time.Second,
 				ReportInterval: 5 * time.Second,
 				Secret:         "xxx",
@@ -76,6 +80,7 @@ func TestAgentConfigUnmarshalJSON(t *testing.T) {
 }`,
 			expected: config.Agent{
 				Address:        "0.0.0.0:8080",
+				Transport:      entity.TransportHTTP,
 				PollInterval:   2 * time.Second,
 				ReportInterval: 10 * time.Second,
 				Secret:         "",
