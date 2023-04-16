@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
+	"github.com/alkurbatov/metrics-collector/internal/logging"
 	"google.golang.org/grpc"
 )
 
@@ -19,7 +20,9 @@ type Server struct {
 
 // New creates new instance of gRPC server.
 func New(address entity.NetAddress) *Server {
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(logging.UnaryRequestsInterceptor),
+	)
 
 	s := &Server{
 		address: address,
