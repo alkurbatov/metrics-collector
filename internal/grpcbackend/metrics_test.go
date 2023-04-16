@@ -2,53 +2,16 @@ package grpcbackend_test
 
 import (
 	"context"
-	"net"
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/grpcbackend"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/alkurbatov/metrics-collector/pkg/grpcapi"
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
-	"google.golang.org/grpc/test/bufconn"
 )
-
-func createTestServer(t *testing.T, recorder *services.RecorderMock) (grpcapi.MetricsClient, func()) {
-	t.Helper()
-	require := require.New(t)
-
-	lis := bufconn.Listen(1024 * 1024)
-	srv := grpc.NewServer()
-
-	grpcbackend.NewMetricsServer(srv, recorder)
-
-	go func() {
-		require.NoError(srv.Serve(lis))
-	}()
-
-	dialer := func(context.Context, string) (net.Conn, error) {
-		return lis.Dial()
-	}
-	conn, err := grpc.Dial("", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(err)
-
-	closer := func() {
-		require.NoError(conn.Close())
-		srv.Stop()
-		require.NoError(lis.Close())
-	}
-
-	client := grpcapi.NewMetricsClient(conn)
-
-	return client, closer
-}
 
 func TestUpdateMetric(t *testing.T) {
 	tt := []struct {
@@ -101,14 +64,13 @@ func TestUpdateMetric(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("Push", mock.Anything, mock.AnythingOfType("Record")).Return(tc.recorderRV, tc.recorderErr)
 
-			client, closer := createTestServer(t, m)
+			conn, closer := createTestServer(t, m, nil)
 			t.Cleanup(closer)
 
+			client := grpcapi.NewMetricsClient(conn)
 			resp, err := client.Update(context.Background(), tc.req)
 
-			status, ok := status.FromError(err)
-			require.True(t, ok)
-			require.Equal(t, tc.expected, status.Code())
+			requireEqualCode(t, tc.expected, err)
 
 			if tc.expected == codes.OK {
 				requireEqual(t, tc.req, resp)
@@ -197,20 +159,17 @@ func TestGetMetric(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			require := require.New(t)
-
 			m := new(services.RecorderMock)
 			m.On("Get", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 				Return(tc.recorderRV, tc.recorderErr)
 
-			client, closer := createTestServer(t, m)
+			conn, closer := createTestServer(t, m, nil)
 			t.Cleanup(closer)
 
+			client := grpcapi.NewMetricsClient(conn)
 			resp, err := client.Get(context.Background(), tc.req)
 
-			status, ok := status.FromError(err)
-			require.True(ok)
-			require.Equal(tc.expected.code, status.Code())
+			requireEqualCode(t, tc.expected.code, err)
 
 			if tc.expected.code == codes.OK {
 				requireEqual(t, tc.expected.body, resp)
@@ -261,15 +220,14 @@ func TestBatchUpdate(t *testing.T) {
 			m := new(services.RecorderMock)
 			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderErr)
 
-			client, closer := createTestServer(t, m)
+			conn, closer := createTestServer(t, m, nil)
 			t.Cleanup(closer)
 
+			client := grpcapi.NewMetricsClient(conn)
 			req := &grpcapi.BatchUpdateRequest{Data: tc.data}
 			_, err := client.BatchUpdate(context.Background(), req)
 
-			status, ok := status.FromError(err)
-			require.True(t, ok)
-			require.Equal(t, tc.expected, status.Code())
+			requireEqualCode(t, tc.expected, err)
 		})
 	}
 }

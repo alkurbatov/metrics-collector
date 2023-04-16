@@ -9,6 +9,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 var _ServerConnection *grpc.ClientConn
@@ -79,12 +80,20 @@ func (g *GRPCExporter) Send(ctx context.Context) Exporter {
 		}
 	}
 
-	client := grpcapi.NewMetricsClient(_ServerConnection)
-
 	if len(g.buffer) == 0 {
 		g.err = entity.ErrIncompleteRequest
 		return g
 	}
+
+	clientIP, err := getOutboundIP()
+	if err != nil {
+		g.err = err
+		return g
+	}
+
+	md := metadata.New(map[string]string{"x-real-ip": clientIP.String()})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	client := grpcapi.NewMetricsClient(_ServerConnection)
 
 	req := &grpcapi.BatchUpdateRequest{Data: g.buffer}
 	_, g.err = client.BatchUpdate(ctx, req)

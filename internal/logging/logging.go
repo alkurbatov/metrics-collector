@@ -72,10 +72,10 @@ func RequestsLogger(next http.Handler) http.Handler {
 // UnaryRequestsInterceptor is grpc unary interceptor which logs incoming requests and responses.
 func UnaryRequestsInterceptor(
 	ctx context.Context,
-	req interface{},
+	req any,
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
-) (interface{}, error) {
+) (any, error) {
 	id := generateRequestID()
 
 	logger := log.With().Str("req-id", id).Logger()
