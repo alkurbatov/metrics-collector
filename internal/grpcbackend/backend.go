@@ -16,6 +16,7 @@ func New(
 	address entity.NetAddress,
 	recorder services.Recorder,
 	healthcheck services.HealthCheck,
+	signer *security.Signer,
 	trustedSubnet *net.IPNet,
 ) *grpcserver.Server {
 	interceptors := make([]grpc.UnaryServerInterceptor, 0, 2)
@@ -30,7 +31,7 @@ func New(
 		grpc.ChainUnaryInterceptor(interceptors...),
 	)
 	NewHealthServer(grpcSrv.Instance(), healthcheck)
-	NewMetricsServer(grpcSrv.Instance(), recorder)
+	NewMetricsServer(grpcSrv.Instance(), recorder, signer)
 
 	return grpcSrv
 }

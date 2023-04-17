@@ -40,7 +40,7 @@ func TestPing(t *testing.T) {
 			m := new(services.HealthCheckMock)
 			m.On("CheckStorage", mock.Anything).Return(tc.checkResp)
 
-			conn, closer := createTestServer(t, nil, m)
+			conn, closer := createTestServer(t, nil, m, "")
 			defer closer()
 
 			client := grpcapi.NewHealthClient(conn)

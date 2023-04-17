@@ -30,7 +30,7 @@ func NewExporter(
 		return NewHTTPExporter(collectorAddress, secret, publicKey), nil
 
 	case entity.TransportGRPC:
-		return NewGRPCExporter(collectorAddress), nil
+		return NewGRPCExporter(collectorAddress, secret), nil
 
 	default:
 		return nil, entity.TransportNotSupportedError(transport)

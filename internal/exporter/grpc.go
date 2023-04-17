@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/pkg/grpcapi"
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"google.golang.org/grpc"
@@ -19,6 +20,10 @@ type GRPCExporter struct {
 	// Address and port of server providing gRPC API.
 	endpoint entity.NetAddress
 
+	// Entity to sign requests.
+	// If set to nil, requests will not be signed.
+	signer *security.Signer
+
 	// Internal buffer to store requests.
 	buffer []*grpcapi.MetricReq
 
@@ -27,8 +32,19 @@ type GRPCExporter struct {
 	err error
 }
 
-func NewGRPCExporter(endpoint entity.NetAddress) *GRPCExporter {
-	return &GRPCExporter{endpoint: endpoint}
+func NewGRPCExporter(
+	endpoint entity.NetAddress,
+	secret security.Secret,
+) *GRPCExporter {
+	var signer *security.Signer
+	if len(secret) > 0 {
+		signer = security.NewSigner(secret)
+	}
+
+	return &GRPCExporter{
+		endpoint: endpoint,
+		signer:   signer,
+	}
 }
 
 // Add a metric to internal buffer.
@@ -48,6 +64,16 @@ func (g *GRPCExporter) Add(name string, value metrics.Metric) Exporter {
 	default:
 		g.err = entity.MetricNotImplementedError(value.Kind())
 		return g
+	}
+
+	if g.signer != nil {
+		hash, err := g.signer.CalculateSignature(name, value)
+		if err != nil {
+			g.err = err
+			return g
+		}
+
+		req.Hash = hash
 	}
 
 	g.buffer = append(g.buffer, req)

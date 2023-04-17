@@ -86,7 +86,7 @@ func New(cfg *config.Server) (*Server, error) {
 	router := httpbackend.Router(cfg.Address, view, recorder, healthcheck, signer, key, cfg.TrustedSubnet)
 	httpSrv := httpserver.New(router, cfg.Address)
 
-	grpcSrv := grpcbackend.New(cfg.GRPCAddress, recorder, healthcheck, cfg.TrustedSubnet)
+	grpcSrv := grpcbackend.New(cfg.GRPCAddress, recorder, healthcheck, signer, cfg.TrustedSubnet)
 
 	profiler := prof.New(cfg.PprofAddress)
 

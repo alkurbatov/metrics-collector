@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/grpcbackend"
+	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/pkg/grpcapi"
 	"github.com/stretchr/testify/require"
@@ -24,6 +25,7 @@ func requireEqual(t *testing.T, left *grpcapi.MetricReq, right *grpcapi.MetricRe
 	require.Equal(left.Mtype, right.Mtype)
 	require.Equal(left.Delta, right.Delta)
 	require.Equal(left.Value, right.Value)
+	require.Equal(left.Hash, right.Hash)
 }
 
 func requireEqualCode(t *testing.T, expected codes.Code, err error) {
@@ -39,6 +41,7 @@ func createTestServer(
 	t *testing.T,
 	recorder *services.RecorderMock,
 	healthcheck *services.HealthCheckMock,
+	key security.Secret,
 ) (*grpc.ClientConn, func()) {
 	t.Helper()
 	require := require.New(t)
@@ -51,8 +54,13 @@ func createTestServer(
 		healthcheck = &services.HealthCheckMock{}
 	}
 
+	var signer *security.Signer
+	if len(key) != 0 {
+		signer = security.NewSigner(key)
+	}
+
 	lis := bufconn.Listen(1024 * 1024)
-	srv := grpcbackend.New("", recorder, healthcheck, nil).Instance()
+	srv := grpcbackend.New("", recorder, healthcheck, signer, nil).Instance()
 
 	go func() {
 		require.NoError(srv.Serve(lis))
