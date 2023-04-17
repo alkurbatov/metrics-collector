@@ -26,7 +26,7 @@ install-tools: $(E2E_TEST) ## Install additional linters and test tools
 $(E2E_TEST):
 	@echo Installing $@
 	curl -sSfL \
-		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.14/devopstest-darwin-amd64 \
+		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.9.6/devopstest-darwin-amd64 \
 		-o $@
 	@chmod +x $(E2E_TEST)
 
