@@ -9,16 +9,9 @@ import (
 	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
+	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
-
-func signError(reason error) error {
-	return fmt.Errorf("failed to sign request: %w", reason)
-}
-
-func verifyError(reason error) error {
-	return fmt.Errorf("failed to verify request signature: %w", reason)
-}
 
 // A Signer provides signature generation and verification functionality.
 type Signer struct {
@@ -31,62 +24,49 @@ func NewSigner(secret Secret) *Signer {
 	return &Signer{secret: []byte(secret)}
 }
 
-func (s *Signer) calculateSignature(req *metrics.MetricReq) ([]byte, error) {
+// CalculateSignature generates signature for provided payload.
+func (s *Signer) CalculateSignature(name string, data metrics.Metric) (string, error) {
 	mac := hmac.New(sha256.New, s.secret)
 
 	var msg string
 
-	switch req.MType {
-	case metrics.KindCounter:
-		if req.Delta == nil {
-			return nil, entity.ErrIncompleteRequest
-		}
+	switch v := data.(type) {
+	case metrics.Counter:
+		msg = fmt.Sprintf("%s:%s:%d", name, v.Kind(), v)
 
-		msg = fmt.Sprintf("%s:%s:%d", req.ID, req.MType, *req.Delta)
-
-	case metrics.KindGauge:
-		if req.Value == nil {
-			return nil, entity.ErrIncompleteRequest
-		}
-
-		msg = fmt.Sprintf("%s:%s:%f", req.ID, req.MType, *req.Value)
+	case metrics.Gauge:
+		msg = fmt.Sprintf("%s:%s:%f", name, v.Kind(), v)
 
 	default:
-		return nil, entity.MetricNotImplementedError(req.MType)
+		return "", fmt.Errorf("security - CalculateSignature - data.Value.(type): %w", entity.ErrMetricNotImplemented)
 	}
 
 	mac.Write([]byte(msg))
+	digest := mac.Sum(nil)
 
-	return mac.Sum(nil), nil
+	return hex.EncodeToString(digest), nil
 }
 
-// SignRequest generates signature for provided payload.
-func (s *Signer) SignRequest(req *metrics.MetricReq) error {
-	digest, err := s.calculateSignature(req)
-	if err != nil {
-		return signError(err)
-	}
-
-	req.Hash = hex.EncodeToString(digest)
-
-	return nil
+// CalculateRecordSignature generates signature for provided record.
+func (s *Signer) CalculateRecordSignature(data storage.Record) (string, error) {
+	return s.CalculateSignature(data.Name, data.Value)
 }
 
 // VerifySignature checks signature of provided payload.
-func (s *Signer) VerifySignature(req *metrics.MetricReq) (bool, error) {
-	if len(req.Hash) == 0 {
-		return false, verifyError(entity.ErrNotSigned)
+func (s *Signer) VerifySignature(name string, data metrics.Metric, hash string) (bool, error) {
+	if len(hash) == 0 {
+		return false, fmt.Errorf("security - VerifySignature - len(hash): %w", entity.ErrNotSigned)
 	}
 
-	expected, err := hex.DecodeString(req.Hash)
+	expected, err := s.CalculateSignature(name, data)
 	if err != nil {
-		return false, verifyError(err)
+		return false, fmt.Errorf("security - VerifySignature - s.calculateSignature: %w", err)
 	}
 
-	digest, err := s.calculateSignature(req)
-	if err != nil {
-		return false, verifyError(err)
-	}
+	return expected == hash, nil
+}
 
-	return hmac.Equal(digest, expected), nil
+// VerifyRecordSignature checks signature of provided record.
+func (s *Signer) VerifyRecordSignature(data storage.Record, hash string) (bool, error) {
+	return s.VerifySignature(data.Name, data.Value, hash)
 }

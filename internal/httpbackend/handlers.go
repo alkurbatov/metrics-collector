@@ -161,10 +161,13 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	resp := toMetricReq(recorded)
 
 	if h.signer != nil {
-		if err := h.signer.SignRequest(&resp); err != nil {
+		hash, err := h.signer.CalculateRecordSignature(recorded)
+		if err != nil {
 			writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
 			return
 		}
+
+		resp.Hash = hash
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -301,10 +304,13 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 	resp := toMetricReq(record)
 
 	if h.signer != nil {
-		if err := h.signer.SignRequest(&resp); err != nil {
+		hash, err := h.signer.CalculateRecordSignature(record)
+		if err != nil {
 			writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
 			return
 		}
+
+		resp.Hash = hash
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -3,43 +3,43 @@ package security_test
 import (
 	"testing"
 
+	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/security"
+	"github.com/alkurbatov/metrics-collector/internal/storage"
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 	"github.com/stretchr/testify/require"
 )
 
 const secret = "abc"
 
-func TestSignRequest(t *testing.T) {
+func TestCalculateSignature(t *testing.T) {
 	tt := []struct {
-		name     string
-		req      metrics.MetricReq
-		ok       bool
-		expected string
+		name       string
+		metricName string
+		data       metrics.Metric
+		err        error
+		expected   string
 	}{
 		{
-			name:     "Should sign update counter request",
-			req:      metrics.NewUpdateCounterReq("PollCount", 10),
-			ok:       true,
-			expected: "0833001195f2e062140968e0c00dd44f00eb9a0b309aedc464817f904b244c8a",
+			name:       "Sign counter record",
+			metricName: "PollCount",
+			data:       metrics.Counter(10),
+			err:        nil,
+			expected:   "0833001195f2e062140968e0c00dd44f00eb9a0b309aedc464817f904b244c8a",
 		},
 		{
-			name:     "Should sign update gauge request",
-			req:      metrics.NewUpdateGaugeReq("Alloc", 123.456),
-			ok:       true,
-			expected: "63e1e3ffc75258f015fec0eca2d2fdbacc0e7df559be0adef92d43c2133c5cf7",
+			name:       "Sign gauge record",
+			metricName: "Alloc",
+			data:       metrics.Gauge(123.456),
+			err:        nil,
+			expected:   "63e1e3ffc75258f015fec0eca2d2fdbacc0e7df559be0adef92d43c2133c5cf7",
 		},
 		{
-			name: "Should fail on missing delta",
-			req:  metrics.MetricReq{ID: "PollCount", MType: metrics.KindCounter},
-		},
-		{
-			name: "Should fail on missing value",
-			req:  metrics.MetricReq{ID: "Alloc", MType: metrics.KindGauge},
-		},
-		{
-			name: "Should fail on unexpected metric type",
-			req:  metrics.MetricReq{ID: "Alloc", MType: "???"},
+			name:       "Signing fails if counter type is unknown",
+			metricName: "Alloc",
+			data:       nil,
+			err:        entity.ErrMetricNotImplemented,
+			expected:   "",
 		},
 	}
 
@@ -48,66 +48,78 @@ func TestSignRequest(t *testing.T) {
 			require := require.New(t)
 			signer := security.NewSigner(secret)
 
-			err := signer.SignRequest(&tc.req)
-			if !tc.ok {
-				require.Error(err)
-				return
-			}
+			hash, err := signer.CalculateRecordSignature(storage.Record{Name: tc.metricName, Value: tc.data})
 
-			require.NoError(err)
-			require.Equal(tc.expected, tc.req.Hash)
+			require.ErrorIs(err, tc.err)
+			require.Equal(tc.expected, hash)
 		})
 	}
 }
 
 func TestVerifySignature(t *testing.T) {
 	tt := []struct {
-		name  string
-		req   metrics.MetricReq
-		hash  string
-		ok    bool
-		valid bool
+		name       string
+		metricName string
+		data       metrics.Metric
+		hash       string
+		valid      bool
+		err        error
 	}{
 		{
-			name:  "Should verify update counter request",
-			req:   metrics.NewUpdateCounterReq("PollCount", 10),
-			hash:  "0833001195f2e062140968e0c00dd44f00eb9a0b309aedc464817f904b244c8a",
-			ok:    true,
-			valid: true,
+			name:       "Verify signature of counter record",
+			metricName: "PollCount",
+			data:       metrics.Counter(10),
+			hash:       "0833001195f2e062140968e0c00dd44f00eb9a0b309aedc464817f904b244c8a",
+			valid:      true,
+			err:        nil,
 		},
 		{
-			name:  "Should sign update gauge request",
-			req:   metrics.NewUpdateGaugeReq("Alloc", 123.456),
-			hash:  "63e1e3ffc75258f015fec0eca2d2fdbacc0e7df559be0adef92d43c2133c5cf7",
-			ok:    true,
-			valid: true,
+			name:       "Verify signature of gauge record",
+			metricName: "Alloc",
+			data:       metrics.Gauge(123.456),
+			hash:       "63e1e3ffc75258f015fec0eca2d2fdbacc0e7df559be0adef92d43c2133c5cf7",
+			valid:      true,
+			err:        nil,
 		},
 		{
-			name: "Should be invalid if hash is missing",
-			req:  metrics.NewUpdateGaugeReq("Alloc", 123.456),
-			hash: "",
+			name:       "Signature is invalid if hash is missing",
+			metricName: "Alloc",
+			data:       metrics.Gauge(123.456),
+			hash:       "",
+			valid:      false,
+			err:        entity.ErrNotSigned,
 		},
 		{
-			name: "Should be invalid if signature is in unexpected encoding",
-			req:  metrics.MetricReq{ID: "Alloc", MType: "???"},
-			hash: "xxx",
+			name:       "Signature is invalid if hash in unexpected encoding",
+			metricName: "Alloc",
+			data:       metrics.Gauge(123.456),
+			hash:       "xxx",
+			valid:      false,
+			err:        nil,
 		},
 		{
-			name: "Should be invalid if cannot calculate signature",
-			req:  metrics.MetricReq{ID: "Alloc", MType: "???"},
-			hash: "63e1e3ffc75258f015fec0eca2d2fdbacc0e7df559be0adef92d43c2133c5cf7",
+			name:       "Signature is invalid if signer cannot calculate signature",
+			metricName: "Alloc",
+			data:       nil,
+			hash:       "63e1e3ffc75258f015fec0eca2d2fdbacc0e7df559be0adef92d43c2133c5cf7",
+			valid:      false,
+			err:        entity.ErrMetricNotImplemented,
 		},
 		{
-			name: "Should be invalid if counter hashes doesn't match",
-			req:  metrics.NewUpdateCounterReq("PollCount", 11),
-			hash: "4141413a7878783a313233",
-			ok:   true,
+			name:       "Signature is invalid if counter hashes don't match",
+			metricName: "PollCount",
+			data:       metrics.Counter(11),
+			hash:       "4141413a7878783a313233",
+			err:        nil,
+			valid:      false,
 		},
 		{
-			name: "Should be invalid if gauge hashes doesn't match",
-			req:  metrics.NewUpdateGaugeReq("Alloc", 123.454),
-			hash: "4141413a7878783a313233",
-			ok:   true,
+			name:       "Signature is invalid if gauge hashes don't match",
+			metricName: "Alloc",
+			data:       metrics.Gauge(123.456),
+			hash:       "4141413a7878783a313233",
+			err:        nil,
+			valid:      false,
 		},
 	}
 
@@ -116,17 +128,9 @@ func TestVerifySignature(t *testing.T) {
 			require := require.New(t)
 			signer := security.NewSigner(secret)
 
-			tc.req.Hash = tc.hash
+			valid, err := signer.VerifyRecordSignature(storage.Record{Name: tc.metricName, Value: tc.data}, tc.hash)
 
-			valid, err := signer.VerifySignature(&tc.req)
-			if !tc.ok {
-				require.Error(err)
-				require.False(valid)
-
-				return
-			}
-
-			require.NoError(err)
+			require.ErrorIs(err, tc.err)
 			require.Equal(tc.valid, valid)
 		})
 	}

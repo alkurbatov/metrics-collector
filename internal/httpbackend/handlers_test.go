@@ -215,19 +215,21 @@ func TestUpdateJSONMetric(t *testing.T) {
 			},
 		},
 		{
-			name:      "Should fail if counter signature doesn't match",
-			req:       metrics.NewUpdateCounterReq("PollCount", 10),
-			clientKey: "abc",
-			serverKey: "xxx",
+			name:       "Should fail if counter signature doesn't match",
+			req:        metrics.NewUpdateCounterReq("PollCount", 10),
+			clientKey:  "abc",
+			serverKey:  "xxx",
+			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name:      "Should fail if gauge signature doesn't match",
-			req:       metrics.NewUpdateGaugeReq("Alloc", 13.123),
-			clientKey: "abc",
-			serverKey: "xxx",
+			name:       "Should fail if gauge signature doesn't match",
+			req:        metrics.NewUpdateGaugeReq("Alloc", 13.123),
+			clientKey:  "abc",
+			serverKey:  "xxx",
+			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(13.123)},
 			expected: result{
 				code: http.StatusBadRequest,
 			},
@@ -278,8 +280,9 @@ func TestUpdateJSONMetric(t *testing.T) {
 
 			if len(tc.clientKey) > 0 {
 				signer := security.NewSigner(tc.clientKey)
-				err := signer.SignRequest(&tc.req)
+				hash, err := signer.CalculateRecordSignature(tc.recorderRV)
 				require.NoError(err)
+				tc.req.Hash = hash
 			}
 
 			payload, err := json.Marshal(tc.req)
@@ -379,10 +382,13 @@ func TestBatchUpdate(t *testing.T) {
 			if len(tc.clientKey) > 0 {
 				signer := security.NewSigner(tc.clientKey)
 
-				for i := range tc.req {
-					err := signer.SignRequest(&tc.req[i])
-					require.NoError(err)
-				}
+				hash, err := signer.CalculateSignature(tc.req[0].ID, *tc.req[0].Delta)
+				require.NoError(err)
+				tc.req[0].Hash = hash
+
+				hash, err = signer.CalculateSignature(tc.req[1].ID, *tc.req[1].Value)
+				require.NoError(err)
+				tc.req[1].Hash = hash
 			}
 
 			payload, err := json.Marshal(tc.req)

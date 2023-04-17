@@ -90,10 +90,13 @@ func (h *HTTPExporter) Add(name string, value metrics.Metric) Exporter {
 	}
 
 	if h.signer != nil {
-		if err := h.signer.SignRequest(&req); err != nil {
+		hash, err := h.signer.CalculateSignature(name, value)
+		if err != nil {
 			h.err = err
 			return h
 		}
+
+		req.Hash = hash
 	}
 
 	h.buffer = append(h.buffer, req)

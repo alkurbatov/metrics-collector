@@ -12,12 +12,33 @@ import (
 )
 
 func toRecord(ctx context.Context, req *metrics.MetricReq, signer *security.Signer) (storage.Record, error) {
+	var record storage.Record
+
 	if err := validators.ValidateMetricName(req.ID, req.MType); err != nil {
-		return storage.Record{}, err
+		return record, err
+	}
+
+	switch req.MType {
+	case metrics.KindCounter:
+		if req.Delta == nil {
+			return record, entity.ErrIncompleteRequest
+		}
+
+		record = storage.Record{Name: req.ID, Value: *req.Delta}
+
+	case metrics.KindGauge:
+		if req.Value == nil {
+			return record, entity.ErrIncompleteRequest
+		}
+
+		record = storage.Record{Name: req.ID, Value: *req.Value}
+
+	default:
+		return record, entity.MetricNotImplementedError(req.MType)
 	}
 
 	if signer != nil {
-		valid, err := signer.VerifySignature(req)
+		valid, err := signer.VerifyRecordSignature(record, req.Hash)
 		if err != nil {
 			// NB (alkurbatov): We don't want to give any hints to potential attacker,
 			// but still want to debug implementation errors. Thus, the error is only logged.
@@ -25,28 +46,11 @@ func toRecord(ctx context.Context, req *metrics.MetricReq, signer *security.Sign
 		}
 
 		if err != nil || !valid {
-			return storage.Record{}, entity.ErrInvalidSignature
+			return record, entity.ErrInvalidSignature
 		}
 	}
 
-	switch req.MType {
-	case metrics.KindCounter:
-		if req.Delta == nil {
-			return storage.Record{}, entity.ErrIncompleteRequest
-		}
-
-		return storage.Record{Name: req.ID, Value: *req.Delta}, nil
-
-	case metrics.KindGauge:
-		if req.Value == nil {
-			return storage.Record{}, entity.ErrIncompleteRequest
-		}
-
-		return storage.Record{Name: req.ID, Value: *req.Value}, nil
-
-	default:
-		return storage.Record{}, entity.MetricNotImplementedError(req.MType)
-	}
+	return record, nil
 }
 
 func toMetricReq(record storage.Record) metrics.MetricReq {
