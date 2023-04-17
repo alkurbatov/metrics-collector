@@ -73,7 +73,7 @@ server: ## Build metrics server
 .PHONY: server
 
 staticlint: ## Build static lint utility
-	go build $(CCFLAGS) -o cmd/$@/$@ cmd/$@/*.go
+	go build -o cmd/$@/$@ cmd/$@/*.go
 .PHONY: staticlint
 
 clean: ## Remove build artifacts and downloaded test tools
@@ -82,7 +82,7 @@ clean: ## Remove build artifacts and downloaded test tools
 
 lint: ## Run linters on the source code
 	golangci-lint run
-	go list ./... | grep -F -v -e docs | xargs ./cmd/staticlint/staticlint
+	go list -buildvcs=false ./... | grep -F -v -e docs | xargs ./cmd/staticlint/staticlint
 .PHONY: lint
 
 unit-tests: ## Run unit tests
