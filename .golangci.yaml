@@ -27,6 +27,7 @@ linters:
     - interfacer
     - ireturn
     - maligned
+    - musttag
     - nlreturn
     - nosnakecase
     - rowserrcheck
