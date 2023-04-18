@@ -173,3 +173,16 @@ func (h *HTTPExporter) Send(ctx context.Context) Exporter {
 
 	return h
 }
+
+// Reset reset state of exporter to initial.
+// This doesn't affected the underlying connection.
+func (h *HTTPExporter) Reset() {
+	h.buffer = make([]metrics.MetricReq, 0)
+	h.err = nil
+}
+
+// Close of HTTP exporter is no-op.
+// Required by the Exporter interface.
+func (h *HTTPExporter) Close() error {
+	return nil
+}

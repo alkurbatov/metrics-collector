@@ -22,6 +22,64 @@ import (
 
 const _defaultShutdownTimeout = 20 * time.Second
 
+// SendMetrics exports collected metrics in single batch request.
+func sendMetrics(
+	ctx context.Context,
+	exp exporter.Exporter,
+	stats *monitoring.Metrics,
+) error {
+	// NB (alkurbatov): Take snapshot to avoid possible races.
+	snapshot := *stats
+
+	exp.
+		Add("CPUutilization1", snapshot.System.CPUutilization1).
+		Add("TotalMemory", snapshot.System.TotalMemory).
+		Add("FreeMemory", snapshot.System.FreeMemory)
+
+	exp.
+		Add("Alloc", snapshot.Runtime.Alloc).
+		Add("BuckHashSys", snapshot.Runtime.BuckHashSys).
+		Add("Frees", snapshot.Runtime.Frees).
+		Add("GCCPUFraction", snapshot.Runtime.GCCPUFraction).
+		Add("GCSys", snapshot.Runtime.GCSys).
+		Add("HeapAlloc", snapshot.Runtime.HeapAlloc).
+		Add("HeapIdle", snapshot.Runtime.HeapIdle).
+		Add("HeapInuse", snapshot.Runtime.HeapInuse).
+		Add("HeapObjects", snapshot.Runtime.HeapObjects).
+		Add("HeapReleased", snapshot.Runtime.HeapReleased).
+		Add("HeapSys", snapshot.Runtime.HeapSys).
+		Add("LastGC", snapshot.Runtime.LastGC).
+		Add("Lookups", snapshot.Runtime.Lookups).
+		Add("MCacheInuse", snapshot.Runtime.MCacheInuse).
+		Add("MCacheSys", snapshot.Runtime.MCacheSys).
+		Add("MSpanInuse", snapshot.Runtime.MSpanInuse).
+		Add("MSpanSys", snapshot.Runtime.MSpanSys).
+		Add("Mallocs", snapshot.Runtime.Mallocs).
+		Add("NextGC", snapshot.Runtime.NextGC).
+		Add("NumForcedGC", snapshot.Runtime.NumForcedGC).
+		Add("NumGC", snapshot.Runtime.NumGC).
+		Add("OtherSys", snapshot.Runtime.OtherSys).
+		Add("PauseTotalNs", snapshot.Runtime.PauseTotalNs).
+		Add("StackInuse", snapshot.Runtime.StackInuse).
+		Add("StackSys", snapshot.Runtime.StackSys).
+		Add("Sys", snapshot.Runtime.Sys).
+		Add("TotalAlloc", snapshot.Runtime.TotalAlloc)
+
+	exp.
+		Add("RandomValue", snapshot.RandomValue)
+
+	exp.
+		Add("PollCount", snapshot.PollCount)
+
+	if err := exp.Send(ctx).Error(); err != nil {
+		return err
+	}
+
+	stats.PollCount -= snapshot.PollCount
+
+	return nil
+}
+
 type Agent struct {
 	// Full configuration of the service.
 	config *config.Agent
@@ -103,11 +161,14 @@ func (app *Agent) report(ctx context.Context) {
 	ticker := time.NewTicker(app.config.ReportInterval)
 	defer ticker.Stop()
 
+	exp := exporter.New(app.config.Transport, app.config.Address, app.config.Secret, app.publicKey)
+
 	for {
 		select {
 		case <-ticker.C:
 			func() {
 				defer recovery.TryRecover()
+				defer exp.Reset()
 
 				log.Info().Msg("Sending application metrics")
 
@@ -116,14 +177,7 @@ func (app *Agent) report(ctx context.Context) {
 				taskCtx, cancel := context.WithTimeout(context.Background(), app.config.ExportTimeout)
 				defer cancel()
 
-				err := exporter.SendMetrics(
-					taskCtx,
-					app.config.Transport,
-					app.config.Address,
-					app.config.Secret,
-					app.publicKey,
-					app.stats,
-				)
+				err := sendMetrics(taskCtx, exp, app.stats)
 
 				if errors.Is(err, context.DeadlineExceeded) {
 					log.Error().Dur("deadline", app.config.PollTimeout).Msg("metrics exporting exceeded deadline")
@@ -140,6 +194,11 @@ func (app *Agent) report(ctx context.Context) {
 
 		case <-ctx.Done():
 			log.Info().Msg("Shutdown metrics sending")
+
+			if err := exp.Close(); err != nil {
+				log.Error().Err(err).Msg("agent - report - exp.Close")
+			}
+
 			return
 		}
 	}

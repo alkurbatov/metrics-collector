@@ -13,12 +13,12 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-var _ServerConnection *grpc.ClientConn
-
 // GRPCExporter sends collected metrics to metrics collector in single batch request.
 type GRPCExporter struct {
 	// Address and port of server providing gRPC API.
 	endpoint entity.NetAddress
+
+	conn *grpc.ClientConn
 
 	// Entity to sign requests.
 	// If set to nil, requests will not be signed.
@@ -95,8 +95,8 @@ func (g *GRPCExporter) Send(ctx context.Context) Exporter {
 		return g
 	}
 
-	if _ServerConnection == nil {
-		_ServerConnection, g.err = grpc.DialContext(
+	if g.conn == nil {
+		g.conn, g.err = grpc.DialContext(
 			ctx,
 			g.endpoint.String(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -119,10 +119,26 @@ func (g *GRPCExporter) Send(ctx context.Context) Exporter {
 
 	md := metadata.New(map[string]string{"x-real-ip": clientIP.String()})
 	ctx = metadata.NewOutgoingContext(ctx, md)
-	client := grpcapi.NewMetricsClient(_ServerConnection)
+	client := grpcapi.NewMetricsClient(g.conn)
 
 	req := &grpcapi.BatchUpdateRequest{Data: g.buffer}
 	_, g.err = client.BatchUpdate(ctx, req)
 
 	return g
+}
+
+// Reset reset state of exporter to initial.
+// This doesn't affected the underlying connection.
+func (g *GRPCExporter) Reset() {
+	g.buffer = make([]*grpcapi.MetricReq, 0)
+	g.err = nil
+}
+
+// Close gracefully finishes gRPC client connection.
+func (g *GRPCExporter) Close() error {
+	if g.conn == nil {
+		return nil
+	}
+
+	return g.conn.Close()
 }
