@@ -2,6 +2,7 @@ package httpbackend
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
 	"github.com/alkurbatov/metrics-collector/internal/security"
@@ -53,8 +54,17 @@ func toRecord(ctx context.Context, req *metrics.MetricReq, signer *security.Sign
 	return record, nil
 }
 
-func toMetricReq(record storage.Record) metrics.MetricReq {
-	req := metrics.MetricReq{ID: record.Name, MType: record.Value.Kind()}
+func toMetricReq(record storage.Record, signer *security.Signer) (*metrics.MetricReq, error) {
+	req := &metrics.MetricReq{ID: record.Name, MType: record.Value.Kind()}
+
+	if signer != nil {
+		hash, err := signer.CalculateRecordSignature(record)
+		if err != nil {
+			return nil, fmt.Errorf("httpbackend - toMetricReq - signer.CalculateRecordSignature: %w", err)
+		}
+
+		req.Hash = hash
+	}
 
 	switch record.Value.Kind() {
 	case metrics.KindCounter:
@@ -66,5 +76,20 @@ func toMetricReq(record storage.Record) metrics.MetricReq {
 		req.Value = &value
 	}
 
-	return req
+	return req, nil
+}
+
+func toMetricReqList(records []storage.Record, signer *security.Signer) ([]*metrics.MetricReq, error) {
+	rv := make([]*metrics.MetricReq, len(records))
+
+	for i, record := range records {
+		req, err := toMetricReq(record, signer)
+		if err != nil {
+			return nil, fmt.Errorf("httpbackend - toMetricReqList - toMetricReq: %w", err)
+		}
+
+		rv[i] = req
+	}
+
+	return rv, nil
 }

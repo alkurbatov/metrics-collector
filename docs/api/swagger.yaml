@@ -149,6 +149,10 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            items:
+              $ref: '#/definitions/metrics.MetricReq'
+            type: array
         "400":
           description: Bad Request
           schema:

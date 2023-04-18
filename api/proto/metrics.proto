@@ -3,8 +3,6 @@ syntax = "proto3";
 package metrics.collector.v1;
 option go_package = "github.com/alkurbatov/metrics-collector/grpcapi";
 
-import "google/protobuf/empty.proto";
-
 // NB (alkurbatov): The name was intentionally choosen to match the similar structure
 // from HTTP API for convenience.
 message MetricReq {
@@ -24,9 +22,13 @@ message BatchUpdateRequest {
   repeated MetricReq data = 1;
 }
 
+message BatchUpdateResponse {
+  repeated MetricReq data = 1;
+}
+
 service Metrics {
   rpc Update(MetricReq) returns (MetricReq);
-  rpc BatchUpdate(BatchUpdateRequest) returns (google.protobuf.Empty);
+  rpc BatchUpdate(BatchUpdateRequest) returns (BatchUpdateResponse);
 
   rpc Get(GetMetricRequest) returns (MetricReq);
 }

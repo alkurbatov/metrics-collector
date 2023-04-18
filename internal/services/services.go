@@ -9,7 +9,7 @@ import (
 
 type Recorder interface {
 	Push(ctx context.Context, record storage.Record) (storage.Record, error)
-	PushList(ctx context.Context, records []storage.Record) error
+	PushList(ctx context.Context, records []storage.Record) ([]storage.Record, error)
 	Get(ctx context.Context, kind, name string) (storage.Record, error)
 	List(ctx context.Context) ([]storage.Record, error)
 }

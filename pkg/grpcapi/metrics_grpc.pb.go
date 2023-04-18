@@ -7,7 +7,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -20,7 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MetricsClient interface {
 	Update(ctx context.Context, in *MetricReq, opts ...grpc.CallOption) (*MetricReq, error)
-	BatchUpdate(ctx context.Context, in *BatchUpdateRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	BatchUpdate(ctx context.Context, in *BatchUpdateRequest, opts ...grpc.CallOption) (*BatchUpdateResponse, error)
 	Get(ctx context.Context, in *GetMetricRequest, opts ...grpc.CallOption) (*MetricReq, error)
 }
 
@@ -41,8 +40,8 @@ func (c *metricsClient) Update(ctx context.Context, in *MetricReq, opts ...grpc.
 	return out, nil
 }
 
-func (c *metricsClient) BatchUpdate(ctx context.Context, in *BatchUpdateRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+func (c *metricsClient) BatchUpdate(ctx context.Context, in *BatchUpdateRequest, opts ...grpc.CallOption) (*BatchUpdateResponse, error) {
+	out := new(BatchUpdateResponse)
 	err := c.cc.Invoke(ctx, "/metrics.collector.v1.Metrics/BatchUpdate", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -64,7 +63,7 @@ func (c *metricsClient) Get(ctx context.Context, in *GetMetricRequest, opts ...g
 // for forward compatibility
 type MetricsServer interface {
 	Update(context.Context, *MetricReq) (*MetricReq, error)
-	BatchUpdate(context.Context, *BatchUpdateRequest) (*emptypb.Empty, error)
+	BatchUpdate(context.Context, *BatchUpdateRequest) (*BatchUpdateResponse, error)
 	Get(context.Context, *GetMetricRequest) (*MetricReq, error)
 	mustEmbedUnimplementedMetricsServer()
 }
@@ -76,7 +75,7 @@ type UnimplementedMetricsServer struct {
 func (UnimplementedMetricsServer) Update(context.Context, *MetricReq) (*MetricReq, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
-func (UnimplementedMetricsServer) BatchUpdate(context.Context, *BatchUpdateRequest) (*emptypb.Empty, error) {
+func (UnimplementedMetricsServer) BatchUpdate(context.Context, *BatchUpdateRequest) (*BatchUpdateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BatchUpdate not implemented")
 }
 func (UnimplementedMetricsServer) Get(context.Context, *GetMetricRequest) (*MetricReq, error) {

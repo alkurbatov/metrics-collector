@@ -158,16 +158,10 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := toMetricReq(recorded)
-
-	if h.signer != nil {
-		hash, err := h.signer.CalculateRecordSignature(recorded)
-		if err != nil {
-			writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
-			return
-		}
-
-		resp.Hash = hash
+	resp, err := toMetricReq(recorded, h.signer)
+	if err != nil {
+		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -185,7 +179,7 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 // @ID metrics_json_update_list
 // @Accept  json
 // @Param request body []metrics.MetricReq true "List of metrics to update."
-// @Success 200
+// @Success 200 {object} []metrics.MetricReq
 // @Failure 400 {string} string http.StatusBadRequest
 // @Failure 500 {string} string http.StatusInternalServerError
 // @Failure 501 {string} string "Metric type is not supported"
@@ -204,7 +198,21 @@ func (h metricsResource) BatchUpdateJSON(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.recorder.PushList(r.Context(), req); err != nil {
+	records, err := h.recorder.PushList(r.Context(), req)
+	if err != nil {
+		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
+		return
+	}
+
+	resp, err := toMetricReqList(records, h.signer)
+	if err != nil {
+		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
 		return
 	}
@@ -301,16 +309,10 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := toMetricReq(record)
-
-	if h.signer != nil {
-		hash, err := h.signer.CalculateRecordSignature(record)
-		if err != nil {
-			writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
-			return
-		}
-
-		resp.Hash = hash
+	resp, err := toMetricReq(record, h.signer)
+	if err != nil {
+		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

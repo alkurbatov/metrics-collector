@@ -5,7 +5,6 @@ import (
 
 	"github.com/alkurbatov/metrics-collector/pkg/grpcapi"
 	"github.com/stretchr/testify/mock"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type MetricsServerMock struct {
@@ -23,7 +22,10 @@ func (m *MetricsServerMock) Get(ctx context.Context, req *grpcapi.GetMetricReque
 	return args.Get(0).(*grpcapi.MetricReq), args.Error(1)
 }
 
-func (m *MetricsServerMock) BatchUpdate(ctx context.Context, req *grpcapi.BatchUpdateRequest) (*emptypb.Empty, error) {
+func (m *MetricsServerMock) BatchUpdate(
+	ctx context.Context,
+	req *grpcapi.BatchUpdateRequest,
+) (*grpcapi.BatchUpdateResponse, error) {
 	args := m.Called(ctx, req)
-	return args.Get(0).(*emptypb.Empty), args.Error(1)
+	return args.Get(0).(*grpcapi.BatchUpdateResponse), args.Error(1)
 }

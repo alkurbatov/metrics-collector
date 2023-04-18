@@ -261,50 +261,81 @@ func TestBatchUpdate(t *testing.T) {
 		grpcapi.NewUpdateGaugeReq("Alloc", 11.23),
 	}
 
+	batchResp := []storage.Record{
+		{Name: "Alloc", Value: metrics.Gauge(11.23)},
+		{Name: "PollCount", Value: metrics.Counter(10)},
+	}
+
+	type expected struct {
+		code     codes.Code
+		response []*grpcapi.MetricReq
+	}
+
 	tt := []struct {
 		name        string
 		data        []*grpcapi.MetricReq
 		clientKey   security.Secret
 		serverKey   security.Secret
+		recorderRv  []storage.Record
 		recorderErr error
-		expected    codes.Code
+		expected    expected
 	}{
 		{
-			name:      "Batch update handles signed list of different metrics",
-			data:      batchReq,
-			clientKey: "abc",
-			serverKey: "abc",
-			expected:  codes.OK,
+			name:       "Batch update handles signed list of different metrics",
+			data:       batchReq,
+			clientKey:  "abc",
+			serverKey:  "abc",
+			recorderRv: batchResp,
+			expected: expected{
+				code: codes.OK,
+				response: []*grpcapi.MetricReq{
+					grpcapi.NewUpdateGaugeReq("Alloc", 11.23),
+					grpcapi.NewUpdateCounterReq("PollCount", 10),
+				},
+			},
 		},
 		{
-			name:     "Batch update handles unsigned list of different metrics",
-			data:     batchReq,
-			expected: codes.OK,
+			name:       "Batch update handles unsigned list of different metrics",
+			data:       batchReq,
+			recorderRv: batchResp,
+			expected: expected{
+				code: codes.OK,
+				response: []*grpcapi.MetricReq{
+					grpcapi.NewUpdateGaugeReq("Alloc", 11.23),
+					grpcapi.NewUpdateCounterReq("PollCount", 10),
+				},
+			},
 		},
 		{
-			name:     "Batch update fails on empty list",
-			data:     make([]*grpcapi.MetricReq, 0),
-			expected: codes.InvalidArgument,
+			name: "Batch update fails on empty list",
+			data: make([]*grpcapi.MetricReq, 0),
+			expected: expected{
+				code: codes.InvalidArgument,
+			},
 		},
 		{
 			name: "Batch update fails if unknown metric kind found in list",
 			data: []*grpcapi.MetricReq{
 				{Id: "xxx", Mtype: "unknown"},
 			},
-			expected: codes.Unimplemented,
+			expected: expected{
+				code: codes.Unimplemented,
+			},
 		},
 		{
 			name:        "Batch update fails if recorder is broken",
 			data:        batchReq,
 			recorderErr: entity.ErrUnexpected,
-			expected:    codes.Internal,
+			expected: expected{
+				code: codes.Internal,
+			},
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			m := new(services.RecorderMock)
-			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderErr)
+			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderRv, tc.recorderErr)
 
 			conn, closer := createTestServer(t, m, nil, "")
 			t.Cleanup(closer)
@@ -323,9 +354,12 @@ func TestBatchUpdate(t *testing.T) {
 
 			client := grpcapi.NewMetricsClient(conn)
 			req := &grpcapi.BatchUpdateRequest{Data: tc.data}
-			_, err := client.BatchUpdate(context.Background(), req)
+			resp, err := client.BatchUpdate(context.Background(), req)
 
-			requireEqualCode(t, tc.expected, err)
+			requireEqualCode(t, tc.expected.code, err)
+			if tc.expected.code == codes.OK {
+				require.Equal(t, tc.expected.response, resp.Data)
+			}
 		})
 	}
 }

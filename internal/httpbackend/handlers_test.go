@@ -315,25 +315,33 @@ func TestBatchUpdate(t *testing.T) {
 		metrics.NewUpdateGaugeReq("Alloc", 11.23),
 	}
 
+	batchResp := []storage.Record{
+		{Name: "PollCount", Value: metrics.Counter(10)},
+		{Name: "Alloc", Value: metrics.Gauge(11.23)},
+	}
+
 	tt := []struct {
 		name        string
 		req         []metrics.MetricReq
 		clientKey   security.Secret
 		serverKey   security.Secret
+		recorderRv  []storage.Record
 		recorderErr error
 		expected    result
 	}{
 		{
-			name:      "Should handle signed list of different metrics",
-			req:       batchReq,
-			clientKey: "abc",
-			serverKey: "abc",
-			expected:  result{code: http.StatusOK},
+			name:       "Should handle signed list of different metrics",
+			req:        batchReq,
+			clientKey:  "abc",
+			serverKey:  "abc",
+			recorderRv: batchResp,
+			expected:   result{code: http.StatusOK},
 		},
 		{
-			name:     "Should handle unsigned list of different metrics",
-			req:      batchReq,
-			expected: result{code: http.StatusOK},
+			name:       "Should handle unsigned list of different metrics",
+			req:        batchReq,
+			recorderRv: batchResp,
+			expected:   result{code: http.StatusOK},
 		},
 		{
 			name:     "Should fail on empty list",
@@ -365,6 +373,7 @@ func TestBatchUpdate(t *testing.T) {
 		{
 			name:        "Should fail if recorder is broken",
 			req:         batchReq,
+			recorderRv:  nil,
 			recorderErr: entity.ErrUnexpected,
 			expected:    result{code: http.StatusInternalServerError},
 		},
@@ -375,7 +384,7 @@ func TestBatchUpdate(t *testing.T) {
 			require := require.New(t)
 
 			m := new(services.RecorderMock)
-			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderErr)
+			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderRv, tc.recorderErr)
 
 			router := newRouter(t, tc.serverKey, m, nil)
 

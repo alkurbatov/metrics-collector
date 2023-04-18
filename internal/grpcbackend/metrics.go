@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // MetricsServer allows to store and retrieve metrics.
@@ -82,7 +81,10 @@ func (s MetricsServer) Get(ctx context.Context, req *grpcapi.GetMetricRequest) (
 }
 
 // BatchUpdate pushes list of metrics data.
-func (s MetricsServer) BatchUpdate(ctx context.Context, req *grpcapi.BatchUpdateRequest) (*emptypb.Empty, error) {
+func (s MetricsServer) BatchUpdate(
+	ctx context.Context,
+	req *grpcapi.BatchUpdateRequest,
+) (*grpcapi.BatchUpdateResponse, error) {
 	records, err := toRecordsList(ctx, req, s.signer)
 	if err != nil {
 		if errors.Is(err, entity.ErrMetricNotImplemented) {
@@ -92,9 +94,15 @@ func (s MetricsServer) BatchUpdate(ctx context.Context, req *grpcapi.BatchUpdate
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if err := s.recorder.PushList(ctx, records); err != nil {
+	records, err = s.recorder.PushList(ctx, records)
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
-	return new(emptypb.Empty), nil
+	data, err := toMetricReqList(records, s.signer)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+
+	return &grpcapi.BatchUpdateResponse{Data: data}, nil
 }

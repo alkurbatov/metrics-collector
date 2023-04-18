@@ -143,8 +143,9 @@ func TestPushMetricsToBrokenStorage(t *testing.T) {
 
 func TestPushListTestPushList(t *testing.T) {
 	type expected struct {
-		data map[string]storage.Record
-		err  error
+		data     map[string]storage.Record
+		response []storage.Record
+		err      error
 	}
 
 	tt := []struct {
@@ -164,6 +165,10 @@ func TestPushListTestPushList(t *testing.T) {
 					"PollCount_counter": {Name: "PollCount", Value: metrics.Counter(11)},
 					"Alloc_gauge":       {Name: "Alloc", Value: metrics.Gauge(10.123)},
 				},
+				response: []storage.Record{
+					{Name: "Alloc", Value: metrics.Gauge(10.123)},
+					{Name: "PollCount", Value: metrics.Counter(11)},
+				},
 			},
 		},
 		{
@@ -179,13 +184,18 @@ func TestPushListTestPushList(t *testing.T) {
 					"PollCount_counter": {Name: "PollCount", Value: metrics.Counter(23)},
 					"Alloc_gauge":       {Name: "Alloc", Value: metrics.Gauge(14.321)},
 				},
+				response: []storage.Record{
+					{Name: "Alloc", Value: metrics.Gauge(14.321)},
+					{Name: "PollCount", Value: metrics.Counter(23)},
+				},
 			},
 		},
 		{
 			name:    "Should not fail on empty list",
 			records: make([]storage.Record, 0),
 			expected: expected{
-				data: make(map[string]storage.Record, 0),
+				data:     make(map[string]storage.Record, 0),
+				response: make([]storage.Record, 0),
 			},
 		},
 		{
@@ -212,9 +222,11 @@ func TestPushListTestPushList(t *testing.T) {
 				Return(tc.storageErr)
 
 			r := services.NewMetricsRecorder(m)
-			err := r.PushList(context.Background(), tc.records)
 
-			assert.ErrorIs(t, err, tc.expected.err)
+			rv, err := r.PushList(context.Background(), tc.records)
+
+			require.ErrorIs(t, err, tc.expected.err)
+			require.Equal(t, tc.expected.response, rv)
 		})
 	}
 }

@@ -22,10 +22,6 @@ func pushError(reason error) error {
 	return fmt.Errorf("failed to push record: %w", reason)
 }
 
-func pushListError(reason error) error {
-	return fmt.Errorf("failed to push records list: %w", reason)
-}
-
 // MetricsRecorder implements business logic for metrics writing and reading scenarios.
 type MetricsRecorder struct {
 	storage storage.Storage
@@ -75,7 +71,7 @@ func (r MetricsRecorder) Push(ctx context.Context, record storage.Record) (stora
 }
 
 // PushList records list of metrics data.
-func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record) error {
+func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record) ([]storage.Record, error) {
 	data := make(map[string]storage.Record)
 
 	for _, record := range records {
@@ -94,7 +90,7 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 
 		value, err := r.calculateNewValue(ctx, id, record)
 		if err != nil {
-			return pushListError(err)
+			return nil, fmt.Errorf("recorder - PushList - r.calculateNewValue: %w", err)
 		}
 
 		record.Value = value
@@ -102,10 +98,19 @@ func (r MetricsRecorder) PushList(ctx context.Context, records []storage.Record)
 	}
 
 	if err := r.storage.PushBatch(ctx, data); err != nil {
-		return pushListError(err)
+		return nil, fmt.Errorf("recorder - PushList - r.storage.PushBatch: %w", err)
 	}
 
-	return nil
+	rv := make([]storage.Record, 0, len(data))
+	for _, v := range data {
+		rv = append(rv, v)
+	}
+
+	sort.Slice(rv, func(i, j int) bool {
+		return rv[i].Name < rv[j].Name
+	})
+
+	return rv, nil
 }
 
 // Get returns stored metrics record.
