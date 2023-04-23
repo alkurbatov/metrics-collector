@@ -1,13 +1,11 @@
-package handlers
+package httpbackend
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"html/template"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -15,6 +13,7 @@ import (
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
+	"github.com/alkurbatov/metrics-collector/internal/validators"
 	"github.com/alkurbatov/metrics-collector/pkg/metrics"
 )
 
@@ -27,7 +26,7 @@ type metricsResource struct {
 func parseUpdateMetricReqList(r *http.Request, signer *security.Signer) ([]storage.Record, error) {
 	req := make([]metrics.MetricReq, 0)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err //nolint: wrapcheck
+		return nil, err
 	}
 
 	rv := make([]storage.Record, len(req))
@@ -159,13 +158,10 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := toMetricReq(recorded)
-
-	if h.signer != nil {
-		if err := h.signer.SignRequest(&resp); err != nil {
-			writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
-			return
-		}
+	resp, err := toMetricReq(recorded, h.signer)
+	if err != nil {
+		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -183,7 +179,7 @@ func (h metricsResource) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 // @ID metrics_json_update_list
 // @Accept  json
 // @Param request body []metrics.MetricReq true "List of metrics to update."
-// @Success 200
+// @Success 200 {object} []metrics.MetricReq
 // @Failure 400 {string} string http.StatusBadRequest
 // @Failure 500 {string} string http.StatusInternalServerError
 // @Failure 501 {string} string "Metric type is not supported"
@@ -202,7 +198,21 @@ func (h metricsResource) BatchUpdateJSON(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.recorder.PushList(r.Context(), req); err != nil {
+	records, err := h.recorder.PushList(r.Context(), req)
+	if err != nil {
+		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
+		return
+	}
+
+	resp, err := toMetricReqList(records, h.signer)
+	if err != nil {
+		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
 		return
 	}
@@ -227,12 +237,12 @@ func (h metricsResource) Get(w http.ResponseWriter, r *http.Request) {
 	kind := chi.URLParam(r, "kind")
 	name := chi.URLParam(r, "name")
 
-	if err := ValidateMetricName(name, kind); err != nil {
+	if err := validators.ValidateMetricName(name, kind); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := ValidateMetricKind(kind); err != nil {
+	if err := validators.ValidateMetricKind(kind); err != nil {
 		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
 		return
 	}
@@ -277,12 +287,12 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := ValidateMetricName(req.ID, req.MType); err != nil {
+	if err := validators.ValidateMetricName(req.ID, req.MType); err != nil {
 		writeErrorResponse(ctx, w, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := ValidateMetricKind(req.MType); err != nil {
+	if err := validators.ValidateMetricKind(req.MType); err != nil {
 		writeErrorResponse(ctx, w, http.StatusNotImplemented, err)
 		return
 	}
@@ -299,13 +309,10 @@ func (h metricsResource) GetJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := toMetricReq(record)
-
-	if h.signer != nil {
-		if err := h.signer.SignRequest(&resp); err != nil {
-			writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
-			return
-		}
+	resp, err := toMetricReq(record, h.signer)
+	if err != nil {
+		writeErrorResponse(ctx, w, http.StatusInternalServerError, err)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -358,8 +365,7 @@ func newLivenessProbe(healthcheck services.HealthCheck) livenessProbe {
 // @Failure 500 {string} string "Connection is broken"
 // @Failure 501 {string} string "Server is not configured to use database"
 func (h livenessProbe) Ping(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
+	ctx := r.Context()
 
 	err := h.healthcheck.CheckStorage(ctx)
 	if err == nil {

@@ -21,6 +21,8 @@ require (
 	github.com/timakin/bodyclose v0.0.0-20221125081123-e39cf3fc478e
 	golang.org/x/sync v0.1.0
 	golang.org/x/tools v0.7.0
+	google.golang.org/grpc v1.47.0
+	google.golang.org/protobuf v1.28.0
 	honnef.co/go/tools v0.4.2
 )
 
@@ -36,6 +38,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/spec v0.20.8 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -70,5 +73,6 @@ require (
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
+	google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

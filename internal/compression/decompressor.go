@@ -38,7 +38,7 @@ func DecompressRequest(next http.Handler) http.Handler {
 		reader := gzipReadersPool.Get().(*gzip.Reader)
 		if err := reader.Reset(r.Body); err != nil {
 			logger.Error().Err(err).Msg("DecompressRequest - reader.Reset")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 

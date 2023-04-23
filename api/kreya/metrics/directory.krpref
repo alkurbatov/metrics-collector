@@ -1,0 +1,24 @@
+{
+  "settings": [
+    {
+      "options": {
+        "rest": {
+          "pathParams": []
+        }
+      }
+    },
+    {
+      "environmentId": "5cf6f40c-e242-418f-a8f3-2cf627269ad0",
+      "options": {
+        "grpc": {
+          "endpoint": "http://localhost:50051",
+          "mode": "grpc",
+          "disableServerCertificateValidation": true
+        },
+        "rest": {
+          "pathParams": []
+        }
+      }
+    }
+  ]
+}

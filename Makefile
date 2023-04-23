@@ -3,8 +3,12 @@ E2E_TEST = test/devopstest
 API_DOCS = docs/api
 KEY_PATH = build/keys
 
-AGENT_VERSION ?= 0.22.0
-SERVER_VERSION ?= 0.22.0
+PROTO_SRC = api/proto
+PROTO_FILES = health metrics
+PROTO_DST = pkg/grpcapi
+
+AGENT_VERSION ?= 0.24.0
+SERVER_VERSION ?= 0.24.0
 
 BUILD_DATE ?= $(shell date +%F\ %H:%M:%S)
 BUILD_COMMIT ?= $(shell git rev-parse --short HEAD)
@@ -22,12 +26,26 @@ install-tools: $(E2E_TEST) ## Install additional linters and test tools
 $(E2E_TEST):
 	@echo Installing $@
 	curl -sSfL \
-		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.7.14/devopstest-darwin-amd64 \
+		https://github.com/Yandex-Practicum/go-autotests/releases/download/v0.9.6/devopstest-darwin-amd64 \
 		-o $@
 	@chmod +x $(E2E_TEST)
 
-build: $(COMPONENTS) ## Build whole project
+build: proto $(COMPONENTS) ## Build whole project
 .PHONY: build
+
+proto: $(PROTO_FILES) ## Generate gRPC protobuf bindings
+.PHONY: proto
+
+$(PROTO_FILES): %: $(PROTO_DST)/%
+
+$(PROTO_DST)/%:
+	protoc \
+		--proto_path=$(PROTO_SRC) \
+		--go_out=$(PROTO_DST) \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=$(PROTO_DST) \
+		--go-grpc_opt=paths=source_relative \
+		$(PROTO_SRC)/$(notdir $@).proto
 
 agent: ## Build agent
 	go build \
@@ -42,7 +60,7 @@ agent: ## Build agent
 
 server: ## Build metrics server
 	rm -rf $(API_DOCS)
-	swag init -g ./internal/handlers/router.go --output $(API_DOCS)
+	swag init -g ./internal/httpbackend/router.go --output $(API_DOCS)
 
 	go build \
 		-ldflags "\
@@ -55,7 +73,7 @@ server: ## Build metrics server
 .PHONY: server
 
 staticlint: ## Build static lint utility
-	go build $(CCFLAGS) -o cmd/$@/$@ cmd/$@/*.go
+	go build -o cmd/$@/$@ cmd/$@/*.go
 .PHONY: staticlint
 
 clean: ## Remove build artifacts and downloaded test tools
@@ -64,12 +82,12 @@ clean: ## Remove build artifacts and downloaded test tools
 
 lint: ## Run linters on the source code
 	golangci-lint run
-	./cmd/staticlint/staticlint ./cmd/... ./internal/... ./pkg/...
+	go list -buildvcs=false ./... | grep -F -v -e docs | xargs ./cmd/staticlint/staticlint
 .PHONY: lint
 
 unit-tests: ## Run unit tests
 	@go test -v -race ./... -coverprofile=coverage.out.tmp -covermode atomic
-	@cat coverage.out.tmp | grep -v "_mock.go" > coverage.out
+	@cat coverage.out.tmp | grep -v -E "(_mock|.pb).go" > coverage.out
 	@go tool cover -html=coverage.out -o coverage.html
 	@go tool cover -func=coverage.out
 .PHONY: unit-tests

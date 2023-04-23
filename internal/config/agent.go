@@ -17,6 +17,7 @@ type Agent struct {
 	PollInterval   time.Duration     `env:"POLL_INTERVAL" json:"poll_interval"`
 	ReportInterval time.Duration     `env:"REPORT_INTERVAL" json:"report_interval"`
 	Address        entity.NetAddress `env:"ADDRESS" json:"address"`
+	Transport      string            `env:"TRANSPORT" json:"transport"`
 	Secret         security.Secret   `env:"KEY" json:"key"`
 	PublicKeyPath  entity.FilePath   `env:"CRYPTO_KEY" json:"crypto_key"`
 	PollTimeout    time.Duration     `json:"-"`
@@ -27,6 +28,7 @@ type Agent struct {
 func NewAgent() *Agent {
 	return &Agent{
 		Address:        "0.0.0.0:8080",
+		Transport:      entity.TransportHTTP,
 		ReportInterval: 10 * time.Second,
 		PollInterval:   2 * time.Second,
 		Secret:         "",
@@ -44,6 +46,13 @@ func (c *Agent) Parse() error {
 		"address",
 		"a",
 		"address:port of metrics collector",
+	)
+
+	transport := flag.StringP(
+		"transport",
+		"t",
+		c.Transport,
+		"type of transport used to export metrics to the server (http or grpc)",
 	)
 
 	reportInterval := flag.DurationP(
@@ -93,7 +102,7 @@ func (c *Agent) Parse() error {
 	flag.Parse()
 
 	if len(configPath) != 0 {
-		if err := loadFromFile(configPath, c); err != nil {
+		if err := LoadFromFile(configPath, c); err != nil {
 			return err
 		}
 	}
@@ -102,6 +111,9 @@ func (c *Agent) Parse() error {
 		switch f.Name {
 		case "address":
 			c.Address = address
+
+		case "transport":
+			c.Transport = *transport
 
 		case "report-interval":
 			c.ReportInterval = *reportInterval
@@ -125,6 +137,8 @@ func (c *Agent) Parse() error {
 		log.Fatal().Err(err).Msg("")
 	}
 
+	c.Transport = strings.ToLower(c.Transport)
+
 	return nil
 }
 
@@ -135,6 +149,7 @@ func (c Agent) String() string {
 	sb.WriteString(fmt.Sprintf("\t\tPoll interval: %s\n", c.PollInterval))
 	sb.WriteString(fmt.Sprintf("\t\tReport interval: %s\n", c.ReportInterval))
 	sb.WriteString(fmt.Sprintf("\t\tCollector address: %s\n", c.Address))
+	sb.WriteString(fmt.Sprintf("\t\tTransport: %s\n", c.Transport))
 
 	if len(c.Secret) > 0 {
 		sb.WriteString(fmt.Sprintf("\t\tSecret key: %s\n", c.Secret))

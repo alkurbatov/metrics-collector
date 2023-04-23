@@ -1,7 +1,8 @@
 
 [TestServerConfigString/Test_default_config_to_string - 1]
 Configuration:
-        Listening address: 0.0.0.0:8080
+        HTTP API address: 0.0.0.0:8080
+        gRPC API address: 0.0.0.0:50051
         Store interval: 5m0s
         Store path: /tmp/devops-metrics-db.json
         Restore on start: true
@@ -11,14 +12,56 @@ Configuration:
 
 [TestServerConfigString/Test_full_config_to_string - 1]
 Configuration:
-        Listening address: 0.0.0.0:8080
+        HTTP API address: 0.0.0.0:8080
+        gRPC API address: 
         Store interval: 5m0s
         Store path: /tmp/devops-metrics-db.json
         Restore on start: true
         Secret key: ***
         Private key path: ./keys/key.pem
+        Trusted subnet: 192.169.0.0/32
         Database URL: postgres://*****:*****@127.0.0.1:5432/praktikum?sslmode=disable
         Pprof address: 0.0.0.0:3000
+        Debug: false
+
+---
+
+[TestServerConfigUnmarshalJSON/Load_full_configuration - 1]
+Configuration:
+        HTTP API address: 0.0.0.0:1234
+        gRPC API address: 0.0.0.0:50051
+        Store interval: 5s
+        Store path: /tmp/my-db.json
+        Restore on start: true
+        Secret key: ***
+        Private key path: ./keys/key.pem
+        Trusted subnet: 10.30.0.0/32
+        Database URL: postgres://*****:*****@127.0.0.1:5432/praktikum?sslmode=disable
+        Pprof address: 0.0.0.0:3000
+        Debug: true
+
+---
+
+[TestServerConfigUnmarshalJSON/Load_partial_configuration - 1]
+Configuration:
+        HTTP API address: 0.0.0.0:8080
+        gRPC API address: 0.0.0.0:50051
+        Store interval: 5m0s
+        Store path: /tmp/devops-metrics-db.json
+        Restore on start: true
+        Private key path: ./keys/key.pem
+        Debug: false
+
+---
+
+[TestServerConfigUnmarshalJSON/Load_partial_configuration_with_IPv6_subnet - 1]
+Configuration:
+        HTTP API address: 0.0.0.0:8080
+        gRPC API address: 0.0.0.0:50051
+        Store interval: 5m0s
+        Store path: /tmp/devops-metrics-db.json
+        Restore on start: true
+        Trusted subnet: ::1/128
         Debug: false
 
 ---

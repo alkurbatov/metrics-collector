@@ -18,9 +18,9 @@ func (m *RecorderMock) Push(ctx context.Context, record storage.Record) (storage
 	return args.Get(0).(storage.Record), args.Error(1)
 }
 
-func (m *RecorderMock) PushList(ctx context.Context, records []storage.Record) error {
+func (m *RecorderMock) PushList(ctx context.Context, records []storage.Record) ([]storage.Record, error) {
 	args := m.Called(ctx, records)
-	return args.Error(0)
+	return args.Get(0).([]storage.Record), args.Error(1)
 }
 
 func (m *RecorderMock) Get(ctx context.Context, kind, name string) (storage.Record, error) {

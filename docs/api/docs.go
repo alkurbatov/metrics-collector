@@ -203,7 +203,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/metrics.MetricReq"
+                            }
+                        }
                     },
                     "400": {
                         "description": "Bad Request",

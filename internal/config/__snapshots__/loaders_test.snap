@@ -1,0 +1,25 @@
+
+[TestLoadConfigFromFile/Load_agent_config - 1]
+Configuration:
+        Poll interval: 1s
+        Report interval: 1s
+        Collector address: localhost:8080
+        Transport: http
+        Public key path: ./build/keys/public.pem
+        PollTimeout: 0.000000s
+        ExportTimeout: 0.000000s
+        Debug: true
+---
+
+[TestLoadConfigFromFile/Load_server_config - 1]
+Configuration:
+        HTTP API address: localhost:8080
+        gRPC API address: localhost:8080
+        Store interval: 1s
+        Store path: /path/to/file.db
+        Restore on start: true
+        Private key path: ./build/keys/private.pem
+        Trusted subnet: 192.168.0.0/16
+        Debug: true
+
+---

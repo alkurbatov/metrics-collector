@@ -1,5 +1,5 @@
-// Package handlers implements REST API for metrics collector server.
-package handlers
+// Package httpbackend implements REST API for metrics collector server.
+package httpbackend
 
 // @Title Metrics collector API
 // @Description Service for storing metrics data.
@@ -16,6 +16,7 @@ package handlers
 
 import (
 	"html/template"
+	"net"
 	"net/http"
 
 	// Import pregenerated OpenAPI (Swagger) documentation.
@@ -37,6 +38,7 @@ func Router(
 	healthcheck services.HealthCheck,
 	signer *security.Signer,
 	privateKey security.PrivateKey,
+	trustedSubnet *net.IPNet,
 ) http.Handler {
 	metrics := newMetricsResource(view, recorder, signer)
 	probe := newLivenessProbe(healthcheck)
@@ -58,9 +60,15 @@ func Router(
 	r.Post("/value", metrics.GetJSON)
 	r.Get("/value/{kind}/{name}", metrics.Get)
 
-	r.Post("/update", metrics.UpdateJSON)
-	r.Post("/updates", metrics.BatchUpdateJSON)
-	r.Post("/update/{kind}/{name}/{value}", metrics.Update)
+	r.Group(func(r chi.Router) {
+		if trustedSubnet != nil {
+			r.Use(security.FilterRequest(trustedSubnet))
+		}
+
+		r.Post("/update", metrics.UpdateJSON)
+		r.Post("/updates", metrics.BatchUpdateJSON)
+		r.Post("/update/{kind}/{name}/{value}", metrics.Update)
+	})
 
 	r.Get("/ping", probe.Ping)
 

@@ -26,7 +26,7 @@ type Server struct {
 	notify chan error
 }
 
-// New creates, initializes and starts new instance of HTTP server.
+// New creates and initializes new instance of HTTP server.
 func New(handler http.Handler, address entity.NetAddress) *Server {
 	httpServer := &http.Server{
 		Handler:           handler,
@@ -42,12 +42,11 @@ func New(handler http.Handler, address entity.NetAddress) *Server {
 		notify: make(chan error, 1),
 	}
 
-	s.start()
-
 	return s
 }
 
-func (s *Server) start() {
+// Start launches the HTTP server.
+func (s *Server) Start() {
 	go func() {
 		s.notify <- s.server.ListenAndServe()
 		close(s.notify)
@@ -66,5 +65,5 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		return nil
 	}
 
-	return s.server.Shutdown(ctx) //nolint: wrapcheck
+	return s.server.Shutdown(ctx)
 }

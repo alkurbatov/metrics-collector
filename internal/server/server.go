@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/alkurbatov/metrics-collector/internal/config"
-	"github.com/alkurbatov/metrics-collector/internal/handlers"
+	"github.com/alkurbatov/metrics-collector/internal/grpcbackend"
+	"github.com/alkurbatov/metrics-collector/internal/grpcserver"
+	"github.com/alkurbatov/metrics-collector/internal/httpbackend"
 	"github.com/alkurbatov/metrics-collector/internal/httpserver"
 	"github.com/alkurbatov/metrics-collector/internal/prof"
 	"github.com/alkurbatov/metrics-collector/internal/recovery"
@@ -31,8 +33,11 @@ type Server struct {
 	// Storage backend (in memory, file, database).
 	storage storage.Storage
 
-	// Instance of HTTP server serving main API.
-	server *httpserver.Server
+	// Instance of HTTP server providing HTTP API.
+	httpServer *httpserver.Server
+
+	// Instance of gRPC server providing gRPC API.
+	grpcServer *grpcserver.Server
 
 	// Instance of HTTP server serving pprof endpoints.
 	// Works on different port.
@@ -78,16 +83,19 @@ func New(cfg *config.Server) (*Server, error) {
 		return nil, fmt.Errorf("Server - New - template.ParseFiles: %w", err)
 	}
 
-	router := handlers.Router(cfg.Address, view, recorder, healthcheck, signer, key)
-	srv := httpserver.New(router, cfg.Address)
+	router := httpbackend.Router(cfg.Address, view, recorder, healthcheck, signer, key, cfg.TrustedSubnet)
+	httpSrv := httpserver.New(router, cfg.Address)
+
+	grpcSrv := grpcbackend.New(cfg.GRPCAddress, recorder, healthcheck, signer, cfg.TrustedSubnet)
 
 	profiler := prof.New(cfg.PprofAddress)
 
 	return &Server{
-		config:   cfg,
-		storage:  dataStore,
-		server:   srv,
-		profiler: profiler,
+		config:     cfg,
+		storage:    dataStore,
+		httpServer: httpSrv,
+		grpcServer: grpcSrv,
+		profiler:   profiler,
 	}, nil
 }
 
@@ -152,11 +160,16 @@ func (app *Server) Run() {
 		}
 	}
 
+	app.httpServer.Start()
+	app.grpcServer.Start()
+
 	select {
 	case s := <-interrupt:
 		log.Info().Msg("app - Run - interrupt: signal " + s.String())
-	case err := <-app.server.Notify():
-		log.Error().Err(err).Msg("app - Run - app.server.Notify")
+	case err := <-app.httpServer.Notify():
+		log.Error().Err(err).Msg("app - Run - app.httpServer.Notify")
+	case err := <-app.grpcServer.Notify():
+		log.Error().Err(err).Msg("app - Run - app.grpcServer.Notify")
 	case err := <-app.profiler.Notify():
 		log.Error().Err(err).Msg("app - Run - app.profiler.Notify")
 	}
@@ -170,7 +183,10 @@ func (app *Server) Run() {
 
 	cancelBackgroundTasks()
 
-	go app.shutdown(stopCtx, stopped)
+	go func() {
+		app.shutdown(stopCtx)
+		close(stopped)
+	}()
 
 	select {
 	case <-stopped:
@@ -181,23 +197,23 @@ func (app *Server) Run() {
 	}
 }
 
-func (app *Server) shutdown(
-	ctx context.Context,
-	notify chan<- struct{},
-) {
-	if err := app.server.Shutdown(ctx); err != nil {
+func (app *Server) shutdown(ctx context.Context) {
+	log.Info().Msg("Shutting down HTTP API...")
+
+	if err := app.httpServer.Shutdown(ctx); err != nil {
 		log.Error().Err(err).Msg("")
 	}
+
+	log.Info().Msg("Shutting down gRPC API...")
+	app.grpcServer.Shutdown()
+
+	log.Info().Msg("Shutting down storage backend...")
 
 	if err := app.storage.Close(ctx); err != nil {
 		log.Error().Err(err).Msg("")
 	}
 
-	if app.profiler != nil {
-		if err := app.profiler.Shutdown(ctx); err != nil {
-			log.Error().Err(err).Msg("")
-		}
+	if err := app.profiler.Shutdown(ctx); err != nil {
+		log.Error().Err(err).Msg("")
 	}
-
-	close(notify)
 }

@@ -1,4 +1,4 @@
-package handlers_test
+package httpbackend_test
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/alkurbatov/metrics-collector/internal/entity"
-	"github.com/alkurbatov/metrics-collector/internal/handlers"
+	"github.com/alkurbatov/metrics-collector/internal/httpbackend"
 	"github.com/alkurbatov/metrics-collector/internal/security"
 	"github.com/alkurbatov/metrics-collector/internal/services"
 	"github.com/alkurbatov/metrics-collector/internal/storage"
@@ -36,7 +36,7 @@ func newRouter(
 	view, err := template.ParseFiles("../../web/views/metrics.html")
 	require.NoError(t, err)
 
-	return handlers.Router("0.0.0.0:8080", view, recorder, healthcheck, signer, nil)
+	return httpbackend.Router("0.0.0.0:8080", view, recorder, healthcheck, signer, nil, nil)
 }
 
 func sendTestRequest(t *testing.T, router http.Handler, method, path string, payload []byte) (int, string, []byte) {
@@ -215,19 +215,21 @@ func TestUpdateJSONMetric(t *testing.T) {
 			},
 		},
 		{
-			name:      "Should fail if counter signature doesn't match",
-			req:       metrics.NewUpdateCounterReq("PollCount", 10),
-			clientKey: "abc",
-			serverKey: "xxx",
+			name:       "Should fail if counter signature doesn't match",
+			req:        metrics.NewUpdateCounterReq("PollCount", 10),
+			clientKey:  "abc",
+			serverKey:  "xxx",
+			recorderRV: storage.Record{Name: "PollCount", Value: metrics.Counter(10)},
 			expected: result{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name:      "Should fail if gauge signature doesn't match",
-			req:       metrics.NewUpdateGaugeReq("Alloc", 13.123),
-			clientKey: "abc",
-			serverKey: "xxx",
+			name:       "Should fail if gauge signature doesn't match",
+			req:        metrics.NewUpdateGaugeReq("Alloc", 13.123),
+			clientKey:  "abc",
+			serverKey:  "xxx",
+			recorderRV: storage.Record{Name: "Alloc", Value: metrics.Gauge(13.123)},
 			expected: result{
 				code: http.StatusBadRequest,
 			},
@@ -278,8 +280,9 @@ func TestUpdateJSONMetric(t *testing.T) {
 
 			if len(tc.clientKey) > 0 {
 				signer := security.NewSigner(tc.clientKey)
-				err := signer.SignRequest(&tc.req)
+				hash, err := signer.CalculateRecordSignature(tc.recorderRV)
 				require.NoError(err)
+				tc.req.Hash = hash
 			}
 
 			payload, err := json.Marshal(tc.req)
@@ -312,25 +315,33 @@ func TestBatchUpdate(t *testing.T) {
 		metrics.NewUpdateGaugeReq("Alloc", 11.23),
 	}
 
+	batchResp := []storage.Record{
+		{Name: "PollCount", Value: metrics.Counter(10)},
+		{Name: "Alloc", Value: metrics.Gauge(11.23)},
+	}
+
 	tt := []struct {
 		name        string
 		req         []metrics.MetricReq
 		clientKey   security.Secret
 		serverKey   security.Secret
+		recorderRv  []storage.Record
 		recorderErr error
 		expected    result
 	}{
 		{
-			name:      "Should handle signed list of different metrics",
-			req:       batchReq,
-			clientKey: "abc",
-			serverKey: "abc",
-			expected:  result{code: http.StatusOK},
+			name:       "Should handle signed list of different metrics",
+			req:        batchReq,
+			clientKey:  "abc",
+			serverKey:  "abc",
+			recorderRv: batchResp,
+			expected:   result{code: http.StatusOK},
 		},
 		{
-			name:     "Should handle unsigned list of different metrics",
-			req:      batchReq,
-			expected: result{code: http.StatusOK},
+			name:       "Should handle unsigned list of different metrics",
+			req:        batchReq,
+			recorderRv: batchResp,
+			expected:   result{code: http.StatusOK},
 		},
 		{
 			name:     "Should fail on empty list",
@@ -362,6 +373,7 @@ func TestBatchUpdate(t *testing.T) {
 		{
 			name:        "Should fail if recorder is broken",
 			req:         batchReq,
+			recorderRv:  nil,
 			recorderErr: entity.ErrUnexpected,
 			expected:    result{code: http.StatusInternalServerError},
 		},
@@ -372,17 +384,20 @@ func TestBatchUpdate(t *testing.T) {
 			require := require.New(t)
 
 			m := new(services.RecorderMock)
-			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderErr)
+			m.On("PushList", mock.Anything, mock.Anything).Return(tc.recorderRv, tc.recorderErr)
 
 			router := newRouter(t, tc.serverKey, m, nil)
 
 			if len(tc.clientKey) > 0 {
 				signer := security.NewSigner(tc.clientKey)
 
-				for i := range tc.req {
-					err := signer.SignRequest(&tc.req[i])
-					require.NoError(err)
-				}
+				hash, err := signer.CalculateSignature(tc.req[0].ID, *tc.req[0].Delta)
+				require.NoError(err)
+				tc.req[0].Hash = hash
+
+				hash, err = signer.CalculateSignature(tc.req[1].ID, *tc.req[1].Value)
+				require.NoError(err)
+				tc.req[1].Hash = hash
 			}
 
 			payload, err := json.Marshal(tc.req)

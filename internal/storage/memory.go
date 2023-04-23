@@ -23,7 +23,7 @@ func NewMemStorage() *MemStorage {
 }
 
 // Push records metric data.
-func (m *MemStorage) Push(ctx context.Context, key string, record Record) error {
+func (m *MemStorage) Push(_ context.Context, key string, record Record) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -33,7 +33,7 @@ func (m *MemStorage) Push(ctx context.Context, key string, record Record) error 
 }
 
 // PushBatch records list of metrics data.
-func (m *MemStorage) PushBatch(ctx context.Context, data map[string]Record) error {
+func (m *MemStorage) PushBatch(_ context.Context, data map[string]Record) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -45,7 +45,7 @@ func (m *MemStorage) PushBatch(ctx context.Context, data map[string]Record) erro
 }
 
 // Get returns stored metrics record.
-func (m *MemStorage) Get(ctx context.Context, key string) (Record, error) {
+func (m *MemStorage) Get(_ context.Context, key string) (Record, error) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -58,7 +58,7 @@ func (m *MemStorage) Get(ctx context.Context, key string) (Record, error) {
 }
 
 // GetAll returns all stored metrics.
-func (m *MemStorage) GetAll(ctx context.Context) ([]Record, error) {
+func (m *MemStorage) GetAll(_ context.Context) ([]Record, error) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -74,7 +74,7 @@ func (m *MemStorage) GetAll(ctx context.Context) ([]Record, error) {
 }
 
 // Close has no effect on in-memory storage.
-func (m *MemStorage) Close(ctx context.Context) error {
+func (m *MemStorage) Close(_ context.Context) error {
 	return nil // noop
 }
 

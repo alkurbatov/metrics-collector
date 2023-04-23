@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "id": "PollCount",
+      "mtype": "counter",
+      "delta": 452
+    },
+    {
+      "id": "Alloc",
+      "mtype": "gauge",
+      "value": 568.2049356225625
+    }
+  ]
+}
